@@ -4,7 +4,7 @@
 
 `materials-characterization-analyzer` is a small CLI-based Python project for organizing XRD, SEM, and EDS characterization inputs into result tables, plots, and a Markdown report.
 
-The current implementation is `v0.1`. It is intended as a reproducible analysis-support workflow for portfolio and learning purposes. It is not an automatic material identification system, and it does not confirm crystal phases.
+The current implementation includes the original XRD/SEM/EDS analysis modules, CLI, report workflow, demo data, and tests, plus v0.2-style import/validation support for selected XRD and EDS input formats. It is intended as a reproducible analysis-support workflow for portfolio and learning purposes. It is not an automatic material identification system, and it does not confirm crystal phases.
 
 ## Project Overview
 
@@ -14,6 +14,7 @@ The project provides three analysis modules and one report-generation workflow:
 - SEM: reads an image, applies threshold-based region detection, measures simple region statistics, and saves overlay/histogram outputs.
 - EDS: reads elemental composition data, sorts composition values, and saves a table/chart.
 - Report: combines saved XRD, SEM, and EDS result tables into one cautious Markdown summary.
+- Optional feature extraction: combines XRD peak metrics, SEM threshold-based region metrics, and EDS composition summaries into one sample-level CSV table for future comparison or modeling workflows.
 
 The repository includes small synthetic/demo inputs under `data/demo/` so the workflow can be run without external files.
 
@@ -27,7 +28,14 @@ The project favors clear file handling, cautious wording, and testable helper fu
 
 ### XRD
 
-The XRD module expects a CSV file with `two_theta` and `intensity` columns. It can:
+The XRD module expects two-column diffraction data. It supports selected `.csv`, `.txt`, and `.xy` files with header or headerless two-column formats. Standardized columns are:
+
+- `two_theta`
+- `intensity`
+
+Supported header aliases include `2theta`, `2 theta`, and `two theta` for `two_theta`, and `counts` for `intensity`. This is a small import layer for simple 2-column patterns, not full vendor-specific raw-format support.
+
+The XRD module can:
 
 - clean and sort numeric pattern data,
 - apply Savitzky-Golay smoothing when enough points are available,
@@ -53,7 +61,15 @@ The SEM workflow is intentionally simple. Threshold-based measurements depend on
 
 ### EDS
 
-The EDS module expects a CSV file with `element`, `weight_percent`, and `atomic_percent` columns. It can:
+The EDS module expects a composition table CSV. Standardized columns are:
+
+- `element`
+- `weight_percent`
+- `atomic_percent`
+
+Supported aliases include `Element` and `ELEMENT` for `element`; `wt_percent`, `Wt%`, `Weight %`, and `Weight Percent` for `weight_percent`; and `at_percent`, `At%`, `Atomic %`, and `Atomic Percent` for `atomic_percent`.
+
+The EDS module can:
 
 - clean elemental composition rows,
 - sort elements by weight percent,
@@ -67,17 +83,22 @@ EDS is used here for elemental composition review only. EDS alone does not deter
 
 ```text
 materials-characterization-analyzer/
+|-- .github/
+|   `-- workflows/
+|       `-- ci.yml
 |-- README.md
 |-- pyproject.toml
 |-- requirements.txt
 |-- data/
 |   `-- demo/
+|       |-- README.md
 |       |-- synthetic_xrd.csv
 |       |-- synthetic_sem.png
 |       `-- synthetic_eds.csv
 |-- docs/
 |   |-- analysis_limitations.md
 |   `-- images/
+|       |-- README.md
 |       |-- xrd_result.png
 |       |-- sem_overlay.png
 |       `-- eds_composition_chart.png
@@ -86,6 +107,8 @@ materials-characterization-analyzer/
 |-- src/
 |   `-- mca/
 |       |-- cli.py
+|       |-- __init__.py
+|       |-- importers.py
 |       |-- xrd.py
 |       |-- sem.py
 |       |-- eds.py
@@ -95,6 +118,7 @@ materials-characterization-analyzer/
     |-- test_xrd.py
     |-- test_sem.py
     |-- test_eds.py
+    |-- test_importers.py
     `-- conftest.py
 ```
 
@@ -104,7 +128,7 @@ materials-characterization-analyzer/
 
 Python `3.10` or newer is required.
 
-Create and activate a virtual environment, then install the project in editable mode:
+`pyproject.toml` is the primary project/dependency definition. Create and activate a virtual environment, then install the project in editable mode with test dependencies:
 
 ```bash
 python -m venv .venv
@@ -120,7 +144,7 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
-For runtime-only dependency installation:
+As an alternative simple local setup, `requirements.txt` lists the same runtime dependencies plus `pytest` for test execution:
 
 ```bash
 pip install -r requirements.txt
@@ -159,6 +183,21 @@ python -m mca.cli eds --input data/demo/synthetic_eds.csv --output outputs
 python -m mca.cli report --xrd outputs/xrd_peak_table.csv --sem outputs/sem_measurements.csv --eds outputs/eds_composition_table.csv --output outputs
 ```
 
+Optional feature extraction can be enabled during `analyze-all`:
+
+```bash
+python -m mca.cli analyze-all \
+  --xrd data/demo/synthetic_xrd.csv \
+  --sem data/demo/synthetic_sem.png \
+  --eds data/demo/synthetic_eds.csv \
+  --microns-per-pixel 0.05 \
+  --output outputs \
+  --extract-features \
+  --sample-id demo_synthetic_sample
+```
+
+This writes `outputs/sample_features.csv`. The feature table is intended as structured input for future comparison or modeling workflows; this project does not train property prediction models or deep learning models.
+
 ## Demo Data Notice
 
 All files in `data/demo/` are synthetic/demo files created only to exercise the workflow:
@@ -169,9 +208,11 @@ All files in `data/demo/` are synthetic/demo files created only to exercise the 
 
 These files are not real experimental measurements, not instrument exports, and not evidence for any actual material. Example figures generated from these files should be described as synthetic/demo output only.
 
+See [`data/demo/README.md`](data/demo/README.md) before adding or replacing demo inputs.
+
 ## Example Outputs
 
-The images below were generated from the synthetic/demo inputs by the Quick Start command and copied from `outputs/` into `docs/images/` for README display.
+The images below were generated from the synthetic/demo inputs by the Quick Start command and copied from `outputs/` into `docs/images/` for README display. See [`docs/images/README.md`](docs/images/README.md) for the image-source commands.
 
 ### XRD result image
 
@@ -195,6 +236,7 @@ The full workflow writes these run artifacts to `outputs/`:
 - `eds_composition_table.csv`
 - `eds_composition_bar_chart.png`
 - `material_characterization_report.md`
+- `sample_features.csv` when `--extract-features` is used
 
 ## Limitations
 
@@ -204,6 +246,7 @@ The full workflow writes these run artifacts to `outputs/`:
 - SEM segmentation uses simple thresholding, so results depend strongly on image quality, contrast, threshold conditions, scale calibration, and preprocessing choices.
 - EDS summarizes elemental composition only. EDS alone does not determine crystal structure or confirm crystalline phases.
 - The demo workflow does not include uncertainty propagation, calibration metadata, or reference-database interpretation workflows.
+- The optional feature table is a structured summary for future comparison or modeling workflows. This project does not train property prediction models, classification models, or deep learning models.
 
 See [docs/analysis_limitations.md](docs/analysis_limitations.md) for a more detailed discussion.
 
@@ -215,11 +258,7 @@ Run the test suite from the project root:
 pytest -q
 ```
 
-If the local Windows temp directory has permission issues, direct pytest temporary files into the ignored `outputs/` folder:
-
-```bash
-pytest -q --basetemp outputs/pytest-tmp
-```
+Pytest is configured to place temporary files under the ignored `outputs/pytest-tmp` folder. This avoids local Windows temp-directory permission issues while keeping test artifacts out of Git.
 
 ## Related Project
 
