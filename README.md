@@ -1,5 +1,7 @@
 # Materials Characterization Analyzer
 
+[![CI](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml)
+
 `materials-characterization-analyzer` is a small CLI-based Python project for organizing XRD, SEM, and EDS characterization inputs into result tables, plots, and a Markdown report.
 
 The current implementation is `v0.1`. It is intended as a reproducible analysis-support workflow for portfolio and learning purposes. It is not an automatic material identification system, and it does not confirm crystal phases.
@@ -228,4 +230,5 @@ pytest -q --basetemp outputs/pytest-tmp
 - Explore reference-database-assisted candidate phase matching as a future workflow, with clear separation between candidate suggestions and confirmed phase identification.
 - Explore ML or AI segmentation only as a future optional extension after the threshold-based baseline remains transparent and testable.
 - Export reports to PDF or DOCX after the Markdown workflow is stable.
+
 
