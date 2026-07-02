@@ -21,24 +21,15 @@ import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks, peak_widths, savgol_filter
 
-from .utils import ensure_output_dir, validate_columns
+from .importers import load_xrd_file
+from .utils import ensure_output_dir
 
 REQUIRED_XRD_COLUMNS = ("two_theta", "intensity")
 
 
 def read_xrd_csv(path: str | Path) -> pd.DataFrame:
-    """Read an XRD CSV file with two_theta and intensity columns."""
-    df = pd.read_csv(path)
-    validate_columns(df, REQUIRED_XRD_COLUMNS, "XRD CSV")
-
-    xrd = df.loc[:, REQUIRED_XRD_COLUMNS].copy()
-    xrd["two_theta"] = pd.to_numeric(xrd["two_theta"], errors="coerce")
-    xrd["intensity"] = pd.to_numeric(xrd["intensity"], errors="coerce")
-    xrd = xrd.dropna().sort_values("two_theta").reset_index(drop=True)
-
-    if xrd.empty:
-        raise ValueError("XRD CSV did not contain any valid numeric rows.")
-    return xrd
+    """Backward-compatible wrapper for loading supported XRD 2-column files."""
+    return load_xrd_file(path)
 
 
 def _valid_savgol_window(length: int, requested_window: int, polyorder: int) -> int | None:

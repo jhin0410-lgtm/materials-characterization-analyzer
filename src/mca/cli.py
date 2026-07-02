@@ -17,8 +17,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    xrd_parser = subparsers.add_parser("xrd", help="Analyze an XRD CSV file.")
-    xrd_parser.add_argument("--input", required=True, help="Input XRD CSV with two_theta and intensity columns.")
+    xrd_parser = subparsers.add_parser("xrd", help="Analyze an XRD 2-column file.")
+    xrd_parser.add_argument("--input", required=True, help="Input XRD file (.csv, .txt, .xy) with 2theta/intensity columns.")
     xrd_parser.add_argument("--output", required=True, help="Output directory.")
     xrd_parser.add_argument("--smoothing-window", type=int, default=11, help="Savitzky-Golay smoothing window.")
     xrd_parser.add_argument("--smoothing-polyorder", type=int, default=3, help="Savitzky-Golay polynomial order.")
@@ -43,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     sem_parser.set_defaults(func=_run_sem)
 
     eds_parser = subparsers.add_parser("eds", help="Analyze an EDS composition CSV file.")
-    eds_parser.add_argument("--input", required=True, help="Input EDS CSV with element, weight_percent, atomic_percent columns.")
+    eds_parser.add_argument("--input", required=True, help="Input EDS CSV with element, weight percent, and atomic percent columns.")
     eds_parser.add_argument("--output", required=True, help="Output directory.")
     eds_parser.set_defaults(func=_run_eds)
 
@@ -56,9 +56,9 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser.set_defaults(func=_run_report)
 
     all_parser = subparsers.add_parser("analyze-all", help="Run XRD, SEM, EDS, and report generation.")
-    all_parser.add_argument("--xrd", required=True, help="Input XRD CSV.")
+    all_parser.add_argument("--xrd", required=True, help="Input XRD file (.csv, .txt, .xy).")
     all_parser.add_argument("--sem", required=True, help="Input SEM image.")
-    all_parser.add_argument("--eds", required=True, help="Input EDS CSV.")
+    all_parser.add_argument("--eds", required=True, help="Input EDS composition CSV.")
     all_parser.add_argument("--microns-per-pixel", type=float, required=True, help="Manual SEM image scale.")
     all_parser.add_argument("--output", required=True, help="Output directory.")
     all_parser.add_argument("--sample-name", default="Demo or user-provided sample", help="Sample name for the report.")

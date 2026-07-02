@@ -16,26 +16,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .utils import ensure_output_dir, validate_columns
+from .importers import load_eds_composition_table
+from .utils import ensure_output_dir
 
 REQUIRED_EDS_COLUMNS = ("element", "weight_percent", "atomic_percent")
 
 
 def read_eds_csv(path: str | Path) -> pd.DataFrame:
-    """Read an EDS point or area analysis CSV."""
-    df = pd.read_csv(path)
-    validate_columns(df, REQUIRED_EDS_COLUMNS, "EDS CSV")
-
-    eds = df.loc[:, REQUIRED_EDS_COLUMNS].copy()
-    eds["element"] = eds["element"].astype(str).str.strip()
-    eds["weight_percent"] = pd.to_numeric(eds["weight_percent"], errors="coerce")
-    eds["atomic_percent"] = pd.to_numeric(eds["atomic_percent"], errors="coerce")
-    eds = eds.dropna(subset=["element", "weight_percent", "atomic_percent"])
-    eds = eds[eds["element"] != ""].reset_index(drop=True)
-
-    if eds.empty:
-        raise ValueError("EDS CSV did not contain any valid composition rows.")
-    return eds
+    """Backward-compatible wrapper for loading supported EDS composition tables."""
+    return load_eds_composition_table(path)
 
 
 def prepare_composition_table(eds: pd.DataFrame) -> pd.DataFrame:
