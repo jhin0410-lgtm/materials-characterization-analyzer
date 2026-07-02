@@ -221,6 +221,12 @@ If the local Windows temp directory has permission issues, direct pytest tempora
 pytest -q --basetemp outputs/pytest-tmp
 ```
 
+## Related Project
+
+[`materials-data-analyzer`](https://github.com/jhin0410-lgtm/materials-data-analyzer) is a separate project for materials engineering experiment, process, quality, and reliability datasets stored as CSV files.
+
+This project focuses on XRD, SEM, and EDS characterization data. `materials-data-analyzer` focuses on organizing and analyzing tabular engineering datasets rather than instrument-specific spectra, images, or elemental composition workflows.
+
 ## Future Work
 
 - Add manual threshold controls and preprocessing options for SEM workflows.
