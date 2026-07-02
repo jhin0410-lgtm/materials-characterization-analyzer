@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from .eds import analyze_eds
+from .features import build_sample_features_table, default_sample_id_from_inputs, save_sample_features
 from .report import generate_report
 from .sem import analyze_sem
 from .xrd import analyze_xrd
@@ -65,6 +66,12 @@ def build_parser() -> argparse.ArgumentParser:
     all_parser.add_argument("--invert-sem", action="store_true", help="Detect dark SEM regions instead of bright regions.")
     all_parser.add_argument("--xrd-wavelength", type=float, default=None, help="Optional X-ray wavelength for Scherrer estimates.")
     all_parser.add_argument("--shape-factor", type=float, default=0.9, help="Scherrer shape factor.")
+    all_parser.add_argument(
+        "--extract-features",
+        action="store_true",
+        help="Save optional sample-level XRD/SEM/EDS feature table for future comparison or modeling workflows.",
+    )
+    all_parser.add_argument("--sample-id", default=None, help="Sample ID to store in sample_features.csv when features are extracted.")
     all_parser.set_defaults(func=_run_analyze_all)
 
     return parser
@@ -140,6 +147,18 @@ def _run_analyze_all(args: argparse.Namespace) -> int:
     print(f"Saved SEM overlay: {sem_result['overlay_path']}")
     print(f"Saved EDS chart: {eds_result['chart_path']}")
     print(f"Saved report: {report_path}")
+
+    if args.extract_features:
+        sample_id = args.sample_id or default_sample_id_from_inputs(args.xrd, args.sem, args.eds)
+        feature_table = build_sample_features_table(
+            sample_id=sample_id,
+            xrd_peak_table=xrd_result["peak_table"],
+            sem_measurements=sem_result["measurements"],
+            eds_composition_table=eds_result["composition_table"],
+        )
+        feature_path = save_sample_features(feature_table, args.output)
+        print(f"Saved sample features: {feature_path}")
+
     return 0
 
 
