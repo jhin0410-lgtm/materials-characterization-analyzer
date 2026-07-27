@@ -8,6 +8,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes are currently recorded.
 
+## [0.8.5] - 2026-07-27
+
+### Added
+
+- A checksum-bound schema `1.0` handoff exporter for the public RWGS XRD/SEM/EDS diagnostic case.
+- An isolated `handoff_bundle/` output that preserves the existing case-level feature artifact while packaging XRD and EDS features, sample context, and copied evidence references for `materials-data-analyzer`.
+- Regression coverage for explicit `sample_id` identity, source/preprocessing provenance, SEM method-mismatch preservation, unresolved Ni context, scientific claim boundaries, and overwrite refusal.
+- Public workflow execution of the RWGS producer case and handoff export.
+
+### Scientific status
+
+- The exported bundle remains `Diagnostic` and contains no SEM numeric feature rows because quantitative segmentation is blocked.
+- The bundle does not establish identical physical aliquots, nominal composition, phase identity, particle size, process-response relationships, catalyst mechanism, or engineering-release readiness.
+
 ## [0.8.4] - 2026-07-27
 
 ### Added
@@ -74,4 +88,4 @@ No unreleased changes are currently recorded.
 
 ## Earlier development
 
-Earlier iterations established the XRD/SEM/EDS baseline, the provenance-aware result contract, and standalone Raman, TEM, SAED, XPS, and FTIR workflows. Git history remains the authoritative detailed record for those changes.
+Earlier iterations established the XRD/SEM/EDS baseline, the provenance-aware result contract, and standalone Raman, TEM, SAED, XPS, FTIR, and thermal workflows. Git history remains the authoritative detailed record for those changes.
