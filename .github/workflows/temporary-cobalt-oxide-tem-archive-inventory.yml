@@ -12,7 +12,7 @@ permissions:
 jobs:
   inventory:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -23,8 +23,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install inventory-only dependency
-        run: python -m pip install --disable-pip-version-check pillow
+      - name: Install inventory-only dependencies
+        run: python -m pip install --disable-pip-version-check h5py numpy
 
       - name: Download exact public archive and verify published MD5
         run: |
@@ -35,34 +35,62 @@ jobs:
           echo "63edc9b44264f8a1397bff806d58eade  /tmp/Segmented_images.zip" | md5sum --check
           sha256sum /tmp/Segmented_images.zip > cobalt-oxide-tem-archive.sha256
 
-      - name: Build safe archive and image inventory
+      - name: Build safe ZIP and HDF5 inventory
         run: |
           set -euo pipefail
           python - <<'PY'
           from __future__ import annotations
 
-          import csv
           import hashlib
-          import io
           import json
+          import shutil
           import stat
           import zipfile
           from collections import Counter
           from pathlib import Path, PurePosixPath
+          from typing import Any
 
-          from PIL import Image
+          import h5py
+          import numpy as np
 
           archive_path = Path("/tmp/Segmented_images.zip")
-          entries = []
+          entries: list[dict[str, Any]] = []
+          hdf5_files: list[dict[str, Any]] = []
           suffix_counts: Counter[str] = Counter()
-          image_rows = []
           seen_exact: set[str] = set()
           seen_casefold: set[str] = set()
           duplicate_exact: list[str] = []
           duplicate_casefold: list[str] = []
 
+          def json_value(value: Any) -> Any:
+              if isinstance(value, bytes):
+                  return value.decode("utf-8", errors="replace")
+              if isinstance(value, np.generic):
+                  return value.item()
+              if isinstance(value, np.ndarray):
+                  return [json_value(item) for item in value.tolist()]
+              if isinstance(value, (list, tuple)):
+                  return [json_value(item) for item in value]
+              if isinstance(value, (str, int, float, bool)) or value is None:
+                  return value
+              return repr(value)
+
+          def attrs(mapping: h5py.AttributeManager) -> dict[str, Any]:
+              return {str(key): json_value(mapping[key]) for key in sorted(mapping.keys())}
+
+          def corner_sample(dataset: h5py.Dataset, from_end: bool) -> np.ndarray:
+              if dataset.ndim == 0:
+                  return np.asarray(dataset[()])
+              selection = []
+              for size in dataset.shape:
+                  width = min(int(size), 16)
+                  start = int(size) - width if from_end else 0
+                  selection.append(slice(start, start + width))
+              return np.asarray(dataset[tuple(selection)])
+
           with zipfile.ZipFile(archive_path) as zf:
               assert zf.testzip() is None, "archive CRC check failed"
+              valid_h5_infos: list[zipfile.ZipInfo] = []
               for info in zf.infolist():
                   raw_name = info.filename
                   normalized = raw_name.replace("\\", "/")
@@ -92,49 +120,112 @@ jobs:
                       if info.compress_size
                       else None
                   )
-                  row = {
-                      "path": raw_name,
-                      "is_directory": info.is_dir(),
-                      "uncompressed_bytes": info.file_size,
-                      "compressed_bytes": info.compress_size,
-                      "compression_ratio": ratio,
-                      "crc32": f"{info.CRC:08x}",
-                      "suffix": suffix,
+                  entries.append(
+                      {
+                          "path": raw_name,
+                          "is_directory": info.is_dir(),
+                          "uncompressed_bytes": info.file_size,
+                          "compressed_bytes": info.compress_size,
+                          "compression_ratio": ratio,
+                          "crc32": f"{info.CRC:08x}",
+                          "suffix": suffix,
+                          "macos_metadata": raw_name.startswith("__MACOSX/")
+                          or path.name.startswith("._"),
+                      }
+                  )
+                  if (
+                      not info.is_dir()
+                      and suffix in {".h5", ".hdf5"}
+                      and not raw_name.startswith("__MACOSX/")
+                      and not path.name.startswith("._")
+                  ):
+                      valid_h5_infos.append(info)
+
+              assert not duplicate_exact, duplicate_exact
+              assert not duplicate_casefold, duplicate_casefold
+              assert len(valid_h5_infos) == 10, len(valid_h5_infos)
+
+              for index, info in enumerate(valid_h5_infos):
+                  temporary = Path(f"/tmp/cobalt-tem-{index}.h5")
+                  digest = hashlib.sha256()
+                  with zf.open(info) as source, temporary.open("wb") as target:
+                      while chunk := source.read(1024 * 1024):
+                          digest.update(chunk)
+                          target.write(chunk)
+
+                  file_record: dict[str, Any] = {
+                      "archive_path": info.filename,
+                      "sha256": digest.hexdigest(),
+                      "file_bytes": temporary.stat().st_size,
+                      "root_attributes": {},
+                      "groups": [],
+                      "datasets": [],
                   }
-                  entries.append(row)
+                  try:
+                      with h5py.File(temporary, "r") as handle:
+                          file_record["root_attributes"] = attrs(handle.attrs)
 
-                  if info.is_dir() or suffix not in {
-                      ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp"
-                  }:
-                      continue
-                  data = zf.read(info)
-                  with Image.open(io.BytesIO(data)) as image:
-                      image.load()
-                      extrema = image.getextrema()
-                      image_rows.append(
-                          {
-                              "path": raw_name,
-                              "format": image.format,
-                              "mode": image.mode,
-                              "width_px": image.width,
-                              "height_px": image.height,
-                              "frame_count": getattr(image, "n_frames", 1),
-                              "pixel_extrema": repr(extrema),
-                              "sha256": hashlib.sha256(data).hexdigest(),
-                          }
-                      )
+                          def visitor(name: str, obj: h5py.Group | h5py.Dataset) -> None:
+                              if isinstance(obj, h5py.Group):
+                                  file_record["groups"].append(
+                                      {"name": name, "attributes": attrs(obj.attrs)}
+                                  )
+                                  return
+                              first = corner_sample(obj, from_end=False)
+                              last = corner_sample(obj, from_end=True)
+                              sampled = np.concatenate(
+                                  [first.reshape(-1), last.reshape(-1)]
+                              )
+                              unique = np.unique(sampled)
+                              file_record["datasets"].append(
+                                  {
+                                      "name": name,
+                                      "shape": [int(value) for value in obj.shape],
+                                      "dtype": str(obj.dtype),
+                                      "chunks": (
+                                          [int(value) for value in obj.chunks]
+                                          if obj.chunks is not None
+                                          else None
+                                      ),
+                                      "compression": obj.compression,
+                                      "compression_options": json_value(
+                                          obj.compression_opts
+                                      ),
+                                      "shuffle": bool(obj.shuffle),
+                                      "fletcher32": bool(obj.fletcher32),
+                                      "attributes": attrs(obj.attrs),
+                                      "sampled_value_min": json_value(np.min(sampled)),
+                                      "sampled_value_max": json_value(np.max(sampled)),
+                                      "sampled_unique_values": [
+                                          json_value(value) for value in unique[:32]
+                                      ],
+                                      "sampled_unique_value_count": int(unique.size),
+                                      "full_array_scanned": False,
+                                  }
+                              )
 
-          assert not duplicate_exact, duplicate_exact
-          assert not duplicate_casefold, duplicate_casefold
-          assert entries, "archive contains no entries"
+                          handle.visititems(visitor)
+                  finally:
+                      temporary.unlink(missing_ok=True)
+                  hdf5_files.append(file_record)
 
           total_uncompressed = sum(row["uncompressed_bytes"] for row in entries)
           max_ratio = max(
               (row["compression_ratio"] or 0.0 for row in entries),
               default=0.0,
           )
+          dataset_shapes = Counter(
+              tuple(dataset["shape"])
+              for file_record in hdf5_files
+              for dataset in file_record["datasets"]
+          )
+          dataset_dtypes = Counter(
+              dataset["dtype"]
+              for file_record in hdf5_files
+              for dataset in file_record["datasets"]
+          )
           inventory = {
-              "schema_version": "1.0",
+              "schema_version": "1.1",
               "source": {
                   "repository": "Zenodo",
                   "record_id": 14927582,
@@ -148,7 +239,10 @@ jobs:
               "archive": {
                   "sha256": hashlib.sha256(archive_path.read_bytes()).hexdigest(),
                   "entry_count": len(entries),
-                  "image_entry_count": len(image_rows),
+                  "valid_hdf5_file_count": len(hdf5_files),
+                  "macos_metadata_entry_count": sum(
+                      bool(row["macos_metadata"]) for row in entries
+                  ),
                   "total_uncompressed_bytes": total_uncompressed,
                   "max_entry_compression_ratio": max_ratio,
                   "suffix_counts": dict(sorted(suffix_counts.items())),
@@ -159,25 +253,31 @@ jobs:
                   "symlinks_absent": True,
                   "encrypted_entries_absent": True,
               },
+              "hdf5_summary": {
+                  "dataset_count": sum(
+                      len(file_record["datasets"]) for file_record in hdf5_files
+                  ),
+                  "dataset_shapes": {
+                      "x".join(map(str, shape)): count
+                      for shape, count in sorted(dataset_shapes.items())
+                  },
+                  "dataset_dtypes": dict(sorted(dataset_dtypes.items())),
+                  "full_arrays_scanned": False,
+              },
               "entries": entries,
-              "images": image_rows,
+              "hdf5_files": hdf5_files,
               "scientific_interpretation_performed": False,
               "segmentation_metric_computed": False,
+              "particle_measurement_computed": False,
               "model_training_performed": False,
           }
           Path("cobalt-oxide-tem-archive-inventory.json").write_text(
               json.dumps(inventory, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
-          with Path("cobalt-oxide-tem-image-inventory.csv").open(
-              "w", newline="", encoding="utf-8"
-          ) as handle:
-              writer = csv.DictWriter(handle, fieldnames=list(image_rows[0]) if image_rows else ["path"])
-              writer.writeheader()
-              writer.writerows(image_rows)
           print(json.dumps(inventory["archive"], indent=2, sort_keys=True))
-          print("first image rows:")
-          print(json.dumps(image_rows[:10], indent=2, sort_keys=True))
+          print(json.dumps(inventory["hdf5_summary"], indent=2, sort_keys=True))
+          print(json.dumps(hdf5_files, indent=2, sort_keys=True))
           PY
 
       - name: Upload inventory evidence
@@ -187,6 +287,5 @@ jobs:
           path: |
             cobalt-oxide-tem-archive.sha256
             cobalt-oxide-tem-archive-inventory.json
-            cobalt-oxide-tem-image-inventory.csv
           if-no-files-found: error
           retention-days: 7
