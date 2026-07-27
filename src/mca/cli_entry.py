@@ -1,4 +1,4 @@
-"""Backward-compatible console entry point with Raman command dispatch."""
+"""Backward-compatible console entry point with Raman and TEM dispatch."""
 
 from __future__ import annotations
 
@@ -6,14 +6,17 @@ import sys
 
 from .cli import main as legacy_main
 from .raman_cli import main as raman_main
+from .tem_cli import main as tem_main
 
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if args and args[0] == "raman":
         return raman_main(args[1:])
+    if args and args[0] == "tem":
+        return tem_main(args[1:])
     if args in (["--help"], ["-h"]):
-        print("Additional command: raman (run 'mca raman --help' for options)\n")
+        print("Additional commands: raman, tem (run 'mca <command> --help' for options)\n")
     return legacy_main(args)
 
 
