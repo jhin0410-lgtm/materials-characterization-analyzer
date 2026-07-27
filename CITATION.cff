@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, cite the repository version and preserve the source-data citations recorded by each analysis or case study."
+type: software
+title: "Materials Characterization Analyzer"
+authors:
+  - name: "jhin0410-lgtm"
+version: 0.8.3
+date-released: 2026-07-27
+repository-code: "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
+url: "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
+license: BSD-3-Clause
+abstract: >-
+  A provenance-aware Python command-line toolkit for cautious baseline analysis
+  and reproducible output generation across XRD, SEM, EDS, Raman, TEM, SAED,
+  XPS, FTIR, TGA, and DSC characterization workflows. The software separates
+  software validation from scientific validation and does not automatically
+  confirm phases, compounds, chemical states, functional groups, reactions,
+  mechanisms, or quantitative composition.
+keywords:
+  - materials science
+  - materials characterization
+  - provenance
+  - XRD
+  - SEM
+  - EDS
+  - Raman
+  - TEM
+  - SAED
+  - XPS
+  - FTIR
+  - TGA
+  - DSC

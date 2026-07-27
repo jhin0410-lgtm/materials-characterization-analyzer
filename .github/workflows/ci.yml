@@ -36,6 +36,37 @@ jobs:
           set -o pipefail
           pytest -q 2>&1 | tee outputs/ci/pytest.log
 
+      - name: Build wheel and source distribution
+        run: python -m build
+
+      - name: Smoke-test built wheel
+        shell: bash
+        run: |
+          python -m pip install --force-reinstall --no-deps dist/*.whl
+          set -o pipefail
+          mca --version 2>&1 | tee outputs/ci/wheel-version.txt
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          wheels = list(Path("dist").glob("*.whl"))
+          sdists = list(Path("dist").glob("*.tar.gz"))
+          if len(wheels) != 1 or len(sdists) != 1:
+              raise SystemExit(
+                  f"expected one wheel and one sdist; found wheels={wheels}, sdists={sdists}"
+              )
+          with zipfile.ZipFile(wheels[0]) as archive:
+              names = archive.namelist()
+          forbidden = [
+              name
+              for name in names
+              if name.startswith(("outputs/", "data/raw/", "data/private/", "data/local/"))
+          ]
+          if forbidden:
+              raise SystemExit(f"distribution contains forbidden paths: {forbidden}")
+          print(f"validated distribution: {wheels[0].name} and {sdists[0].name}")
+          PY
+
       - name: Upload test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -43,4 +74,15 @@ jobs:
           name: pytest-diagnostics
           path: outputs/ci/pytest.log
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload release artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            dist/
+            outputs/ci/wheel-version.txt
+          if-no-files-found: warn
           retention-days: 14

@@ -4,10 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "materials-characterization-analyzer"
-version = "0.8.2"
+version = "0.8.3"
 description = "Provenance-aware CLI support for XRD, SEM, EDS, Raman, TEM, SAED, XPS, FTIR, TGA, and DSC characterization workflows."
 readme = "README.md"
 license = { file = "LICENSE" }
+authors = [
+    { name = "jhin0410-lgtm" },
+]
 requires-python = ">=3.10"
 keywords = [
     "materials-science",
@@ -43,6 +46,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "build>=1.2",
     "pytest>=7.0",
 ]
 
@@ -50,6 +54,7 @@ dev = [
 Homepage = "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
 Repository = "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
 Issues = "https://github.com/jhin0410-lgtm/materials-characterization-analyzer/issues"
+Changelog = "https://github.com/jhin0410-lgtm/materials-characterization-analyzer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 mca = "mca.cli_entry:main"
