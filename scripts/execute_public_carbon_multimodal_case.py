@@ -1,9 +1,9 @@
 """Execute the public carbon case with source decoding and case-level QC.
 
 The TGA-air export is CP1252/ISO-8859 text and contains a short initial
-stabilization interval. This module patches only case-study adapters and adds a
-review layer that preserves analyzer candidates while separating startup-boundary
-artifacts from retained diagnostic candidates.
+stabilization interval. Case-specific adapter overrides are installed only while
+the public case runs, so importing this module does not alter unrelated tests or
+callers.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -204,8 +205,31 @@ def review_tga_case_candidates(output_dir: str | Path) -> dict[str, int]:
     return counts
 
 
-case._read_delimited_table = read_public_table
-case.adapt_tga_air_source = adapt_public_tga_air_source
+_BASE_READ_DELIMITED_TABLE = case._read_delimited_table
+_BASE_ADAPT_TGA_AIR_SOURCE = case.adapt_tga_air_source
+_BASE_RUN_CASE = case.run_case
+
+
+def run_case_with_public_adapters(
+    config_path: str | Path,
+    discovery_dir: str | Path,
+    output_dir: str | Path,
+) -> dict[str, Any]:
+    """Run the base case with temporary public-source adapters and restore globals."""
+    previous_reader = case._read_delimited_table
+    previous_tga_adapter = case.adapt_tga_air_source
+    try:
+        case._read_delimited_table = read_public_table
+        case.adapt_tga_air_source = adapt_public_tga_air_source
+        return _BASE_RUN_CASE(Path(config_path), Path(discovery_dir), Path(output_dir))
+    finally:
+        case._read_delimited_table = previous_reader
+        case.adapt_tga_air_source = previous_tga_adapter
+
+
+# Preserve the existing ``execute.case.run_case`` call surface without leaving
+# the source-table and TGA adapter overrides installed after module import.
+case.run_case = run_case_with_public_adapters
 
 
 def main(argv: list[str] | None = None) -> int:
