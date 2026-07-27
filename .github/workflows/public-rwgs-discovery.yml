@@ -5,20 +5,26 @@ on:
   pull_request:
     paths:
       - "case_studies/public_rwgs_xrd_sem_eds/**"
+      - "src/mca/handoff_bundle.py"
       - "scripts/discover_public_rwgs_xrd_sem_eds.py"
       - "scripts/run_public_rwgs_xrd_sem_eds_case.py"
+      - "scripts/export_public_rwgs_handoff_bundle.py"
       - "tests/test_public_rwgs_discovery.py"
       - "tests/test_public_rwgs_case.py"
+      - "tests/test_public_rwgs_handoff_bundle.py"
       - ".github/workflows/public-rwgs-discovery.yml"
   push:
     branches:
       - main
     paths:
       - "case_studies/public_rwgs_xrd_sem_eds/**"
+      - "src/mca/handoff_bundle.py"
       - "scripts/discover_public_rwgs_xrd_sem_eds.py"
       - "scripts/run_public_rwgs_xrd_sem_eds_case.py"
+      - "scripts/export_public_rwgs_handoff_bundle.py"
       - "tests/test_public_rwgs_discovery.py"
       - "tests/test_public_rwgs_case.py"
+      - "tests/test_public_rwgs_handoff_bundle.py"
       - ".github/workflows/public-rwgs-discovery.yml"
 
 permissions:
@@ -64,6 +70,12 @@ jobs:
             --output outputs/public-rwgs-case/result \
             2>&1 | tee outputs/public-rwgs-case/diagnostics/case_run.log
 
+      - name: Export cross-repository handoff bundle
+        run: |
+          python scripts/export_public_rwgs_handoff_bundle.py \
+            --config case_studies/public_rwgs_xrd_sem_eds/case_config.json \
+            --result outputs/public-rwgs-case/result
+
       - name: Run complete test suite
         shell: bash
         run: |
@@ -79,11 +91,14 @@ jobs:
           if [ -f outputs/public-rwgs-case/result/case_validation_report.md ]; then
             cat outputs/public-rwgs-case/result/case_validation_report.md
           fi
-          if [ -f outputs/public-rwgs-case/result/case_summary.json ]; then
-            cat outputs/public-rwgs-case/result/case_summary.json
-          fi
-          if [ -f outputs/public-rwgs-case/result/comparability_matrix.csv ]; then
-            cat outputs/public-rwgs-case/result/comparability_matrix.csv
+          for name in case_summary.json comparability_matrix.csv; do
+            path="outputs/public-rwgs-case/result/$name"
+            if [ -f "$path" ]; then
+              cat "$path"
+            fi
+          done
+          if [ -f outputs/public-rwgs-case/result/handoff_bundle/characterization_handoff_bundle.json ]; then
+            cat outputs/public-rwgs-case/result/handoff_bundle/characterization_handoff_bundle.json
           fi
 
       - name: Upload public RWGS evidence and diagnostics
