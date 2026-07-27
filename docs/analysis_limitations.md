@@ -1,8 +1,8 @@
 # Analysis Limitations
 
-This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, and Raman outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
+This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, Raman, and TEM outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
 
-The included demo files are synthetic/demo data. They are not real experimental measurements and should not be described as instrument output from an actual sample.
+The included demo files and generated demo images are synthetic data. They are not real experimental measurements and should not be described as instrument output from an actual sample.
 
 ## XRD
 
@@ -42,6 +42,18 @@ The included demo files are synthetic/demo data. They are not real experimental 
 - Missing recommended acquisition metadata are recorded as warnings rather than inferred.
 - Long-format Raman features are flagged `review_required`.
 
+## TEM
+
+- The TEM workflow segments explicitly selected bright or dark contrast with Otsu thresholding and external contours.
+- A detected contrast region is not automatically a particle, pore, phase, defect, grain, precipitate, or lattice feature.
+- TEM contrast depends on imaging mode, specimen thickness, diffraction condition, focus and defocus, orientation, detector geometry, dose, drift, contamination, sample preparation, and post-processing.
+- The `nm_per_pixel` scale is supplied by the user. The workflow does not infer or verify calibration from a scale bar, filename, magnification label, or embedded metadata.
+- Equivalent diameter is a two-dimensional mask descriptor. It is not a validated particle-size distribution without representative fields of view, sampling design, scale validation, segmentation validation, and expert review.
+- Optional ROI cropping, blur, contrast direction, minimum-area filtering, and border exclusion can materially change the outputs and are recorded in preprocessing history.
+- Display overlays may be normalized to 8-bit for visualization, but segmentation and raw-intensity measurements use the preserved 8-bit or 16-bit grayscale data.
+- The workflow does not perform SAED indexing, calibrated diffraction spacing, HRTEM lattice-fringe measurement, FFT interpretation, or phase assignment.
+- Long-format TEM features are flagged `review_required`.
+
 ## Provenance and Result Contracts
 
 - SHA-256 identifies exact file bytes. It does not prove that a file belongs to the declared sample or that acquisition metadata are correct.
@@ -51,6 +63,6 @@ The included demo files are synthetic/demo data. They are not real experimental 
 
 ## Integrated Interpretation
 
-XRD, SEM, EDS, and Raman should be interpreted together with sample history, instrument settings, calibration information, acquisition conditions, preprocessing choices, and domain expertise.
+XRD, SEM, EDS, Raman, and TEM should be interpreted together with sample identity, composition, processing history, instrument settings, calibration information, acquisition conditions, preprocessing choices, sampling design, and domain expertise.
 
-SEM particle size and XRD crystallite size estimates can differ because they describe different physical length scales. EDS supports elemental composition review but does not decide crystalline phases or chemical states. Raman peaks support spectral comparison but do not identify a material without appropriate references and validated measurement context.
+SEM region size, TEM contrast-region size, and XRD crystallite-size estimates describe different measurement processes and cannot be treated as interchangeable. EDS supports elemental composition review but does not decide crystalline phases or chemical states. Raman peaks support spectral comparison but do not identify a material without appropriate references and validated measurement context. TEM contrast can support morphology or microstructure review only after the imaging mode and contrast mechanism are scientifically justified.
