@@ -2,6 +2,18 @@ name: Public carbon multimodal case
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "case_studies/public_carbon_multimodal/**"
+      - "scripts/__init__.py"
+      - "scripts/discover_public_carbon_multimodal.py"
+      - "scripts/run_public_carbon_multimodal_case.py"
+      - "scripts/execute_public_carbon_multimodal_case.py"
+      - "tests/test_public_carbon_multimodal_case.py"
+      - "tests/test_public_carbon_source_adapter.py"
+      - ".github/workflows/public-carbon-case.yml"
   pull_request:
     paths:
       - "case_studies/public_carbon_multimodal/**"
@@ -12,6 +24,13 @@ on:
       - "tests/test_public_carbon_multimodal_case.py"
       - "tests/test_public_carbon_source_adapter.py"
       - ".github/workflows/public-carbon-case.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-carbon-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate-public-data-case:
