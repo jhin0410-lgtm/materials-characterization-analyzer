@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml)
 
-`materials-characterization-analyzer` is a provenance-aware Python CLI for organizing XRD, SEM, EDS, Raman, TEM, and SAED characterization inputs into validated tables, diagnostic figures, long-format features, manifests, and cautious summaries.
+`materials-characterization-analyzer` is a provenance-aware Python CLI for organizing XRD, SEM, EDS, Raman, TEM, SAED, and XPS characterization inputs into validated tables, diagnostic figures, long-format features, manifests, and cautious summaries.
 
-It is an analysis-support workflow, not an automatic material-identification or phase-confirmation system.
+It is an analysis-support workflow, not an automatic material-identification, phase-confirmation, chemical-state-assignment, or quantitative-composition system.
 
 ## Current Scope
 
@@ -14,10 +14,11 @@ It is an analysis-support workflow, not an automatic material-identification or 
 - **Raman**: baseline correction, optional smoothing, peak candidates, descriptive FWHM, within-FWHM area, plot, features, and manifest.
 - **TEM**: 8/16-bit image preservation, explicit bright/dark contrast segmentation, ROI, scale-aware region descriptors, plots, features, and manifest.
 - **SAED**: 8/16-bit diffraction image preservation, explicit center, complete-annulus radial profile, ring candidates, optional calibrated `d_nm`, plots, features, and manifest.
+- **XPS**: monotonic two-column binding-energy import, explicit energy referencing, Shirley/linear/no background, optional smoothing, descriptive peak candidates, plots, features, and manifest.
 - **Integrated XRD/SEM/EDS report**: combines existing result tables into one Markdown summary.
 - **Result contract**: records source SHA-256, acquisition metadata, preprocessing history, artifacts, long-format features, warnings, limitations, and software/schema versions.
 
-Raman, TEM, and SAED are standalone baseline workflows and are not yet forced into the legacy integrated report.
+Raman, TEM, SAED, and XPS are standalone baseline workflows and are not yet forced into the legacy integrated report.
 
 ## Scientific Design Principles
 
@@ -124,6 +125,33 @@ mca saed \
 
 The reciprocal calibration above is synthetic demonstration metadata. Real `d_nm` output requires validated calibration. This project defines reciprocal magnitude as `g = 1/d`, not `q = 2*pi/d`.
 
+### XPS
+
+Generate an explicit synthetic survey spectrum:
+
+```bash
+python scripts/generate_synthetic_xps_demo.py \
+  --output outputs/xps_demo/synthetic_xps.csv
+```
+
+Run the spectrum baseline:
+
+```bash
+mca xps \
+  --input outputs/xps_demo/synthetic_xps.csv \
+  --output outputs/xps_demo/result \
+  --sample-id synthetic_xps_demo \
+  --spectrum-type survey \
+  --background-method shirley \
+  --xray-source "synthetic demo" \
+  --photon-energy-ev 1486.6 \
+  --pass-energy-ev 100 \
+  --step-size-ev 0.5 \
+  --charge-neutralization unknown
+```
+
+No energy reference is inferred automatically. Use either `--energy-shift-ev` or a complete `--reference-observed-ev` / `--reference-target-ev` pair when a scientifically justified reference is available. The metadata above are synthetic demonstration values.
+
 ## Main Outputs
 
 ### XRD
@@ -169,6 +197,14 @@ The reciprocal calibration above is synthetic demonstration metadata. Real `d_nm
 - `saed_ring_overlay.png`
 - `saed_analysis_manifest.json`
 
+### XPS
+
+- `xps_processed_spectrum.csv`
+- `xps_peak_candidates.csv`
+- `xps_features_long.csv`
+- `xps_spectrum_with_candidates.png`
+- `xps_analysis_manifest.json`
+
 ## Scientific Boundaries
 
 - XRD peak candidates do not confirm phases.
@@ -179,6 +215,8 @@ The reciprocal calibration above is synthetic demonstration metadata. Real `d_nm
 - TEM contrast regions are not automatically particles, pores, grains, defects, precipitates, phases, or lattice features.
 - SAED radial candidates are not indexed reflections, phases, zone axes, or crystal structures.
 - SAED `d_nm` is absent unless explicit calibration is provided.
+- XPS candidates do not identify elements, orbitals, chemical states, oxidation states, satellites, multiplets, or fitted components.
+- XPS energy referencing is never inferred automatically, and within-FWHM area is not quantitative composition.
 - Passing tests confirms software behavior only; it does not establish experimental validity or scientific interpretation.
 
 Detailed limitations:
@@ -188,6 +226,7 @@ Detailed limitations:
 - [`docs/raman_workflow.md`](docs/raman_workflow.md)
 - [`docs/tem_workflow.md`](docs/tem_workflow.md)
 - [`docs/saed_workflow.md`](docs/saed_workflow.md)
+- [`docs/xps_workflow.md`](docs/xps_workflow.md)
 
 ## Testing
 
@@ -211,8 +250,8 @@ The repositories remain independently installable and should exchange informatio
 
 ## Next Development Order
 
-1. Validate Raman, TEM, and SAED baselines on representative public or appropriately shareable data with complete metadata.
-2. Add XPS with energy calibration, background, peak-fit provenance, and chemical-state limitations.
+1. Validate Raman, TEM, SAED, and XPS baselines on representative public or appropriately shareable data with complete metadata.
+2. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
 3. Add FTIR with spectral preprocessing and band-assignment safeguards.
 4. Add TGA/DSC with temperature-program, atmosphere, mass normalization, and event-definition metadata.
 5. Extend integrated reporting only after individual contracts and scientific validation gates are stable.
