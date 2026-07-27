@@ -1,4 +1,4 @@
-name: Public RWGS XRD SEM EDS discovery
+name: Public RWGS XRD SEM EDS case
 
 on:
   workflow_dispatch:
@@ -6,7 +6,9 @@ on:
     paths:
       - "case_studies/public_rwgs_xrd_sem_eds/**"
       - "scripts/discover_public_rwgs_xrd_sem_eds.py"
+      - "scripts/run_public_rwgs_xrd_sem_eds_case.py"
       - "tests/test_public_rwgs_discovery.py"
+      - "tests/test_public_rwgs_case.py"
       - ".github/workflows/public-rwgs-discovery.yml"
   push:
     branches:
@@ -14,20 +16,22 @@ on:
     paths:
       - "case_studies/public_rwgs_xrd_sem_eds/**"
       - "scripts/discover_public_rwgs_xrd_sem_eds.py"
+      - "scripts/run_public_rwgs_xrd_sem_eds_case.py"
       - "tests/test_public_rwgs_discovery.py"
+      - "tests/test_public_rwgs_case.py"
       - ".github/workflows/public-rwgs-discovery.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: public-rwgs-discovery-${{ github.workflow }}-${{ github.ref }}
+  group: public-rwgs-case-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  discover:
+  validate-public-rwgs-case:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -43,38 +47,50 @@ jobs:
       - name: Download and inventory public source archives
         shell: bash
         run: |
-          mkdir -p outputs/public-rwgs-discovery/diagnostics
+          mkdir -p outputs/public-rwgs-case/diagnostics
           set -o pipefail
           python scripts/discover_public_rwgs_xrd_sem_eds.py \
             --config case_studies/public_rwgs_xrd_sem_eds/discovery_config.json \
-            --output outputs/public-rwgs-discovery/result \
-            2>&1 | tee outputs/public-rwgs-discovery/diagnostics/discovery.log
+            --output outputs/public-rwgs-case/discovery \
+            2>&1 | tee outputs/public-rwgs-case/diagnostics/discovery.log
 
-      - name: Run discovery tests
+      - name: Run provenance-first public diagnostic case
         shell: bash
         run: |
           set -o pipefail
-          pytest -q tests/test_public_rwgs_discovery.py \
-            2>&1 | tee outputs/public-rwgs-discovery/diagnostics/pytest.log
+          python scripts/run_public_rwgs_xrd_sem_eds_case.py \
+            --config case_studies/public_rwgs_xrd_sem_eds/case_config.json \
+            --discovery outputs/public-rwgs-case/discovery \
+            --output outputs/public-rwgs-case/result \
+            2>&1 | tee outputs/public-rwgs-case/diagnostics/case_run.log
 
-      - name: Show discovery evidence
+      - name: Run complete test suite
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q 2>&1 | tee outputs/public-rwgs-case/diagnostics/pytest.log
+
+      - name: Show validation evidence
         if: always()
         run: |
-          if [ -f outputs/public-rwgs-discovery/result/discovery_report.md ]; then
-            cat outputs/public-rwgs-discovery/result/discovery_report.md
+          if [ -f outputs/public-rwgs-case/discovery/discovery_report.md ]; then
+            cat outputs/public-rwgs-case/discovery/discovery_report.md
           fi
-          if [ -f outputs/public-rwgs-discovery/result/archive_inventories.json ]; then
-            cat outputs/public-rwgs-discovery/result/archive_inventories.json
+          if [ -f outputs/public-rwgs-case/result/case_validation_report.md ]; then
+            cat outputs/public-rwgs-case/result/case_validation_report.md
           fi
-          if [ -f outputs/public-rwgs-discovery/result/synthesis_protocol.txt ]; then
-            cat outputs/public-rwgs-discovery/result/synthesis_protocol.txt
+          if [ -f outputs/public-rwgs-case/result/case_summary.json ]; then
+            cat outputs/public-rwgs-case/result/case_summary.json
+          fi
+          if [ -f outputs/public-rwgs-case/result/comparability_matrix.csv ]; then
+            cat outputs/public-rwgs-case/result/comparability_matrix.csv
           fi
 
-      - name: Upload discovery evidence
+      - name: Upload public RWGS evidence and diagnostics
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: public-rwgs-discovery
-          path: outputs/public-rwgs-discovery
+          name: public-rwgs-xrd-sem-eds-case
+          path: outputs/public-rwgs-case
           if-no-files-found: error
           retention-days: 14
