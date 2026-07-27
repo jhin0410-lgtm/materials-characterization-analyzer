@@ -11,8 +11,16 @@ on:
       - "scripts/discover_public_carbon_multimodal.py"
       - "scripts/run_public_carbon_multimodal_case.py"
       - "scripts/execute_public_carbon_multimodal_case.py"
+      - "src/mca/contracts.py"
+      - "src/mca/feature_records.py"
+      - "src/mca/ftir.py"
       - "src/mca/handoff_bundle.py"
+      - "src/mca/provenance.py"
+      - "src/mca/raman.py"
+      - "src/mca/thermal.py"
+      - "src/mca/xps.py"
       - "tests/test_public_carbon_four_materials_case.py"
+      - "tests/test_public_carbon_four_materials_contract_guards.py"
       - "tests/test_public_carbon_tga_metadata_semantics.py"
       - ".github/workflows/public-carbon-four-materials.yml"
   pull_request:
@@ -22,8 +30,16 @@ on:
       - "scripts/discover_public_carbon_multimodal.py"
       - "scripts/run_public_carbon_multimodal_case.py"
       - "scripts/execute_public_carbon_multimodal_case.py"
+      - "src/mca/contracts.py"
+      - "src/mca/feature_records.py"
+      - "src/mca/ftir.py"
       - "src/mca/handoff_bundle.py"
+      - "src/mca/provenance.py"
+      - "src/mca/raman.py"
+      - "src/mca/thermal.py"
+      - "src/mca/xps.py"
       - "tests/test_public_carbon_four_materials_case.py"
+      - "tests/test_public_carbon_four_materials_contract_guards.py"
       - "tests/test_public_carbon_tga_metadata_semantics.py"
       - ".github/workflows/public-carbon-four-materials.yml"
 
@@ -67,6 +83,7 @@ jobs:
           set -o pipefail
           python -m pytest -q \
             tests/test_public_carbon_four_materials_case.py \
+            tests/test_public_carbon_four_materials_contract_guards.py \
             tests/test_public_carbon_tga_metadata_semantics.py \
             2>&1 | tee outputs/public-carbon-four-materials-diagnostics/pytest.log
 
@@ -84,6 +101,7 @@ jobs:
           )
           assert summary["status"] == "completed"
           assert summary["evidence_level"] == "Diagnostic"
+          assert summary["dataset_version_verified"] == "1.0"
           assert summary["sample_count"] == 4
           assert summary["measurement_count"] == 16
           assert summary["feature_record_count"] > 16
@@ -98,8 +116,13 @@ jobs:
           assert summary["fallback_source_selection_used"] is False
           assert summary["tga_mass_metadata_semantics"]["empty_crucible_mass_inferred"] is False
           assert summary["tga_mass_metadata_semantics"]["sample_plus_crucible_mass_inferred"] is False
-          assert summary["software_validation"]["model_trained"] is False
-          assert summary["software_validation"]["optimization_performed"] is False
+          validation = summary["software_validation"]
+          assert validation["dataset_version_verified"] is True
+          assert validation["path_safe_sample_ids_validated"] is True
+          assert validation["supplied_source_checksums_verified"] is True
+          assert validation["sample_specific_reports_generated"] is True
+          assert validation["model_trained"] is False
+          assert validation["optimization_performed"] is False
 
           feature = bundle["feature_table"]
           assert feature["sample_count"] == 4
@@ -122,11 +145,33 @@ jobs:
               "public-flg",
               "public-gnp",
           }
+          assert set(context["dataset_version"].astype(str)) == {"1.0"}
           assert not context["controlled_process_variable_confirmed"].astype(bool).any()
           assert not context["process_response_model_allowed"].astype(bool).any()
 
           analysis = json.loads((root / "case_analysis_manifest.json").read_text(encoding="utf-8"))
           assert analysis["analysis_count"] == 16
+
+          expected_reports = {
+              "public-dwcnt": "DWCNT",
+              "public-mwcnt": "MWCNT",
+              "public-flg": "FLG",
+              "public-gnp": "GNP",
+          }
+          for sample_id, label in expected_reports.items():
+              sample_root = root / "samples" / sample_id / "result"
+              report = (sample_root / "case_validation_report.md").read_text(encoding="utf-8")
+              readiness = json.loads(
+                  (sample_root / "analyses" / "tem" / "tem_readiness.json").read_text(
+                      encoding="utf-8"
+                  )
+              )
+              assert f"# Public {label} Multimodal Validation Report" in report
+              if label != "DWCNT":
+                  assert "# Public DWCNT Multimodal Validation Report" not in report
+              assert readiness["status"] == "blocked_method_mismatch"
+              assert "not validated" in readiness["scientific_limitation"]
+
           print((root / "case_validation_report.md").read_text(encoding="utf-8"))
           PY
 
