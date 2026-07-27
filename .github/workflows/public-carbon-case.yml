@@ -34,27 +34,44 @@ jobs:
             --download
 
       - name: Run provenance-first real-data case
+        id: case
+        shell: bash
         run: |
+          mkdir -p outputs/public-carbon-case/diagnostics
+          set +e
           python scripts/run_public_carbon_multimodal_case.py \
             --config case_studies/public_carbon_multimodal/case_config.json \
             --discovery outputs/public-carbon-case/discovery \
-            --output outputs/public-carbon-case/result
+            --output outputs/public-carbon-case/result \
+            > outputs/public-carbon-case/diagnostics/case_run.log 2>&1
+          code=$?
+          set -e
+          cat outputs/public-carbon-case/diagnostics/case_run.log
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 
       - name: Run complete test suite
-        run: pytest -q
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          pytest -q > outputs/public-carbon-case/diagnostics/pytest.log 2>&1
+          code=$?
+          set -e
+          cat outputs/public-carbon-case/diagnostics/pytest.log
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 
       - name: Show validation evidence
+        if: always()
         run: |
           cat outputs/public-carbon-case/discovery/discovery_report.md
-          cat outputs/public-carbon-case/result/case_validation_report.md
+          if [ -f outputs/public-carbon-case/result/case_validation_report.md ]; then
+            cat outputs/public-carbon-case/result/case_validation_report.md
+          fi
           python - <<'PY'
           import json
           from pathlib import Path
           downloads = json.loads(
               Path("outputs/public-carbon-case/discovery/downloads.json").read_text(encoding="utf-8")
-          )
-          summary = json.loads(
-              Path("outputs/public-carbon-case/result/case_summary.json").read_text(encoding="utf-8")
           )
           for modality, record in downloads.items():
               print(
@@ -62,13 +79,22 @@ jobs:
                   f"source={record.get('source_path')}; "
                   f"checksum_verified={record.get('source_checksum_verified')}"
               )
-          print(json.dumps(summary, indent=2, ensure_ascii=False))
+          summary_path = Path("outputs/public-carbon-case/result/case_summary.json")
+          if summary_path.exists():
+              print(summary_path.read_text(encoding="utf-8"))
           PY
 
-      - name: Upload public case evidence
+      - name: Upload public case evidence and diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: public-carbon-multimodal-case
           path: outputs/public-carbon-case
           if-no-files-found: error
           retention-days: 14
+
+      - name: Enforce case and test success
+        if: always()
+        run: |
+          test "${{ steps.case.outputs.exit_code }}" = "0"
+          test "${{ steps.tests.outputs.exit_code }}" = "0"
