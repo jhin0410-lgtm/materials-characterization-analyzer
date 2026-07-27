@@ -23,16 +23,11 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Run tests
-        id: tests
         shell: bash
         run: |
           mkdir -p outputs/ci
-          set +e
-          pytest -q > outputs/ci/pytest.log 2>&1
-          code=$?
-          set -e
-          cat outputs/ci/pytest.log
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          pytest -q 2>&1 | tee outputs/ci/pytest.log
 
       - name: Upload test diagnostics
         if: always()
@@ -42,11 +37,3 @@ jobs:
           path: outputs/ci/pytest.log
           if-no-files-found: error
           retention-days: 14
-
-      - name: Enforce test success
-        if: always()
-        env:
-          TEST_EXIT: ${{ steps.tests.outputs.exit_code }}
-        run: |
-          echo "test_exit=$TEST_EXIT"
-          test "$TEST_EXIT" = "0"
