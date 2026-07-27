@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible software defect using non-sensitive data
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, private instrument data, unpublished research data, or customer information. Use synthetic or public data when possible.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "0.8.2 or commit SHA"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include the command and a minimal synthetic or public input description.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Python version, operating system, and relevant dependency versions.
+    validations:
+      required: true
+  - type: textarea
+    id: scientific_context
+    attributes:
+      label: Scientific context and limitations
+      description: Include units, acquisition context, preprocessing, and why the behavior matters when relevant.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data and security confirmation
+      options:
+        - label: I removed credentials, private data, and other sensitive information.
+          required: true
