@@ -1,0 +1,40 @@
+{
+  "case_id": "public-rwgs-xrd-sem-eds",
+  "dataset": {
+    "title": "Characterization datasets of RWGS catalysts",
+    "doi": "10.5281/zenodo.13474908",
+    "record_url": "https://zenodo.org/records/13474908",
+    "version": "v1",
+    "published_date": "2024-08-29",
+    "license": "CC-BY-4.0",
+    "creators": [
+      "Maria Balaguer",
+      "Elena Vicente"
+    ]
+  },
+  "files": {
+    "xrd_archive": {
+      "filename": "ASCII XRD catalysts.zip",
+      "url": "https://zenodo.org/records/13474908/files/ASCII%20XRD%20catalysts.zip?download=1",
+      "md5": "a90bb9963975e76f91e87e9b7091e379"
+    },
+    "synthesis_protocol": {
+      "filename": "Catalysts synthesis protocols.docx",
+      "url": "https://zenodo.org/records/13474908/files/Catalysts%20synthesis%20protocols.docx?download=1",
+      "md5": "8c354f0f074079ba9e267a7c13e27443"
+    },
+    "sem_eds_archive": {
+      "filename": "TIFF_DAT files SEM_EDS.zip",
+      "url": "https://zenodo.org/records/13474908/files/TIFF_DAT%20files%20SEM_EDS.zip?download=1",
+      "md5": "5444fdfdca7ced2fed66f95f56612229"
+    }
+  },
+  "scientific_boundary": {
+    "same_study_confirmed": true,
+    "same_material_class_expected": true,
+    "same_physical_aliquot_confirmed": false,
+    "sample_mapping_status": "unresolved_until_archive_inventory_review",
+    "sem_scale_status": "unresolved_until_image_metadata_review",
+    "eds_quantification_status": "unresolved_until_dat_format_review"
+  }
+}
