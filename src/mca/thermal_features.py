@@ -44,50 +44,36 @@ def build_thermal_feature_records(
         source_hash,
         preprocessing_id,
     )
+    dsc_signal_unit = "W/g"
+    dsc_area_unit = "W*degC/g"
     if mode == "tga":
         retention = _numeric_column(processed_table, "mass_retention_percent")
         loss_rate = _numeric_column(processed_table, "mass_loss_rate_percent_per_c")
         temperature = _numeric_column(processed_table, "temperature_c")
         if retention.notna().any():
-            _append(
-                records,
-                mode,
-                sample_id,
-                measurement_id,
-                "initial_mass_retention",
-                retention.iloc[0],
-                "%",
-                "input_or_explicit_mass_reference",
-                source_path,
-                source_hash,
-                preprocessing_id,
-            )
-            _append(
-                records,
-                mode,
-                sample_id,
-                measurement_id,
-                "final_mass_retention",
-                retention.iloc[-1],
-                "%",
-                "input_or_explicit_mass_reference",
-                source_path,
-                source_hash,
-                preprocessing_id,
-            )
-            _append(
-                records,
-                mode,
-                sample_id,
-                measurement_id,
-                "total_mass_change",
-                retention.iloc[0] - retention.iloc[-1],
-                "%",
-                "initial_minus_final_mass_retention",
-                source_path,
-                source_hash,
-                preprocessing_id,
-            )
+            for name, value, unit, feature_method in (
+                ("initial_mass_retention", retention.iloc[0], "%", "input_or_explicit_mass_reference"),
+                ("final_mass_retention", retention.iloc[-1], "%", "input_or_explicit_mass_reference"),
+                (
+                    "total_mass_change",
+                    retention.iloc[0] - retention.iloc[-1],
+                    "%",
+                    "initial_minus_final_mass_retention",
+                ),
+            ):
+                _append(
+                    records,
+                    mode,
+                    sample_id,
+                    measurement_id,
+                    name,
+                    value,
+                    unit,
+                    feature_method,
+                    source_path,
+                    source_hash,
+                    preprocessing_id,
+                )
         valid = loss_rate.notna() & temperature.notna()
         if valid.any():
             index = loss_rate[valid].idxmax()
@@ -118,6 +104,13 @@ def build_thermal_feature_records(
                 preprocessing_id,
             )
     else:
+        normalized = (
+            "heat_flow_w_g" in processed_table.columns
+            and processed_table["heat_flow_w_g"].notna().all()
+        )
+        if not normalized:
+            dsc_signal_unit = "mW"
+            dsc_area_unit = "mW*degC"
         types = candidate_table.get("candidate_type", pd.Series(dtype=str))
         for candidate_type in ("endothermic", "exothermic"):
             _append(
@@ -159,7 +152,7 @@ def build_thermal_feature_records(
                     measurement_id,
                     "main_candidate_prominence",
                     prominence.loc[index],
-                    "signal",
+                    dsc_signal_unit,
                     "maximum_candidate_prominence",
                     source_path,
                     source_hash,
@@ -182,9 +175,9 @@ def build_thermal_feature_records(
         else:
             values = (
                 ("candidate_temperature", row.temperature_c, "degC"),
-                ("candidate_prominence", row.prominence, "signal"),
+                ("candidate_prominence", row.prominence, dsc_signal_unit),
                 ("candidate_fwhm", row.fwhm_c, "degC"),
-                ("candidate_area_within_fwhm", row.area_within_fwhm_signal_c, "signal*degC"),
+                ("candidate_area_within_fwhm", row.area_within_fwhm_signal_c, dsc_area_unit),
                 ("candidate_enthalpy_within_fwhm", row.enthalpy_within_fwhm_j_g, "J/g"),
             )
         for name, value, unit in values:
