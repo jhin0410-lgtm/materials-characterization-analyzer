@@ -53,6 +53,16 @@ The raw export contains a short initial temperature stabilization near room temp
 
 The exclusion count, source encoding, mapping, and source/canonical checksums are recorded in `case_source_manifest.json`.
 
+### TGA mass metadata semantics
+
+The source readme defines three sample-mass symbols that must not be relabeled:
+
+- `W_sa = 3.531 mg`: starting DWCNT sample mass before the dry-air purge;
+- `W_sp = 0.0247 mg`: sample mass change measured after the one-hour dry-air purge;
+- `W_sm = 3.605 mg`: starting sample mass for the separate TGA-MS helium experiment.
+
+`W_sp` is **not** an empty-crucible mass and `W_sm` is **not** a sample-plus-crucible mass. The case config now records the source meanings explicitly and states that neither missing quantity was inferred.
+
 ## Run
 
 ```bash
