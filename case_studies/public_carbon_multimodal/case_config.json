@@ -1,0 +1,71 @@
+{
+  "case_id": "public-carbon-dwcnt-multimodal-v1",
+  "dataset": {
+    "persistent_id": "doi:10.57745/7KA2UG",
+    "landing_page": "https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.57745/7KA2UG",
+    "title": "In-depth characterization of 4 raw carbon nanomaterials: multi-walled (MWCNT) and double-walled carbon nanotubes (DWCNT), few-layer graphene (FLG) and graphene nanoplatelets (GNP)",
+    "repository": "Recherche Data Gouv",
+    "version": "1.0",
+    "license": "Etalab Open License 2.0",
+    "citation_year": 2025
+  },
+  "primary_sample": {
+    "sample_id": "public-dwcnt",
+    "source_label": "DWCNT",
+    "material_class": "double-walled carbon nanotubes"
+  },
+  "comparison_samples": ["DWCNT", "MWCNT", "FLG", "GNP"],
+  "modalities": {
+    "raman": {
+      "required_tokens": ["raman", "dwcnt"],
+      "preferred_tokens": ["s01"],
+      "excluded_tokens": [],
+      "extensions": [".csv", ".tab", ".txt", ".tsv"]
+    },
+    "ftir": {
+      "required_tokens": ["ftir", "dwcnt"],
+      "preferred_tokens": [],
+      "excluded_tokens": [],
+      "extensions": [".csv", ".tab", ".txt", ".tsv"]
+    },
+    "xps": {
+      "required_tokens": ["xps", "dwcnt"],
+      "preferred_tokens": ["survey", "general", "wide"],
+      "excluded_tokens": ["fit", "deconv", "component"],
+      "extensions": [".csv", ".tab", ".txt", ".tsv"]
+    },
+    "tga": {
+      "required_tokens": ["tga", "dwcnt"],
+      "preferred_tokens": ["raw_tga", "air"],
+      "excluded_tokens": ["tgams", "mass_spect", "ms_"],
+      "extensions": [".csv", ".tab", ".txt", ".tsv"]
+    },
+    "tem": {
+      "required_tokens": ["tem", "dwcnt"],
+      "preferred_tokens": ["raw"],
+      "excluded_tokens": ["hist", "distribution", "analysis", "processed", "fft", "saed"],
+      "extensions": [".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp"]
+    },
+    "readme": {
+      "required_tokens": ["readme_raw"],
+      "preferred_tokens": [],
+      "excluded_tokens": [],
+      "extensions": [".pdf"]
+    }
+  },
+  "availability_contract": {
+    "raman": "expected",
+    "tem": "expected",
+    "xps": "expected",
+    "ftir": "expected",
+    "tga": "expected",
+    "saed": "not_provided_by_dataset",
+    "dsc": "not_provided_by_dataset"
+  },
+  "scientific_guardrails": [
+    "The dataset label DWCNT is treated as a source sample class, not proof that every technique measured the identical physical aliquot.",
+    "Cross-technique interpretation requires source metadata, preparation history, acquisition settings, and file-level provenance.",
+    "SAED and DSC are not filled from unrelated datasets.",
+    "Automatic analyzer outputs remain diagnostic and review-required; they do not confirm composition, phase, bonding, reactions, or mechanisms."
+  ]
+}
