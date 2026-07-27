@@ -1,0 +1,52 @@
+name: Public carbon multimodal case
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/public_carbon_multimodal/**"
+      - "scripts/discover_public_carbon_multimodal.py"
+      - ".github/workflows/public-carbon-case.yml"
+
+jobs:
+  discover-public-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run public dataset discovery
+        run: |
+          python scripts/discover_public_carbon_multimodal.py \
+            --config case_studies/public_carbon_multimodal/case_config.json \
+            --output outputs/public-carbon-case/discovery \
+            --download
+
+      - name: Show discovery report
+        run: |
+          cat outputs/public-carbon-case/discovery/discovery_report.md
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("outputs/public-carbon-case/discovery/downloads.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          for modality, record in payload.items():
+              print(f"\n## {modality}: {record.get('status')}")
+              print(f"source={record.get('source_path')}")
+              for line in record.get("first_lines", [])[:12]:
+                  print(line)
+          PY
+
+      - name: Upload discovery evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-carbon-discovery
+          path: outputs/public-carbon-case/discovery
+          if-no-files-found: error
+          retention-days: 14
