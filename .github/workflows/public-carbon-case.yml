@@ -5,9 +5,12 @@ on:
   pull_request:
     paths:
       - "case_studies/public_carbon_multimodal/**"
+      - "scripts/__init__.py"
       - "scripts/discover_public_carbon_multimodal.py"
       - "scripts/run_public_carbon_multimodal_case.py"
+      - "scripts/execute_public_carbon_multimodal_case.py"
       - "tests/test_public_carbon_multimodal_case.py"
+      - "tests/test_public_carbon_source_adapter.py"
       - ".github/workflows/public-carbon-case.yml"
 
 jobs:
@@ -39,7 +42,7 @@ jobs:
         run: |
           mkdir -p outputs/public-carbon-case/diagnostics
           set +e
-          python scripts/run_public_carbon_multimodal_case.py \
+          python scripts/execute_public_carbon_multimodal_case.py \
             --config case_studies/public_carbon_multimodal/case_config.json \
             --discovery outputs/public-carbon-case/discovery \
             --output outputs/public-carbon-case/result \
@@ -95,6 +98,10 @@ jobs:
 
       - name: Enforce case and test success
         if: always()
+        env:
+          CASE_EXIT: ${{ steps.case.outputs.exit_code }}
+          TEST_EXIT: ${{ steps.tests.outputs.exit_code }}
         run: |
-          test "${{ steps.case.outputs.exit_code }}" = "0"
-          test "${{ steps.tests.outputs.exit_code }}" = "0"
+          echo "case_exit=$CASE_EXIT test_exit=$TEST_EXIT"
+          test "$CASE_EXIT" = "0"
+          test "$TEST_EXIT" = "0"
