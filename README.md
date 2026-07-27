@@ -1,6 +1,7 @@
 # Materials Characterization Analyzer
 
 [![CI](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](LICENSE)
 
 `materials-characterization-analyzer` is a provenance-aware Python CLI for organizing XRD, SEM, EDS, Raman, TEM, SAED, XPS, FTIR, TGA, and DSC characterization inputs into validated tables, diagnostic figures, long-format features, manifests, and cautious summaries.
 
@@ -30,6 +31,17 @@ Raman, TEM, SAED, XPS, FTIR, TGA, and DSC are standalone baseline workflows and 
 - Automatic candidates and regions are marked `review_required`.
 - Software validation and scientific validation are separate.
 - Synthetic demo data exercise software behavior only; they are not experimental evidence.
+
+## Public Repository Policy
+
+- The project source code is released under the [BSD 3-Clause License](LICENSE).
+- External datasets retain their original licenses. Referencing or downloading a dataset does not relicense it under the software license.
+- Only synthetic fixtures and explicitly public, appropriately licensed assets may be committed.
+- Downloaded raw datasets, private instrument exports, generated outputs, local configuration, credentials, and caches must remain untracked.
+- Security-sensitive reports should follow [SECURITY.md](SECURITY.md).
+- Proposed changes should follow [CONTRIBUTING.md](CONTRIBUTING.md), including the separation between software and scientific validation.
+
+The public DWCNT multimodal case under `case_studies/public_carbon_multimodal/` fetches its source files at runtime and records source identifiers and checksums. The external raw dataset is not vendored into this repository.
 
 ## Installation
 
@@ -306,9 +318,18 @@ Pytest temporary files are written under the ignored `outputs/pytest-tmp` direct
 
 ## Data and Repository Safety
 
-Only commit public, anonymized, and appropriately licensed data. Do not commit unpublished research data, institution-owned confidential data, customer data, proprietary vendor exports, or other sensitive instrument files.
+Only commit public, anonymized, appropriately licensed, and scientifically documented data. Do not commit unpublished research data, institution-owned confidential data, customer data, proprietary vendor exports, personally identifiable information, credentials, or other sensitive instrument files.
+
+The repository ignores common environment files, key material, local raw/private/downloaded datasets, generated outputs, caches, IDE files, and temporary files. This reduces accidental exposure but does not replace a manual review of staged changes.
+
+If a secret has ever been committed, adding it to `.gitignore` or deleting it in a later commit does not revoke it or remove it from Git history. Rotate the secret and clean the affected history when necessary.
 
 Synthetic demo inputs and generators must be clearly labelled and must not be presented as experimental evidence.
+
+## Contributing and Security
+
+- Contribution requirements: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security reporting: [SECURITY.md](SECURITY.md)
 
 ## Related Project
 
@@ -316,10 +337,15 @@ Synthetic demo inputs and generators must be clearly labelled and must not be pr
 
 The repositories remain independently installable and should exchange information through stable sample/measurement identifiers and versioned contracts rather than row order or inferred filenames.
 
+## License
+
+The software in this repository is licensed under the [BSD 3-Clause License](LICENSE). Third-party datasets, publications, and externally hosted files remain subject to their own licenses and terms.
+
 ## Next Development Order
 
-1. Validate Raman, TEM, SAED, XPS, FTIR, TGA, and DSC baselines on representative public or appropriately shareable data with complete metadata.
-2. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
-3. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
-4. Add cooling, hold, cycling, simultaneous TGA-DSC, and multisegment thermal workflows only with explicit segment contracts.
-5. Extend integrated reporting only after individual contracts and scientific validation gates are stable.
+1. Re-run the full CI and public DWCNT case on `main` after the public-repository hardening changes are merged.
+2. Validate the remaining baseline analyzers on representative public or appropriately shareable data with complete metadata.
+3. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
+4. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
+5. Add cooling, hold, cycling, simultaneous TGA-DSC, and multisegment thermal workflows only with explicit segment contracts.
+6. Extend integrated reporting only after individual contracts and scientific validation gates are stable.
