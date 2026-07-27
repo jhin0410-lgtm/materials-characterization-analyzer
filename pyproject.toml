@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "materials-characterization-analyzer"
-version = "0.6.0"
-description = "Provenance-aware CLI support for XRD, SEM, EDS, Raman, TEM, SAED, and XPS characterization workflows."
+version = "0.7.0"
+description = "Provenance-aware CLI support for XRD, SEM, EDS, Raman, TEM, SAED, XPS, and FTIR characterization workflows."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

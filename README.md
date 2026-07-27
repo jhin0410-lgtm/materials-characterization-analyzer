@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml)
 
-`materials-characterization-analyzer` is a provenance-aware Python CLI for organizing XRD, SEM, EDS, Raman, TEM, SAED, and XPS characterization inputs into validated tables, diagnostic figures, long-format features, manifests, and cautious summaries.
+`materials-characterization-analyzer` is a provenance-aware Python CLI for organizing XRD, SEM, EDS, Raman, TEM, SAED, XPS, and FTIR characterization inputs into validated tables, diagnostic figures, long-format features, manifests, and cautious summaries.
 
-It is an analysis-support workflow, not an automatic material-identification, phase-confirmation, chemical-state-assignment, or quantitative-composition system.
+It is an analysis-support workflow, not an automatic material-identification, phase-confirmation, chemical-state-assignment, functional-group-assignment, or quantitative-composition system.
 
 ## Current Scope
 
@@ -15,10 +15,11 @@ It is an analysis-support workflow, not an automatic material-identification, ph
 - **TEM**: 8/16-bit image preservation, explicit bright/dark contrast segmentation, ROI, scale-aware region descriptors, plots, features, and manifest.
 - **SAED**: 8/16-bit diffraction image preservation, explicit center, complete-annulus radial profile, ring candidates, optional calibrated `d_nm`, plots, features, and manifest.
 - **XPS**: monotonic two-column binding-energy import, explicit energy referencing, Shirley/linear/no background, optional smoothing, descriptive peak candidates, plots, features, and manifest.
+- **FTIR**: monotonic two-column wavenumber import, explicit absorbance/transmittance semantics, transmittance-to-absorbance conversion, optional baseline and smoothing, descriptive band candidates, plots, features, and manifest.
 - **Integrated XRD/SEM/EDS report**: combines existing result tables into one Markdown summary.
 - **Result contract**: records source SHA-256, acquisition metadata, preprocessing history, artifacts, long-format features, warnings, limitations, and software/schema versions.
 
-Raman, TEM, SAED, and XPS are standalone baseline workflows and are not yet forced into the legacy integrated report.
+Raman, TEM, SAED, XPS, and FTIR are standalone baseline workflows and are not forced into the legacy integrated report.
 
 ## Scientific Design Principles
 
@@ -76,20 +77,12 @@ mca raman \
   --spectral-resolution-cm-1 2
 ```
 
-The metadata above are synthetic demonstration values, not recovered instrument metadata.
-
 ### TEM
-
-Generate an explicit synthetic image:
 
 ```bash
 python scripts/generate_synthetic_tem_demo.py \
   --output outputs/tem_demo/synthetic_tem.tif
-```
 
-Run the baseline:
-
-```bash
 mca tem \
   --input outputs/tem_demo/synthetic_tem.tif \
   --output outputs/tem_demo/result \
@@ -98,20 +91,14 @@ mca tem \
   --contrast bright
 ```
 
-`nm_per_pixel` must come from validated calibration for real measurements. The workflow does not infer it from a label, filename, or magnification value.
+`nm_per_pixel` must come from validated calibration for real measurements.
 
 ### SAED
-
-Generate an explicit synthetic diffraction image:
 
 ```bash
 python scripts/generate_synthetic_saed_demo.py \
   --output outputs/saed_demo/synthetic_saed.tif
-```
 
-Run the radial baseline:
-
-```bash
 mca saed \
   --input outputs/saed_demo/synthetic_saed.tif \
   --output outputs/saed_demo/result \
@@ -123,20 +110,14 @@ mca saed \
   --prominence-fraction 0.08
 ```
 
-The reciprocal calibration above is synthetic demonstration metadata. Real `d_nm` output requires validated calibration. This project defines reciprocal magnitude as `g = 1/d`, not `q = 2*pi/d`.
+Real `d_nm` output requires validated reciprocal calibration. This project defines reciprocal magnitude as `g = 1/d`, not `q = 2*pi/d`.
 
 ### XPS
-
-Generate an explicit synthetic survey spectrum:
 
 ```bash
 python scripts/generate_synthetic_xps_demo.py \
   --output outputs/xps_demo/synthetic_xps.csv
-```
 
-Run the spectrum baseline:
-
-```bash
 mca xps \
   --input outputs/xps_demo/synthetic_xps.csv \
   --output outputs/xps_demo/result \
@@ -150,7 +131,28 @@ mca xps \
   --charge-neutralization unknown
 ```
 
-No energy reference is inferred automatically. Use either `--energy-shift-ev` or a complete `--reference-observed-ev` / `--reference-target-ev` pair when a scientifically justified reference is available. The metadata above are synthetic demonstration values.
+No energy reference is inferred automatically. Use either `--energy-shift-ev` or a complete `--reference-observed-ev` / `--reference-target-ev` pair when scientifically justified.
+
+### FTIR
+
+```bash
+python scripts/generate_synthetic_ftir_demo.py \
+  --output outputs/ftir_demo/synthetic_ftir.csv
+
+mca ftir \
+  --input outputs/ftir_demo/synthetic_ftir.csv \
+  --output outputs/ftir_demo/result \
+  --sample-id synthetic_ftir_demo \
+  --signal-type transmittance_percent \
+  --baseline-method linear \
+  --sampling-mode transmission \
+  --spectral-resolution-cm-1 4 \
+  --scan-count 16 \
+  --detector "synthetic demo" \
+  --background-description "synthetic reference"
+```
+
+FTIR signal type is mandatory. Header text is not used to infer whether the second column is absorbance or transmittance.
 
 ## Main Outputs
 
@@ -205,6 +207,14 @@ No energy reference is inferred automatically. Use either `--energy-shift-ev` or
 - `xps_spectrum_with_candidates.png`
 - `xps_analysis_manifest.json`
 
+### FTIR
+
+- `ftir_processed_spectrum.csv`
+- `ftir_band_candidates.csv`
+- `ftir_features_long.csv`
+- `ftir_spectrum_with_candidates.png`
+- `ftir_analysis_manifest.json`
+
 ## Scientific Boundaries
 
 - XRD peak candidates do not confirm phases.
@@ -217,6 +227,8 @@ No energy reference is inferred automatically. Use either `--energy-shift-ev` or
 - SAED `d_nm` is absent unless explicit calibration is provided.
 - XPS candidates do not identify elements, orbitals, chemical states, oxidation states, satellites, multiplets, or fitted components.
 - XPS energy referencing is never inferred automatically, and within-FWHM area is not quantitative composition.
+- FTIR candidates do not identify functional groups, compounds, phases, or bonding mechanisms.
+- FTIR transmittance conversion and band areas are not quantitative concentration analysis.
 - Passing tests confirms software behavior only; it does not establish experimental validity or scientific interpretation.
 
 Detailed limitations:
@@ -227,6 +239,7 @@ Detailed limitations:
 - [`docs/tem_workflow.md`](docs/tem_workflow.md)
 - [`docs/saed_workflow.md`](docs/saed_workflow.md)
 - [`docs/xps_workflow.md`](docs/xps_workflow.md)
+- [`docs/ftir_workflow.md`](docs/ftir_workflow.md)
 
 ## Testing
 
@@ -250,8 +263,8 @@ The repositories remain independently installable and should exchange informatio
 
 ## Next Development Order
 
-1. Validate Raman, TEM, SAED, and XPS baselines on representative public or appropriately shareable data with complete metadata.
+1. Validate Raman, TEM, SAED, XPS, and FTIR baselines on representative public or appropriately shareable data with complete metadata.
 2. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
-3. Add FTIR with spectral preprocessing and band-assignment safeguards.
-4. Add TGA/DSC with temperature-program, atmosphere, mass normalization, and event-definition metadata.
+3. Add TGA/DSC with temperature-program, atmosphere, mass normalization, and event-definition metadata.
+4. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
 5. Extend integrated reporting only after individual contracts and scientific validation gates are stable.
