@@ -1,0 +1,142 @@
+name: Public carbon four-material case
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "case_studies/public_carbon_four_materials/**"
+      - "scripts/run_public_carbon_four_materials_case.py"
+      - "scripts/discover_public_carbon_multimodal.py"
+      - "scripts/run_public_carbon_multimodal_case.py"
+      - "scripts/execute_public_carbon_multimodal_case.py"
+      - "src/mca/handoff_bundle.py"
+      - "tests/test_public_carbon_four_materials_case.py"
+      - "tests/test_public_carbon_tga_metadata_semantics.py"
+      - ".github/workflows/public-carbon-four-materials.yml"
+  pull_request:
+    paths:
+      - "case_studies/public_carbon_four_materials/**"
+      - "scripts/run_public_carbon_four_materials_case.py"
+      - "scripts/discover_public_carbon_multimodal.py"
+      - "scripts/run_public_carbon_multimodal_case.py"
+      - "scripts/execute_public_carbon_multimodal_case.py"
+      - "src/mca/handoff_bundle.py"
+      - "tests/test_public_carbon_four_materials_case.py"
+      - "tests/test_public_carbon_tga_metadata_semantics.py"
+      - ".github/workflows/public-carbon-four-materials.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-carbon-four-materials-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-four-material-case:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and test dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run four-material real-data case
+        shell: bash
+        run: |
+          mkdir -p outputs/public-carbon-four-materials-diagnostics
+          set -o pipefail
+          python scripts/run_public_carbon_four_materials_case.py \
+            --config case_studies/public_carbon_four_materials/case_config.json \
+            --output outputs/public-carbon-four-materials \
+            2>&1 | tee outputs/public-carbon-four-materials-diagnostics/case_run.log
+
+      - name: Run focused contract tests
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q \
+            tests/test_public_carbon_four_materials_case.py \
+            tests/test_public_carbon_tga_metadata_semantics.py \
+            2>&1 | tee outputs/public-carbon-four-materials-diagnostics/pytest.log
+
+      - name: Verify multi-sample evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+
+          root = Path("outputs/public-carbon-four-materials")
+          summary = json.loads((root / "case_summary.json").read_text(encoding="utf-8"))
+          bundle = json.loads(
+              (root / "characterization_handoff_bundle.json").read_text(encoding="utf-8")
+          )
+          assert summary["status"] == "completed"
+          assert summary["evidence_level"] == "Diagnostic"
+          assert summary["sample_count"] == 4
+          assert summary["measurement_count"] == 16
+          assert summary["feature_record_count"] > 16
+          assert summary["instruments"] == ["ftir", "raman", "tga", "xps"]
+          assert summary["sample_ids"] == [
+              "public-dwcnt",
+              "public-flg",
+              "public-gnp",
+              "public-mwcnt",
+          ]
+          assert summary["exact_source_binding"] is True
+          assert summary["fallback_source_selection_used"] is False
+          assert summary["tga_mass_metadata_semantics"]["empty_crucible_mass_inferred"] is False
+          assert summary["tga_mass_metadata_semantics"]["sample_plus_crucible_mass_inferred"] is False
+          assert summary["software_validation"]["model_trained"] is False
+          assert summary["software_validation"]["optimization_performed"] is False
+
+          feature = bundle["feature_table"]
+          assert feature["sample_count"] == 4
+          assert feature["measurement_count"] == 16
+          assert feature["row_count"] == summary["feature_record_count"]
+          assert feature["source_sha256_record_count"] == feature["row_count"]
+          assert feature["preprocessing_id_record_count"] == feature["row_count"]
+          assert bundle["join_contract"] == {
+              "join_key": "sample_id",
+              "row_order_join_allowed": False,
+              "aggregation_performed": False,
+              "missing_metadata_inferred": False,
+          }
+          assert bundle["scientific_closeout"]["evidence_level"] == "Diagnostic"
+
+          context = pd.read_csv(root / "sample_context.csv")
+          assert set(context["sample_id"]) == {
+              "public-dwcnt",
+              "public-mwcnt",
+              "public-flg",
+              "public-gnp",
+          }
+          assert not context["controlled_process_variable_confirmed"].astype(bool).any()
+          assert not context["process_response_model_allowed"].astype(bool).any()
+
+          analysis = json.loads((root / "case_analysis_manifest.json").read_text(encoding="utf-8"))
+          assert analysis["analysis_count"] == 16
+          print((root / "case_validation_report.md").read_text(encoding="utf-8"))
+          PY
+
+      - name: Upload four-material evidence and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-carbon-four-material-case
+          path: |
+            outputs/public-carbon-four-materials
+            outputs/public-carbon-four-materials-diagnostics
+          if-no-files-found: error
+          retention-days: 14
