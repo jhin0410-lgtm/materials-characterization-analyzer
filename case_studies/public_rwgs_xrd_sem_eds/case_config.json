@@ -1,0 +1,123 @@
+{
+  "case_id": "public-rwgs-5cu-al2o3-xrd-sem-eds",
+  "dataset": {
+    "title": "Characterization datasets of RWGS catalysts",
+    "doi": "10.5281/zenodo.13474908",
+    "record_url": "https://zenodo.org/records/13474908",
+    "version": "v1",
+    "published_date": "2024-08-29",
+    "license": "CC-BY-4.0",
+    "creators": [
+      "Maria Balaguer",
+      "Elena Vicente"
+    ]
+  },
+  "primary_sample": {
+    "sample_id": "rwgs-5wt-cu-al2o3",
+    "source_label": "5%Cu/Al2O3",
+    "nominal_material": "5 wt% Cu on gamma-Al2O3",
+    "preparation": {
+      "method": "incipient wetness impregnation",
+      "precursor": "Cu(NO3)2·3H2O aqueous solution",
+      "support": "gamma-alumina",
+      "drying": "120 degC for 2 h",
+      "calcination": "450 degC for 6 h"
+    },
+    "same_study_confirmed": true,
+    "same_nominal_sample_label_confirmed": true,
+    "same_physical_aliquot_confirmed": false
+  },
+  "selected_sources": {
+    "xrd": "xrd_archive/3, 5, 10, 20% Cu_Al2O3/_5%Cu_Al2O3.ASC",
+    "sem": "sem_eds_archive/5%Cu_Al2O3.tif",
+    "eds": "sem_eds_archive/5Cu-Al2O3_Site 3_2023-09-18_17-48-56.xlsx"
+  },
+  "xrd": {
+    "source_format": "headerless whitespace-separated two-column ASC",
+    "expected_row_count": 4402,
+    "expected_start_two_theta_deg": 2.01,
+    "expected_end_two_theta_deg": 90.01,
+    "expected_step_deg": 0.02,
+    "smoothing_window": 11,
+    "smoothing_polyorder": 3,
+    "prominence_fraction": 0.05,
+    "min_distance_samples": 3,
+    "xray_source": null,
+    "wavelength": null,
+    "instrumental_broadening": null
+  },
+  "sem": {
+    "image_shape": [768, 1024],
+    "analytical_crop": {
+      "x_start": 0,
+      "x_end": 1024,
+      "y_start": 0,
+      "y_end": 704,
+      "reason": "Exclude the instrument annotation footer from scientific image review."
+    },
+    "manual_footer_review": {
+      "instrument": "GeminiSEM 500-8203017153",
+      "magnification": "1.45 kX",
+      "working_distance_mm": 2.9,
+      "accelerating_voltage_kv": 1.5,
+      "signal": "ESB",
+      "noise_reduction": "Pixel Avg.",
+      "esb_grid_voltage_v": 800,
+      "acquisition_date": "2022-06-01",
+      "acquisition_time": "17:03:02",
+      "scale_bar_microns": 10.0,
+      "scale_bar_start_x_px": 193,
+      "scale_bar_end_x_px": 323,
+      "scale_bar_y_px": 743,
+      "scale_bar_pixel_distance": 130,
+      "microns_per_pixel": 0.07692307692307693,
+      "calibration_basis": "Manual review of the embedded 10 micrometre scale bar; pixel distance is endpoint separation 323-193."
+    },
+    "quantitative_segmentation_gate": {
+      "status": "blocked_method_mismatch",
+      "allowed": false,
+      "reason": "The image is ESB compositional-contrast microscopy of agglomerated catalyst powder. Global Otsu external-contour segmentation cannot distinguish whole particles from Cu-rich contrast, overlap, fractures, support morphology, or background.",
+      "allowed_output": "source provenance, footer metadata, scale review, cropped image, and qualitative inspection only"
+    }
+  },
+  "eds": {
+    "worksheet": "Sheet1",
+    "project_label": "Cu-Al2O3",
+    "specimen_label": "Specimen 1",
+    "site_label": "Site 3",
+    "acquisition_timestamp_from_filename": "2023-09-18T17:48:56",
+    "atomic_percent_basis": "Derived from source-reported weight percent using the configured atomic weights; the source workbook did not provide atomic percent.",
+    "source_exclusion_note_policy": "Preserve all source rows. Do not silently discard C, Si, or Au even though the workbook note says they were discarded for interpretation.",
+    "atomic_weights_g_mol": {
+      "C": 12.011,
+      "O": 15.999,
+      "Al": 26.9815385,
+      "Si": 28.085,
+      "Ni": 58.6934,
+      "Cu": 63.546,
+      "Au": 196.96657
+    },
+    "unexpected_element_review": {
+      "elements": ["Ni"],
+      "weight_percent_threshold": 0.5,
+      "reason": "Ni is not part of the nominal 5 wt% Cu/gamma-Al2O3 synthesis description."
+    }
+  },
+  "evidence_classification": {
+    "level": "Diagnostic",
+    "suitable_for": [
+      "software integration validation",
+      "source provenance validation",
+      "adapter validation",
+      "data-quality and comparability diagnostics",
+      "cautious within-technique exploratory review"
+    ],
+    "not_suitable_for": [
+      "phase confirmation",
+      "quantitative particle-size claims",
+      "nominal composition confirmation",
+      "catalytic mechanism claims",
+      "engineering release decisions"
+    ]
+  }
+}
