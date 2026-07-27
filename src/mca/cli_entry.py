@@ -1,4 +1,4 @@
-"""Backward-compatible console entry point with Raman, TEM, SAED, XPS, and FTIR dispatch."""
+"""Backward-compatible console entry point with standalone analyzer dispatch."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from .ftir_cli import main as ftir_main
 from .raman_cli import main as raman_main
 from .saed_cli import main as saed_main
 from .tem_cli import main as tem_main
+from .thermal_cli import main as thermal_main
 from .xps_cli import main as xps_main
 
 
@@ -24,9 +25,11 @@ def main(argv: list[str] | None = None) -> int:
         return xps_main(args[1:])
     if args and args[0] == "ftir":
         return ftir_main(args[1:])
+    if args and args[0] == "thermal":
+        return thermal_main(args[1:])
     if args in (["--help"], ["-h"]):
         print(
-            "Additional commands: raman, tem, saed, xps, ftir "
+            "Additional commands: raman, tem, saed, xps, ftir, thermal "
             "(run 'mca <command> --help' for options)\n"
         )
     return legacy_main(args)
