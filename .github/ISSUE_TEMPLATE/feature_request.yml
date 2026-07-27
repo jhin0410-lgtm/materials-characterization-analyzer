@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a narrowly scoped capability or scientific validation improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the current limitation, not only the proposed implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: scientific_need
+    attributes:
+      label: Scientific or engineering need
+      description: Explain the physical question, required metadata, units, and decision this feature should support.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_scope
+    attributes:
+      label: Smallest complete scope
+      description: Describe the minimum useful behavior and compatibility constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation evidence
+      description: Identify suitable synthetic tests, public benchmarks, or shareable real data. Do not upload private data.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Scope confirmation
+      options:
+        - label: This request does not require committing private, unpublished, proprietary, or ambiguously licensed data.
+          required: true
+        - label: I understand that passing software tests does not establish scientific validity.
+          required: true

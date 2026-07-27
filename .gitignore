@@ -1,12 +1,79 @@
+# Python bytecode and caches
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+.hypothesis/
+
+# Test and coverage outputs
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+junit.xml
+
+# Packaging and virtual environments
 .venv/
+venv/
+env/
+ENV/
 *.egg-info/
+.eggs/
 build/
 dist/
+pip-wheel-metadata/
 
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+.streamlit/secrets.toml
+secrets.*
+
+# Notebooks, editors, and operating-system files
+.ipynb_checkpoints/
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Generated analysis outputs
 outputs/*
 !outputs/.gitkeep
-
+artifacts/
+reports/generated/
 .mca_matplotlib_cache/
+
+# Local, private, downloaded, or generated datasets
+data/raw/
+data/private/
+data/local/
+data/downloads/
+data/processed/
+case_studies/**/raw/
+case_studies/**/downloads/
+case_studies/**/outputs/
+downloads/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.log

@@ -2,6 +2,18 @@ name: Public carbon multimodal case
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "case_studies/public_carbon_multimodal/**"
+      - "scripts/__init__.py"
+      - "scripts/discover_public_carbon_multimodal.py"
+      - "scripts/run_public_carbon_multimodal_case.py"
+      - "scripts/execute_public_carbon_multimodal_case.py"
+      - "tests/test_public_carbon_multimodal_case.py"
+      - "tests/test_public_carbon_source_adapter.py"
+      - ".github/workflows/public-carbon-case.yml"
   pull_request:
     paths:
       - "case_studies/public_carbon_multimodal/**"
@@ -12,6 +24,13 @@ on:
       - "tests/test_public_carbon_multimodal_case.py"
       - "tests/test_public_carbon_source_adapter.py"
       - ".github/workflows/public-carbon-case.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-carbon-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate-public-data-case:
@@ -37,31 +56,21 @@ jobs:
             --download
 
       - name: Run provenance-first real-data case
-        id: case
         shell: bash
         run: |
           mkdir -p outputs/public-carbon-case/diagnostics
-          set +e
+          set -o pipefail
           python scripts/execute_public_carbon_multimodal_case.py \
             --config case_studies/public_carbon_multimodal/case_config.json \
             --discovery outputs/public-carbon-case/discovery \
             --output outputs/public-carbon-case/result \
-            > outputs/public-carbon-case/diagnostics/case_run.log 2>&1
-          code=$?
-          set -e
-          cat outputs/public-carbon-case/diagnostics/case_run.log
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+            2>&1 | tee outputs/public-carbon-case/diagnostics/case_run.log
 
       - name: Run complete test suite
-        id: tests
         shell: bash
         run: |
-          set +e
-          pytest -q > outputs/public-carbon-case/diagnostics/pytest.log 2>&1
-          code=$?
-          set -e
-          cat outputs/public-carbon-case/diagnostics/pytest.log
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          pytest -q 2>&1 | tee outputs/public-carbon-case/diagnostics/pytest.log
 
       - name: Show validation evidence
         if: always()
@@ -73,15 +82,15 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          downloads = json.loads(
-              Path("outputs/public-carbon-case/discovery/downloads.json").read_text(encoding="utf-8")
-          )
-          for modality, record in downloads.items():
-              print(
-                  f"{modality}: status={record.get('status')}; "
-                  f"source={record.get('source_path')}; "
-                  f"checksum_verified={record.get('source_checksum_verified')}"
-              )
+          downloads_path = Path("outputs/public-carbon-case/discovery/downloads.json")
+          if downloads_path.exists():
+              downloads = json.loads(downloads_path.read_text(encoding="utf-8"))
+              for modality, record in downloads.items():
+                  print(
+                      f"{modality}: status={record.get('status')}; "
+                      f"source={record.get('source_path')}; "
+                      f"checksum_verified={record.get('source_checksum_verified')}"
+                  )
           summary_path = Path("outputs/public-carbon-case/result/case_summary.json")
           if summary_path.exists():
               print(summary_path.read_text(encoding="utf-8"))
@@ -95,13 +104,3 @@ jobs:
           path: outputs/public-carbon-case
           if-no-files-found: error
           retention-days: 14
-
-      - name: Enforce case and test success
-        if: always()
-        env:
-          CASE_EXIT: ${{ steps.case.outputs.exit_code }}
-          TEST_EXIT: ${{ steps.tests.outputs.exit_code }}
-        run: |
-          echo "case_exit=$CASE_EXIT test_exit=$TEST_EXIT"
-          test "$CASE_EXIT" = "0"
-          test "$TEST_EXIT" = "0"
