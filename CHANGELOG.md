@@ -10,6 +10,11 @@ No unreleased changes are currently recorded.
 
 ## [0.8.6] - 2026-07-27
 
+### Added
+
+- A NIST AM-Bench 2018-02 optical-metrology producer bundle containing ten explicit AMMT trace IDs and forty source-reported melt-pool width/depth feature records.
+- A checksum-bound schema `1.0` handoff package that keeps optical characterization evidence in this repository while leaving process conditions to `materials-data-analyzer`.
+
 ### Fixed
 
 - Four-material case sample IDs are now path-safe and constrained to the exact DWCNT, MWCNT, FLG, and GNP identity contract before any network or filesystem work.
@@ -21,7 +26,8 @@ No unreleased changes are currently recorded.
 ### Scientific status
 
 - The four-material case remains `Diagnostic` and compares distinct material classes, not controlled process levels.
-- No phase, chemical-state, functional-group, mechanism, process-response, prediction, optimization, or engineering-release claim is supported.
+- The NIST optical-metrology bundle preserves source-reported table values and does not independently remeasure raw microscopy images or include process variables.
+- No phase, chemical-state, functional-group, mechanism, causal process-response, prediction, optimization, or engineering-release claim is supported by either case.
 
 ## [0.8.5] - 2026-07-27
 
