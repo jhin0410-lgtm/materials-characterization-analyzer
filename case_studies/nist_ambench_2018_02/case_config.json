@@ -1,0 +1,38 @@
+{
+  "case_id": "nist-ambench-2018-02-optical-metrology-v1",
+  "dataset": {
+    "benchmark_description_url": "https://www.nist.gov/ambench/amb2018-02-description",
+    "results_url": "https://www.nist.gov/ambench/chal-amb2018-02-mp-xsection",
+    "public_data_repository_doi": "10.18434/mds2-3830",
+    "public_data_repository_version": "1.0.3",
+    "publication_doi": "10.1007/s40192-020-00169-1",
+    "source_organization": "NIST",
+    "material": "IN625",
+    "system": "AMMT"
+  },
+  "source_table": {
+    "path": "source_melt_pool_measurements.csv",
+    "provenance_type": "manual_transcription_from_official_nist_results_page",
+    "raw_image_parsed": false,
+    "redistributes_raw_images": false
+  },
+  "measurement": {
+    "instrument": "optical_microscopy_metrology",
+    "method": "nist_microscope_control_metrology_mode_reported_table",
+    "reported_individual_measurement_uncertainty_um": 0.5,
+    "preprocessing_id": "nist_reported_table_values_v1",
+    "quality_flag": "source_reported"
+  },
+  "expected_cases": {
+    "A": {"trace_count": 3, "trace_numbers": [5, 6, 7]},
+    "B": {"trace_count": 3, "trace_numbers": [8, 9, 10]},
+    "C": {"trace_count": 4, "trace_numbers": [1, 2, 3, 4]}
+  },
+  "scientific_guardrails": [
+    "The exported values are source-reported optical-microscopy metrology values, not features re-extracted from raw micrographs.",
+    "The stable sample_id maps each reported transverse cross section to one NIST AMMT trace.",
+    "No process variable is stored or inferred in this producer bundle; process conditions belong to the consumer repository.",
+    "The bundle supports descriptive process-characterization integration after explicit identity validation, not causal attribution, optimization, prediction, or transfer beyond the benchmark conditions.",
+    "The reported within-measurement standard deviations are preserved and are not replaced by between-trace statistics."
+  ]
+}

@@ -1,0 +1,11 @@
+sample_id,case_id,trace_number,melt_pool_width_mean_um,melt_pool_width_std_dev_um,melt_pool_depth_mean_um,melt_pool_depth_std_dev_um
+amb2018_02_ammt_trace_01,C,1,104.4,0.187,29.0,0.081
+amb2018_02_ammt_trace_02,C,2,107.7,0.187,29.2,0.041
+amb2018_02_ammt_trace_03,C,3,106.6,0.071,30.0,0.000
+amb2018_02_ammt_trace_04,C,4,105.4,0.216,30.2,0.148
+amb2018_02_ammt_trace_05,A,5,144.0,0.320,44.4,0.122
+amb2018_02_ammt_trace_06,A,6,151.3,0.071,41.0,0.187
+amb2018_02_ammt_trace_07,A,7,148.5,0.357,42.1,0.108
+amb2018_02_ammt_trace_08,B,8,116.4,0.187,38.2,0.179
+amb2018_02_ammt_trace_09,B,9,129.1,0.142,34.8,0.041
+amb2018_02_ammt_trace_10,B,10,124.9,0.204,34.9,0.147
