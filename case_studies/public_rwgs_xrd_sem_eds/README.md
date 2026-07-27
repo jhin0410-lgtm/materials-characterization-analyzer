@@ -94,9 +94,26 @@ python scripts/run_public_rwgs_xrd_sem_eds_case.py \
   --config case_studies/public_rwgs_xrd_sem_eds/case_config.json \
   --discovery outputs/public-rwgs-case/discovery \
   --output outputs/public-rwgs-case/result
+
+python scripts/export_public_rwgs_handoff_bundle.py \
+  --config case_studies/public_rwgs_xrd_sem_eds/case_config.json \
+  --result outputs/public-rwgs-case/result
 ```
 
 Windows PowerShell uses the same commands with backticks or one-line invocations.
+
+## Cross-repository handoff
+
+The exporter writes an isolated bundle under `result/handoff_bundle/` so it does not overwrite the case-level `result/characterization_features_long.csv` artifact.
+
+The bundle contains:
+
+- `characterization_features_long.csv`: XRD and EDS numeric features only;
+- `sample_context.csv`: nominal sample, dataset, preparation, SEM block, and unresolved-element context;
+- `characterization_handoff_bundle.json`: schema `1.0`, checksums, counts, producer versions, evidence references, join rules, and scientific closeout;
+- copied source, analysis, and comparability evidence referenced by checksum.
+
+SEM contributes no numeric feature rows because quantitative segmentation is blocked. The block status remains explicit in `sample_context.csv` and the scientific closeout. The consumer must join only through `sample_id`, verify every checksum, preserve quality flags and methods, and retain the `Diagnostic` claim boundary.
 
 ## Main outputs
 
@@ -117,12 +134,15 @@ Windows PowerShell uses the same commands with backticks or one-line invocations
 - `result/comparability_matrix.csv`
 - `result/case_validation_report.md`
 - `result/case_summary.json`
+- `result/handoff_bundle/characterization_features_long.csv`
+- `result/handoff_bundle/sample_context.csv`
+- `result/handoff_bundle/characterization_handoff_bundle.json`
 
 ## Scientific closeout
 
 - **Result:** `Diagnostic`
-- **Strongest evidence:** checksum-verified public acquisition, same nominal sample-label mapping, value-preserving XRD adaptation, complete EDS row preservation, and explicit SEM suitability blocking.
+- **Strongest evidence:** checksum-verified public acquisition, same nominal sample-label mapping, value-preserving XRD adaptation, complete EDS row preservation, explicit SEM suitability blocking, and checksum-bound file handoff.
 - **Primary limitation:** identical aliquots are unconfirmed; SEM quantitative segmentation is unsuitable; Ni conflicts with the nominal synthesis description; key XRD and EDS acquisition metadata are absent.
 - **Evidence that would change the conclusion:** aliquot-linkage records, complete instrument/acquisition metadata, an explanation or repeat measurement for Ni, validated SEM labels or segmentation references, and XRD radiation/instrument metadata.
-- **Suitable for:** software integration, provenance, adapter, and data-quality diagnostics.
-- **Not suitable for:** phase confirmation, quantitative particle-size claims, nominal-composition confirmation, catalytic-mechanism claims, or engineering release decisions.
+- **Suitable for:** software integration, provenance, adapter, data-quality diagnostics, and cross-repository contract validation.
+- **Not suitable for:** process-response modeling, phase confirmation, quantitative particle-size claims, nominal-composition confirmation, catalytic-mechanism claims, or engineering release decisions.
