@@ -6,12 +6,14 @@ on:
     paths:
       - "case_studies/public_carbon_multimodal/**"
       - "scripts/discover_public_carbon_multimodal.py"
+      - "scripts/run_public_carbon_multimodal_case.py"
+      - "tests/test_public_carbon_multimodal_case.py"
       - ".github/workflows/public-carbon-case.yml"
 
 jobs:
-  discover-public-data:
+  validate-public-data-case:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -21,32 +23,52 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run public dataset discovery
+      - name: Install package and test dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Discover and download minimal public source subset
         run: |
           python scripts/discover_public_carbon_multimodal.py \
             --config case_studies/public_carbon_multimodal/case_config.json \
             --output outputs/public-carbon-case/discovery \
             --download
 
-      - name: Show discovery report
+      - name: Run provenance-first real-data case
+        run: |
+          python scripts/run_public_carbon_multimodal_case.py \
+            --config case_studies/public_carbon_multimodal/case_config.json \
+            --discovery outputs/public-carbon-case/discovery \
+            --output outputs/public-carbon-case/result
+
+      - name: Run complete test suite
+        run: pytest -q
+
+      - name: Show validation evidence
         run: |
           cat outputs/public-carbon-case/discovery/discovery_report.md
+          cat outputs/public-carbon-case/result/case_validation_report.md
           python - <<'PY'
           import json
           from pathlib import Path
-          path = Path("outputs/public-carbon-case/discovery/downloads.json")
-          payload = json.loads(path.read_text(encoding="utf-8"))
-          for modality, record in payload.items():
-              print(f"\n## {modality}: {record.get('status')}")
-              print(f"source={record.get('source_path')}")
-              for line in record.get("first_lines", [])[:12]:
-                  print(line)
+          downloads = json.loads(
+              Path("outputs/public-carbon-case/discovery/downloads.json").read_text(encoding="utf-8")
+          )
+          summary = json.loads(
+              Path("outputs/public-carbon-case/result/case_summary.json").read_text(encoding="utf-8")
+          )
+          for modality, record in downloads.items():
+              print(
+                  f"{modality}: status={record.get('status')}; "
+                  f"source={record.get('source_path')}; "
+                  f"checksum_verified={record.get('source_checksum_verified')}"
+              )
+          print(json.dumps(summary, indent=2, ensure_ascii=False))
           PY
 
-      - name: Upload discovery evidence
+      - name: Upload public case evidence
         uses: actions/upload-artifact@v4
         with:
-          name: public-carbon-discovery
-          path: outputs/public-carbon-case/discovery
+          name: public-carbon-multimodal-case
+          path: outputs/public-carbon-case
           if-no-files-found: error
           retention-days: 14
