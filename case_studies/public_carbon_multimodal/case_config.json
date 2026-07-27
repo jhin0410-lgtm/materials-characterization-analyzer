@@ -17,78 +17,17 @@
   },
   "comparison_samples": ["DWCNT", "MWCNT", "FLG", "GNP"],
   "modalities": {
-    "raman": {
-      "required_tokens": ["raman", "dwcnt"],
-      "preferred_tokens": ["s01"],
-      "excluded_tokens": [],
-      "extensions": [".csv", ".tab", ".txt", ".tsv"]
-    },
-    "ftir": {
-      "required_tokens": ["ftir", "dwcnt"],
-      "preferred_tokens": [],
-      "excluded_tokens": [],
-      "extensions": [".csv", ".tab", ".txt", ".tsv"]
-    },
-    "xps": {
-      "required_tokens": ["xps", "dwcnt"],
-      "preferred_tokens": ["survey", "general", "wide"],
-      "excluded_tokens": ["fit", "deconv", "component"],
-      "extensions": [".csv", ".tab", ".txt", ".tsv"]
-    },
-    "tga": {
-      "required_tokens": ["tgaair", "dwcnt"],
-      "preferred_tokens": ["raw_tgaair", "20210511"],
-      "excluded_tokens": [],
-      "extensions": [".csv", ".tab", ".txt", ".tsv"]
-    },
-    "tem": {
-      "required_tokens": ["tem", "dwcnt"],
-      "preferred_tokens": ["raw", "_01"],
-      "excluded_tokens": ["hist", "distribution", "analysis", "processed", "fft", "saed"],
-      "extensions": [".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp"]
-    },
-    "readme": {
-      "required_tokens": ["readme_raw"],
-      "preferred_tokens": [],
-      "excluded_tokens": [],
-      "extensions": [".pdf"]
-    }
+    "raman": {"required_tokens": ["raman", "dwcnt"], "preferred_tokens": ["s01"], "excluded_tokens": [], "extensions": [".csv", ".tab", ".txt", ".tsv"]},
+    "ftir": {"required_tokens": ["ftir", "dwcnt"], "preferred_tokens": [], "excluded_tokens": [], "extensions": [".csv", ".tab", ".txt", ".tsv"]},
+    "xps": {"required_tokens": ["xps", "dwcnt"], "preferred_tokens": ["survey", "general", "wide"], "excluded_tokens": ["fit", "deconv", "component"], "extensions": [".csv", ".tab", ".txt", ".tsv"]},
+    "tga": {"required_tokens": ["tgaair", "dwcnt"], "preferred_tokens": ["raw_tgaair", "20210511"], "excluded_tokens": [], "extensions": [".csv", ".tab", ".txt", ".tsv"]},
+    "tem": {"required_tokens": ["tem", "dwcnt"], "preferred_tokens": ["raw", "_01"], "excluded_tokens": ["hist", "distribution", "analysis", "processed", "fft", "saed"], "extensions": [".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp"]},
+    "readme": {"required_tokens": ["readme_raw"], "preferred_tokens": [], "excluded_tokens": [], "extensions": [".pdf"]}
   },
   "acquisition_metadata": {
-    "raman": {
-      "instrument_model": "Jobin Yvon LabRAM HR800",
-      "detector": "CCD cooled to -70 degC",
-      "laser_wavelength_nm": 633.0,
-      "objective": "100x",
-      "objective_numerical_aperture": 0.5,
-      "reported_range_cm_1": [1250.0, 1675.0],
-      "reported_replicates_per_sample": "3 to 6 spectra",
-      "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf"
-    },
-    "ftir": {
-      "instrument_model": "Nicolet 6700 FT-IR",
-      "sampling_mode": "atr",
-      "atr_crystal": "diamond",
-      "scan_count": 100,
-      "spectral_resolution_cm_1": 2.0,
-      "reported_range_cm_1": [400.0, 4000.0],
-      "background_description": "Dataset-provided ATR acquisition; background details not reported in the readme",
-      "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf"
-    },
-    "xps": {
-      "instrument_model": "Kratos Axis Ultra",
-      "spectrum_type": "survey",
-      "region_label": "wide scan",
-      "xray_source": "monochromatic Al K-alpha",
-      "photon_energy_ev": 1486.6,
-      "pass_energy_ev": 160.0,
-      "step_size_ev": 1.0,
-      "takeoff_angle_deg": 90.0,
-      "analyzed_area_mm": [0.7, 0.3],
-      "reported_range_ev": [0.0, 1100.0],
-      "charge_neutralization": "unknown",
-      "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf"
-    },
+    "raman": {"instrument_model": "Jobin Yvon LabRAM HR800", "detector": "CCD cooled to -70 degC", "laser_wavelength_nm": 633.0, "objective": "100x", "objective_numerical_aperture": 0.5, "reported_range_cm_1": [1250.0, 1675.0], "reported_replicates_per_sample": "3 to 6 spectra", "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf"},
+    "ftir": {"instrument_model": "Nicolet 6700 FT-IR", "sampling_mode": "atr", "atr_crystal": "diamond", "scan_count": 100, "spectral_resolution_cm_1": 2.0, "reported_range_cm_1": [400.0, 4000.0], "background_description": "Dataset-provided ATR acquisition; background details not reported in the readme", "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf"},
+    "xps": {"instrument_model": "Kratos Axis Ultra", "spectrum_type": "survey", "region_label": "wide scan", "xray_source": "monochromatic Al K-alpha", "photon_energy_ev": 1486.6, "pass_energy_ev": 160.0, "step_size_ev": 1.0, "takeoff_angle_deg": 90.0, "analyzed_area_mm": [0.7, 0.3], "reported_range_ev": [0.0, 1100.0], "charge_neutralization": "unknown", "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf"},
     "tga": {
       "instrument_model": "Setaram Setsys Evolution 1750",
       "atmosphere": "dry air",
@@ -98,82 +37,29 @@
       "purge_duration_h": 1.0,
       "crucible_material": "alumina",
       "sample_mass_mg": 3.531,
-      "reported_empty_crucible_mass_mg": 0.0247,
-      "reported_sample_plus_crucible_mass_mg": 3.605,
+      "sample_mass_definition": "W_sa: starting sample mass before the dry-air purge",
+      "dry_air_purge_mass_change_mg": 0.0247,
+      "dry_air_purge_mass_change_definition": "W_sp: sample mass change measured after the one-hour dry-air purge",
+      "helium_purge_starting_sample_mass_mg": 3.605,
+      "helium_purge_starting_sample_mass_definition": "W_sm: starting sample mass for the separate TGA-MS helium experiment",
+      "empty_crucible_mass_inferred": false,
+      "sample_plus_crucible_mass_inferred": false,
       "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf"
     },
-    "tem": {
-      "instrument_model": "JEOL JEM-ARM 200F Cold FEG with Cs probe corrector",
-      "accelerating_voltage_kv": 80.0,
-      "sample_preparation": "Dispersed in ethanol, gently sonicated 5 min, droplet on 200-mesh copper grid with holey amorphous carbon film",
-      "reported_images_per_sample": "25 to 45 TIFF images",
-      "embedded_scale_bar_nm": 200.0,
-      "manually_reviewed_scale_bar_pixels": 320.0,
-      "reviewed_nm_per_pixel": 0.625,
-      "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf and manual scale-bar review of selected TIFF"
-    }
+    "tem": {"instrument_model": "JEOL JEM-ARM 200F Cold FEG with Cs probe corrector", "accelerating_voltage_kv": 80.0, "sample_preparation": "Dispersed in ethanol, gently sonicated 5 min, droplet on 200-mesh copper grid with holey amorphous carbon film", "reported_images_per_sample": "25 to 45 TIFF images", "embedded_scale_bar_nm": 200.0, "manually_reviewed_scale_bar_pixels": 320.0, "reviewed_nm_per_pixel": 0.625, "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf and manual scale-bar review of selected TIFF"}
   },
   "processing_parameters": {
-    "raman": {
-      "baseline_method": "asls",
-      "baseline_smoothness": 1000000.0,
-      "baseline_asymmetry": 0.01,
-      "baseline_iterations": 15,
-      "smoothing_window": 11,
-      "smoothing_polyorder": 3,
-      "prominence_fraction": 0.05,
-      "min_distance": 5
-    },
-    "ftir": {
-      "signal_type": "absorbance",
-      "baseline_method": "asls",
-      "baseline_smoothness": 1000000.0,
-      "baseline_asymmetry": 0.01,
-      "baseline_iterations": 15,
-      "smoothing_window": 11,
-      "smoothing_polyorder": 3,
-      "prominence_fraction": 0.03,
-      "min_distance": 5
-    },
-    "xps": {
-      "background_method": "shirley",
-      "shirley_iterations": 100,
-      "shirley_tolerance": 0.000001,
-      "smoothing_window": 0,
-      "smoothing_polyorder": 3,
-      "prominence_fraction": 0.03,
-      "min_distance": 3,
-      "energy_reference": "none"
-    },
-    "tga": {
-      "signal_type": "mass_percent",
-      "baseline_method": "none",
-      "smoothing_window": 11,
-      "smoothing_polyorder": 3,
-      "prominence_fraction": 0.05,
-      "min_distance": 5
-    }
+    "raman": {"baseline_method": "asls", "baseline_smoothness": 1000000.0, "baseline_asymmetry": 0.01, "baseline_iterations": 15, "smoothing_window": 11, "smoothing_polyorder": 3, "prominence_fraction": 0.05, "min_distance": 5},
+    "ftir": {"signal_type": "absorbance", "baseline_method": "asls", "baseline_smoothness": 1000000.0, "baseline_asymmetry": 0.01, "baseline_iterations": 15, "smoothing_window": 11, "smoothing_polyorder": 3, "prominence_fraction": 0.03, "min_distance": 5},
+    "xps": {"background_method": "shirley", "shirley_iterations": 100, "shirley_tolerance": 0.000001, "smoothing_window": 0, "smoothing_polyorder": 3, "prominence_fraction": 0.03, "min_distance": 3, "energy_reference": "none"},
+    "tga": {"signal_type": "mass_percent", "baseline_method": "none", "smoothing_window": 11, "smoothing_polyorder": 3, "prominence_fraction": 0.05, "min_distance": 5}
   },
-  "suitability_gates": {
-    "tem_quantitative_segmentation": {
-      "allowed": false,
-      "status": "blocked_method_mismatch",
-      "reason": "The selected DWCNT micrograph contains intertwined nanotubes on a holey carbon support. The current TEM analyzer segments global bright/dark Otsu regions and cannot distinguish nanotubes from support-grid holes or overlapping bundles. Running it would create physically misleading region-size outputs.",
-      "allowed_output": "source identity, checksum, image dimensions, acquisition metadata, and manually reviewed scale-bar record only"
-    }
-  },
-  "availability_contract": {
-    "raman": "available_conditionally_comparable",
-    "tem": "available_analysis_blocked",
-    "xps": "available_conditionally_comparable",
-    "ftir": "available_conditionally_comparable",
-    "tga": "available_conditionally_comparable",
-    "saed": "not_provided_by_dataset",
-    "dsc": "not_provided_by_dataset"
-  },
+  "suitability_gates": {"tem_quantitative_segmentation": {"allowed": false, "status": "blocked_method_mismatch", "reason": "The selected DWCNT micrograph contains intertwined nanotubes on a holey carbon support. The current TEM analyzer segments global bright/dark Otsu regions and cannot distinguish nanotubes from support-grid holes or overlapping bundles. Running it would create physically misleading region-size outputs.", "allowed_output": "source identity, checksum, image dimensions, acquisition metadata, and manually reviewed scale-bar record only"}},
+  "availability_contract": {"raman": "available_conditionally_comparable", "tem": "available_analysis_blocked", "xps": "available_conditionally_comparable", "ftir": "available_conditionally_comparable", "tga": "available_conditionally_comparable", "saed": "not_provided_by_dataset", "dsc": "not_provided_by_dataset"},
   "scientific_guardrails": [
     "The dataset label DWCNT is treated as a source sample class, not proof that every technique measured the identical physical aliquot.",
     "Cross-technique interpretation requires source metadata, preparation history, acquisition settings, and file-level provenance.",
+    "TGA mass symbols retain the source readme meanings: W_sa is the dry-air starting mass, W_sp is the purge-associated mass change, and W_sm is the separate helium TGA-MS starting mass.",
     "SAED and DSC are not filled from unrelated datasets.",
     "TEM quantitative segmentation is blocked because the implemented threshold-region method is not valid for intertwined CNTs on holey support.",
     "Automatic analyzer outputs remain diagnostic and review-required; they do not confirm composition, phase, bonding, reactions, or mechanisms."
