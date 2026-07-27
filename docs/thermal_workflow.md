@@ -54,7 +54,7 @@ For `heat_flow_mw`, `--sample-mass-mg` is required to derive `W/g`. Without samp
 
 1. validate one increasing temperature segment and optional increasing time axis;
 2. convert the explicit mass signal to mass-retention percent;
-3. optionally apply Savitzky-Golay smoothing;
+3. optionally apply Savitzky–Golay smoothing;
 4. calculate the negative temperature derivative as positive mass-loss rate;
 5. detect descriptive positive mass-loss-rate candidates;
 6. calculate candidate temperature, prominence, descriptive FWHM, and mass change within the FWHM interval.
@@ -149,7 +149,7 @@ mca thermal \
   --output outputs/thermal_demo/dsc_result \
   --sample-id synthetic_dsc_demo \
   --mode dsc \
-  --signal-type heat_flow-w-g \
+  --signal-type heat_flow_w_g \
   --endotherm-direction up \
   --baseline-method linear \
   --atmosphere N2 \
@@ -158,7 +158,7 @@ mca thermal \
   --crucible-material aluminum
 ```
 
-The CLI signal choice is spelled `heat_flow_w_g`; the example data are synthetic software fixtures, not real instrument evidence.
+The example data are synthetic software fixtures, not real instrument evidence.
 
 ## Scientific Limitations
 
