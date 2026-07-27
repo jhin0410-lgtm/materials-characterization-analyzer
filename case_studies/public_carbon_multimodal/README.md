@@ -67,7 +67,25 @@ python scripts/execute_public_carbon_multimodal_case.py \
   --output outputs/public-carbon-case/result
 ```
 
-The dedicated GitHub Actions workflow performs the same acquisition and analysis and uploads the evidence for 14 days.
+## Export for `materials-data-analyzer`
+
+After the case succeeds, export the persisted analysis evidence as a versioned file bundle:
+
+```bash
+python scripts/export_public_carbon_handoff_bundle.py \
+  --config case_studies/public_carbon_multimodal/case_config.json \
+  --result outputs/public-carbon-case/result
+```
+
+The exporter reads the persisted analysis manifest rather than importing any consumer code. It writes:
+
+- `characterization_features_long.csv`: combined Raman, FTIR, XPS, and TGA numeric features using the stable 12-column contract;
+- `sample_context.csv`: explicit source sample and dataset context keyed by `sample_id`;
+- `characterization_handoff_bundle.json`: producer version, file checksums, counts, instruments, evidence references, join policy, and scientific claim boundary.
+
+The consumer must resolve files through the bundle manifest, verify all checksums, and join only through explicit `sample_id`. Row-order joining, silent aggregation, and inferred metadata are prohibited. The source-file strings inside feature rows remain producer provenance labels; `source_sha256` is the content binding.
+
+The dedicated GitHub Actions workflow performs the public acquisition and analysis and uploads the evidence for 14 days.
 
 ## Main outputs
 
@@ -85,7 +103,10 @@ outputs/public-carbon-case/
     ├── case_analysis_manifest.json
     ├── comparability_matrix.csv
     ├── case_validation_report.md
-    └── case_summary.json
+    ├── case_summary.json
+    ├── characterization_features_long.csv
+    ├── sample_context.csv
+    └── characterization_handoff_bundle.json
 ```
 
 ## Scientific closeout
@@ -94,5 +115,5 @@ outputs/public-carbon-case/
 
 - Strongest evidence: public source identifiers and checksums, one dataset package, documented acquisition conditions, explicit adapters, and real-data execution of existing contracts.
 - Primary limitation: identical physical aliquots are not confirmed and preparation differs between techniques.
-- Suitable for: software integration validation, provenance demonstration, and exploratory within-technique review.
-- Not suitable for: phase confirmation, chemical-state assignment, functional-group proof, reaction or mechanism claims, or engineering release decisions without independent validation.
+- Suitable for: software integration validation, provenance demonstration, exploratory within-technique review, and cross-repository contract validation.
+- Not suitable for: process-response modeling, phase confirmation, chemical-state assignment, functional-group proof, reaction or mechanism claims, or engineering release decisions without independent validation.

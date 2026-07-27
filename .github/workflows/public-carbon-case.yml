@@ -7,22 +7,28 @@ on:
       - main
     paths:
       - "case_studies/public_carbon_multimodal/**"
+      - "src/mca/handoff_bundle.py"
       - "scripts/__init__.py"
       - "scripts/discover_public_carbon_multimodal.py"
       - "scripts/run_public_carbon_multimodal_case.py"
       - "scripts/execute_public_carbon_multimodal_case.py"
+      - "scripts/export_public_carbon_handoff_bundle.py"
       - "tests/test_public_carbon_multimodal_case.py"
       - "tests/test_public_carbon_source_adapter.py"
+      - "tests/test_handoff_bundle.py"
       - ".github/workflows/public-carbon-case.yml"
   pull_request:
     paths:
       - "case_studies/public_carbon_multimodal/**"
+      - "src/mca/handoff_bundle.py"
       - "scripts/__init__.py"
       - "scripts/discover_public_carbon_multimodal.py"
       - "scripts/run_public_carbon_multimodal_case.py"
       - "scripts/execute_public_carbon_multimodal_case.py"
+      - "scripts/export_public_carbon_handoff_bundle.py"
       - "tests/test_public_carbon_multimodal_case.py"
       - "tests/test_public_carbon_source_adapter.py"
+      - "tests/test_handoff_bundle.py"
       - ".github/workflows/public-carbon-case.yml"
 
 permissions:
@@ -66,6 +72,12 @@ jobs:
             --output outputs/public-carbon-case/result \
             2>&1 | tee outputs/public-carbon-case/diagnostics/case_run.log
 
+      - name: Export cross-repository handoff bundle
+        run: |
+          python scripts/export_public_carbon_handoff_bundle.py \
+            --config case_studies/public_carbon_multimodal/case_config.json \
+            --result outputs/public-carbon-case/result
+
       - name: Run complete test suite
         shell: bash
         run: |
@@ -91,9 +103,10 @@ jobs:
                       f"source={record.get('source_path')}; "
                       f"checksum_verified={record.get('source_checksum_verified')}"
                   )
-          summary_path = Path("outputs/public-carbon-case/result/case_summary.json")
-          if summary_path.exists():
-              print(summary_path.read_text(encoding="utf-8"))
+          for name in ("case_summary.json", "characterization_handoff_bundle.json"):
+              path = Path("outputs/public-carbon-case/result") / name
+              if path.exists():
+                  print(path.read_text(encoding="utf-8"))
           PY
 
       - name: Upload public case evidence and diagnostics
