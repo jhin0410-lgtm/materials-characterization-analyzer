@@ -60,3 +60,7 @@ For real-data cases, document at minimum:
 ## Data and generated files
 
 Do not commit downloaded raw datasets, private instrument exports, local outputs, caches, virtual environments, credentials, or temporary files. Public case studies should fetch external files reproducibly and record source identifiers and checksums rather than vendoring large source datasets.
+
+## Release preparation
+
+Changes intended for a versioned release must follow [`docs/release_checklist.md`](docs/release_checklist.md). In particular, package, runtime, citation, and changelog versions must match; the full test suite and distribution build must pass; and scientific evidence classifications must not be upgraded merely because software checks pass.
