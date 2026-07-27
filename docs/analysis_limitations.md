@@ -1,6 +1,6 @@
 # Analysis Limitations
 
-This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, Raman, and TEM outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
+This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, Raman, TEM, and SAED outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
 
 The included demo files and generated demo images are synthetic data. They are not real experimental measurements and should not be described as instrument output from an actual sample.
 
@@ -54,6 +54,20 @@ The included demo files and generated demo images are synthetic data. They are n
 - The workflow does not perform SAED indexing, calibrated diffraction spacing, HRTEM lattice-fringe measurement, FFT interpretation, or phase assignment.
 - Long-format TEM features are flagged `review_required`.
 
+## SAED
+
+- The SAED workflow calculates mean intensity over complete annuli around a selected diffraction center and detects descriptive radial candidates.
+- A radial candidate is not an indexed reflection, phase, zone axis, crystal structure, or validated diffraction ring.
+- If the center is not supplied, the image midpoint is used and explicitly warned; the workflow does not claim automatic transmitted-beam center estimation.
+- Radial averaging can hide discrete spots, arcs, preferred orientation, ellipticity, astigmatism, detector distortion, beam-stop effects, and incomplete rings.
+- Candidate radius and FWHM depend on center choice, central-beam masking, smoothing, prominence, radial bin width, minimum radius, saturation, background, and image preprocessing.
+- Without explicit reciprocal calibration, the workflow exports pixel radius only and does not calculate d-spacing.
+- Calibrated outputs use the fixed convention `g = 1/d`; the alternative convention `q = 2*pi/d` is not used.
+- Accelerating voltage, camera length, magnification, filenames, and embedded labels are not sufficient by themselves to derive d-spacing in this workflow.
+- A single reference-ring calibration does not validate detector linearity, distortion, center selection, or calibration transfer across acquisition conditions.
+- Calibrated d-spacing candidates require reference validation and expert review and do not confirm a phase.
+- Long-format SAED features are flagged `review_required`.
+
 ## Provenance and Result Contracts
 
 - SHA-256 identifies exact file bytes. It does not prove that a file belongs to the declared sample or that acquisition metadata are correct.
@@ -63,6 +77,6 @@ The included demo files and generated demo images are synthetic data. They are n
 
 ## Integrated Interpretation
 
-XRD, SEM, EDS, Raman, and TEM should be interpreted together with sample identity, composition, processing history, instrument settings, calibration information, acquisition conditions, preprocessing choices, sampling design, and domain expertise.
+XRD, SEM, EDS, Raman, TEM, and SAED should be interpreted together with sample identity, composition, processing history, instrument settings, calibration information, acquisition conditions, preprocessing choices, sampling design, and domain expertise.
 
-SEM region size, TEM contrast-region size, and XRD crystallite-size estimates describe different measurement processes and cannot be treated as interchangeable. EDS supports elemental composition review but does not decide crystalline phases or chemical states. Raman peaks support spectral comparison but do not identify a material without appropriate references and validated measurement context. TEM contrast can support morphology or microstructure review only after the imaging mode and contrast mechanism are scientifically justified.
+SEM region size, TEM contrast-region size, and XRD crystallite-size estimates describe different measurement processes and cannot be treated as interchangeable. EDS supports elemental composition review but does not decide crystalline phases or chemical states. Raman peaks support spectral comparison but do not identify a material without appropriate references and validated measurement context. TEM contrast can support morphology or microstructure review only after the imaging mode and contrast mechanism are scientifically justified. SAED radial candidates can support diffraction review only after center and calibration validation and expert crystallographic indexing.
