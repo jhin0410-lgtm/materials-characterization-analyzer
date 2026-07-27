@@ -4,7 +4,7 @@ type: software
 title: "Materials Characterization Analyzer"
 authors:
   - name: "jhin0410-lgtm"
-version: 0.8.4
+version: 0.8.5
 date-released: 2026-07-27
 repository-code: "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
 url: "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
