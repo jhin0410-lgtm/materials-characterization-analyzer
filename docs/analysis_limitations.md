@@ -1,8 +1,8 @@
 # Analysis Limitations
 
-This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, Raman, TEM, and SAED outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
+This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, Raman, TEM, SAED, and XPS outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
 
-The included demo files and generated demo images are synthetic data. They are not real experimental measurements and should not be described as instrument output from an actual sample.
+The included demo files and generated demo images or spectra are synthetic data. They are not real experimental measurements and should not be described as instrument output from an actual sample.
 
 ## XRD
 
@@ -68,6 +68,20 @@ The included demo files and generated demo images are synthetic data. They are n
 - Calibrated d-spacing candidates require reference validation and expert review and do not confirm a phase.
 - Long-format SAED features are flagged `review_required`.
 
+## XPS
+
+- The XPS workflow imports a monotonic two-column binding-energy spectrum, records the original axis direction, and stores numerical processing in ascending energy order.
+- No energy reference is inferred. A shift is applied only when the user supplies a direct shift or a complete observed-to-target reference pair.
+- The workflow does not automatically assume adventitious carbon, C 1s at a particular energy, a Fermi edge, an internal standard, or valid charge correction.
+- Charging and differential charging can invalidate a single rigid energy shift even when a reference value is supplied.
+- Shirley and linear backgrounds depend on endpoints and spectrum range and are not universally valid. This baseline does not implement Tougaard backgrounds or fitted local background regions.
+- Automatically detected candidates do not identify elements, orbitals, compounds, chemical states, oxidation states, satellites, multiplets, or spin-orbit components.
+- Reported FWHM is descriptive and is not a Gaussian, Lorentzian, Voigt, Doniach-Sunjic, asymmetric, or constrained peak-fit parameter.
+- Reported area is limited to the FWHM interval and is not a full fitted component area, sensitivity-factor-corrected intensity, or atomic concentration.
+- Pass energy, step size, X-ray source, photon energy, analyzer transmission, charge neutralization, takeoff angle, dwell time, scan count, sample history, contamination, sputtering, and radiation damage can affect interpretation.
+- The workflow does not calculate atomic percentages or quantitative composition.
+- Long-format XPS features are flagged `review_required`.
+
 ## Provenance and Result Contracts
 
 - SHA-256 identifies exact file bytes. It does not prove that a file belongs to the declared sample or that acquisition metadata are correct.
@@ -77,6 +91,6 @@ The included demo files and generated demo images are synthetic data. They are n
 
 ## Integrated Interpretation
 
-XRD, SEM, EDS, Raman, TEM, and SAED should be interpreted together with sample identity, composition, processing history, instrument settings, calibration information, acquisition conditions, preprocessing choices, sampling design, and domain expertise.
+XRD, SEM, EDS, Raman, TEM, SAED, and XPS should be interpreted together with sample identity, composition, processing history, instrument settings, calibration information, acquisition conditions, preprocessing choices, sampling design, and domain expertise.
 
-SEM region size, TEM contrast-region size, and XRD crystallite-size estimates describe different measurement processes and cannot be treated as interchangeable. EDS supports elemental composition review but does not decide crystalline phases or chemical states. Raman peaks support spectral comparison but do not identify a material without appropriate references and validated measurement context. TEM contrast can support morphology or microstructure review only after the imaging mode and contrast mechanism are scientifically justified. SAED radial candidates can support diffraction review only after center and calibration validation and expert crystallographic indexing.
+SEM region size, TEM contrast-region size, and XRD crystallite-size estimates describe different measurement processes and cannot be treated as interchangeable. EDS supports elemental composition review but does not decide crystalline phases or chemical states. Raman peaks support spectral comparison but do not identify a material without appropriate references and validated measurement context. TEM contrast can support morphology or microstructure review only after the imaging mode and contrast mechanism are scientifically justified. SAED radial candidates can support diffraction review only after center and calibration validation and expert crystallographic indexing. XPS candidates can support spectral review only after energy-reference, background, acquisition, fitting, and chemical-state assumptions are independently justified.
