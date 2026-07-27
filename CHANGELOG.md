@@ -8,6 +8,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes are currently recorded.
 
+## [0.8.6] - 2026-07-27
+
+### Fixed
+
+- Four-material case sample IDs are now path-safe and constrained to the exact DWCNT, MWCNT, FLG, and GNP identity contract before any network or filesystem work.
+- Supplied Dataverse checksums now fail closed when the algorithm is unsupported, incomplete, or mismatched; invalid sources are not written to disk.
+- The configured Dataverse dataset version is verified against returned metadata before source selection.
+- Per-sample reports and TEM limitations are generated from each material's resolved configuration instead of reusing DWCNT-specific scientific language.
+- The dedicated real-data workflow now runs when any exercised Raman, FTIR, XPS, thermal, provenance, feature, contract, or handoff module changes.
+
+### Scientific status
+
+- The four-material case remains `Diagnostic` and compares distinct material classes, not controlled process levels.
+- No phase, chemical-state, functional-group, mechanism, process-response, prediction, optimization, or engineering-release claim is supported.
+
 ## [0.8.5] - 2026-07-27
 
 ### Added
