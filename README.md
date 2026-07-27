@@ -61,6 +61,12 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
+Verify the installed public version:
+
+```bash
+mca --version
+```
+
 ## Commands
 
 ### Integrated XRD / SEM / EDS
@@ -308,13 +314,14 @@ Detailed limitations:
 - [`docs/ftir_workflow.md`](docs/ftir_workflow.md)
 - [`docs/thermal_workflow.md`](docs/thermal_workflow.md)
 
-## Testing
+## Testing and Build Validation
 
 ```bash
 pytest -q
+python -m build
 ```
 
-Pytest temporary files are written under the ignored `outputs/pytest-tmp` directory.
+Pytest temporary files are written under the ignored `outputs/pytest-tmp` directory. CI also installs the built wheel, verifies `mca --version`, and checks that local raw/private/output paths were not packaged.
 
 ## Data and Repository Safety
 
@@ -331,6 +338,14 @@ Synthetic demo inputs and generators must be clearly labelled and must not be pr
 - Contribution requirements: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Security reporting: [SECURITY.md](SECURITY.md)
 
+## Citation and Releases
+
+- Machine-readable citation metadata: [CITATION.cff](CITATION.cff)
+- User-facing change history: [CHANGELOG.md](CHANGELOG.md)
+- Versioned release validation: [docs/release_checklist.md](docs/release_checklist.md)
+
+When citing an analysis, cite both this software version and the original experimental dataset or publication recorded in the analysis provenance. The BSD 3-Clause software license does not replace external data licenses.
+
 ## Related Project
 
 [`materials-data-analyzer`](https://github.com/jhin0410-lgtm/materials-data-analyzer) handles tabular experiment, process, battery, quality, reliability, and modeling workflows.
@@ -343,9 +358,10 @@ The software in this repository is licensed under the [BSD 3-Clause License](LIC
 
 ## Next Development Order
 
-1. Re-run the full CI and public DWCNT case on `main` after the public-repository hardening changes are merged.
-2. Validate the remaining baseline analyzers on representative public or appropriately shareable data with complete metadata.
-3. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
-4. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
-5. Add cooling, hold, cycling, simultaneous TGA-DSC, and multisegment thermal workflows only with explicit segment contracts.
-6. Extend integrated reporting only after individual contracts and scientific validation gates are stable.
+1. Validate the remaining baseline analyzers on representative public or appropriately shareable data with complete metadata, prioritizing XRD, SEM, EDS, SAED, and DSC.
+2. Complete one additional credible end-to-end real-data case before adding advanced interpretation methods.
+3. Define and validate stable sample/measurement exchange contracts with `materials-data-analyzer` before cross-repository integration.
+4. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
+5. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
+6. Add cooling, hold, cycling, simultaneous TGA-DSC, and multisegment thermal workflows only with explicit segment contracts.
+7. Extend integrated reporting only after individual contracts and scientific validation gates are stable.
