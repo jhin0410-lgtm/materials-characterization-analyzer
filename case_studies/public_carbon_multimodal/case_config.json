@@ -98,8 +98,13 @@
       "purge_duration_h": 1.0,
       "crucible_material": "alumina",
       "sample_mass_mg": 3.531,
-      "reported_empty_crucible_mass_mg": 0.0247,
-      "reported_sample_plus_crucible_mass_mg": 3.605,
+      "sample_mass_definition": "W_sa: starting sample mass before the dry-air purge",
+      "dry_air_purge_mass_change_mg": 0.0247,
+      "dry_air_purge_mass_change_definition": "W_sp: sample mass change measured after the one-hour dry-air purge",
+      "helium_purge_starting_sample_mass_mg": 3.605,
+      "helium_purge_starting_sample_mass_definition": "W_sm: starting sample mass for the separate TGA-MS helium experiment",
+      "empty_crucible_mass_inferred": false,
+      "sample_plus_crucible_mass_inferred": false,
       "metadata_source": "Dataset_Raw/ReadMe_Raw.pdf"
     },
     "tem": {
@@ -174,6 +179,7 @@
   "scientific_guardrails": [
     "The dataset label DWCNT is treated as a source sample class, not proof that every technique measured the identical physical aliquot.",
     "Cross-technique interpretation requires source metadata, preparation history, acquisition settings, and file-level provenance.",
+    "TGA mass symbols retain the source readme meanings: W_sa is the dry-air starting mass, W_sp is the purge-associated mass change, and W_sm is the separate helium TGA-MS starting mass.",
     "SAED and DSC are not filled from unrelated datasets.",
     "TEM quantitative segmentation is blocked because the implemented threshold-region method is not valid for intertwined CNTs on holey support.",
     "Automatic analyzer outputs remain diagnostic and review-required; they do not confirm composition, phase, bonding, reactions, or mechanisms."
