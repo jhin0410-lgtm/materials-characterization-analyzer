@@ -1,6 +1,6 @@
 # Analysis Limitations
 
-This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, Raman, TEM, SAED, XPS, and FTIR outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
+This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, Raman, TEM, SAED, XPS, FTIR, TGA, and DSC outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
 
 The included demo files and generated demo images or spectra are synthetic data. They are not real experimental measurements and should not be described as instrument output from an actual sample.
 
@@ -91,6 +91,32 @@ The included demo files and generated demo images or spectra are synthetic data.
 - The workflow does not apply atmospheric correction, ATR correction, normalization, derivatives, spectral subtraction, library matching, or quantitative concentration analysis.
 - Long-format FTIR features are flagged `review_required`.
 
+## TGA
+
+- The TGA workflow accepts one strictly increasing temperature segment and rejects cooling, holds, and multisegment programs rather than silently reordering them.
+- `mass_percent`, `mass_fraction`, and `mass_mg` are separate explicit signal contracts.
+- When `mass_mg` is supplied without an explicit initial mass, the first valid mass value is used as the reference and a warning is recorded.
+- Mass-retention and DTG-like mass-loss-rate values can be affected by balance drift, buoyancy, gas density, purge flow, crucible, sample geometry, loading, calibration, and temperature lag.
+- Savitzky–Golay smoothing and numerical differentiation can materially change candidate temperature, height, width, and detectability.
+- A mass-loss-rate candidate does not identify evaporation, decomposition, oxidation, reduction, desorption, reaction mechanism, or chemical species.
+- Mass gain is preserved and warned; the software does not decide whether it is oxidation, adsorption, buoyancy, drift, or another effect.
+- FWHM temperature intervals and mass change within FWHM are descriptive and are not validated reaction onset or completion boundaries.
+- Extrapolated onset, kinetic analysis, isoconversional methods, and evolved-gas interpretation are not implemented.
+- Long-format TGA features are flagged `review_required`.
+
+## DSC
+
+- The DSC workflow accepts one strictly increasing temperature segment and requires a user-supplied endotherm-up or endotherm-down convention.
+- `heat_flow_mw` and `heat_flow_w_g` are separate explicit signal contracts.
+- Raw mW data are not converted to W/g without a positive sample mass.
+- A linear baseline is a transparent preprocessing choice, not a universal physical transition baseline.
+- Endothermic and exothermic candidates do not confirm melting, crystallization, curing, oxidation, evaporation, decomposition, glass transition, or solid-state transformation.
+- Glass transition is a step-change problem and is not detected by the current peak-candidate workflow.
+- Candidate FWHM and area are descriptive and are not fitted, deconvoluted, extrapolated-onset, or total-transition parameters.
+- Diagnostic `J/g` is calculated only from mass-normalized heat flow plus a time axis or heating rate; calibration, baseline, sample mass, pan matching, transition boundaries, and thermal program still require validation.
+- Cooling, cycling, isothermal holds, modulated DSC, and simultaneous TGA-DSC are outside the current contract.
+- Long-format DSC features are flagged `review_required`.
+
 ## Provenance and Result Contracts
 
 - SHA-256 identifies exact file bytes. It does not prove sample identity or metadata correctness.
@@ -100,6 +126,6 @@ The included demo files and generated demo images or spectra are synthetic data.
 
 ## Integrated Interpretation
 
-XRD, SEM, EDS, Raman, TEM, SAED, XPS, and FTIR should be interpreted with sample identity, composition, processing history, instrument settings, calibration, acquisition conditions, preprocessing, sampling design, references, and domain expertise.
+XRD, SEM, EDS, Raman, TEM, SAED, XPS, FTIR, TGA, and DSC should be interpreted with sample identity, composition, processing and thermal history, instrument settings, calibration, acquisition conditions, atmosphere, preprocessing, sampling design, references, and domain expertise.
 
-SEM region size, TEM contrast-region size, and XRD crystallite-size estimates describe different measurement processes and are not interchangeable. EDS does not decide crystalline phase or chemical state. Raman and FTIR candidates do not identify materials without suitable references and validated acquisition context. TEM and SAED require validated contrast, center, scale, and diffraction interpretation. XPS requires independently justified energy reference, background, acquisition, fitting, and chemical-state assumptions.
+SEM region size, TEM contrast-region size, and XRD crystallite-size estimates describe different measurement processes and are not interchangeable. EDS does not decide crystalline phase or chemical state. Raman and FTIR candidates do not identify materials without suitable references and validated acquisition context. TEM and SAED require validated contrast, center, scale, and diffraction interpretation. XPS requires independently justified energy reference, background, acquisition, fitting, and chemical-state assumptions. TGA and DSC candidates require validated temperature programs, atmosphere, mass or heat-flow calibration, baselines, and independent physical interpretation.
