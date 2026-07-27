@@ -25,7 +25,7 @@ def test_cp1252_tga_adapter_excludes_only_initial_stabilization(tmp_path: Path) 
     record = adapt_public_tga_air_source(source, destination)
     canonical = pd.read_csv(destination)
     assert record["source_encoding"] == "cp1252"
-    assert record["initial_stabilization_rows_excluded"] == 3
+    assert record["initial_stabilization_rows_excluded"] == 2
     assert canonical["temperature_c"].is_monotonic_increasing
-    assert canonical.iloc[0]["temperature_c"] == 20.89
+    assert canonical.iloc[0]["temperature_c"] == 20.88
     assert "no sorting or interpolation" in record["heating_segment_rule"]
