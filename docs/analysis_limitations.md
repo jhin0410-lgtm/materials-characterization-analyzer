@@ -1,6 +1,6 @@
 # Analysis Limitations
 
-This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes basic outputs and cautious summaries from XRD, SEM, and EDS inputs while the v0.2 contract adds provenance-aware manifests and long-format feature records.
+This project is a materials characterization support tool, not an automatic material identification system. The workflow organizes cautious XRD, SEM, EDS, and Raman outputs while the result contract records provenance, preprocessing, warnings, and long-format features.
 
 The included demo files are synthetic/demo data. They are not real experimental measurements and should not be described as instrument output from an actual sample.
 
@@ -31,6 +31,17 @@ The included demo files are synthetic/demo data. They are not real experimental 
 - The current workflow does not process EDS maps, uncertainty estimates, background corrections, or multiple acquisition points.
 - Long-format EDS composition features are flagged `review_required` because the current importer does not carry a complete acquisition and quantification metadata package.
 
+## Raman
+
+- The Raman workflow performs two-column import, optional asymmetric least-squares baseline correction, optional Savitzky-Golay smoothing, automatic peak detection, descriptive FWHM calculation, and within-FWHM integration.
+- Automatically detected peaks do not identify a compound, phase, bond, or vibrational mode. No band assignment is generated.
+- Baseline and smoothing parameters can materially change peak height, position, width, area, and detectability. Raw, baseline, corrected, and processed signals are therefore saved together.
+- The reported FWHM is calculated from the processed signal and is not a fitted Gaussian, Lorentzian, Voigt, or asymmetric line-shape parameter.
+- The reported area is limited to the FWHM interval and is not a deconvoluted full-peak area.
+- Fluorescence, cosmic rays, detector saturation, peak overlap, calibration, polarization, focus, laser heating, acquisition time, laser power, and spectral resolution can affect the result.
+- Missing recommended acquisition metadata are recorded as warnings rather than inferred.
+- Long-format Raman features are flagged `review_required`.
+
 ## Provenance and Result Contracts
 
 - SHA-256 identifies exact file bytes. It does not prove that a file belongs to the declared sample or that acquisition metadata are correct.
@@ -40,6 +51,6 @@ The included demo files are synthetic/demo data. They are not real experimental 
 
 ## Integrated Interpretation
 
-XRD, SEM, and EDS should be interpreted together with sample history, instrument settings, calibration information, and domain expertise.
+XRD, SEM, EDS, and Raman should be interpreted together with sample history, instrument settings, calibration information, acquisition conditions, preprocessing choices, and domain expertise.
 
-SEM particle size and XRD crystallite size estimates can differ because they describe different physical length scales. EDS can support elemental composition review, but it should not be used by itself to decide crystal phases. XRD peak features can support structural review, but this project does not claim phase confirmation.
+SEM particle size and XRD crystallite size estimates can differ because they describe different physical length scales. EDS supports elemental composition review but does not decide crystalline phases or chemical states. Raman peaks support spectral comparison but do not identify a material without appropriate references and validated measurement context.
