@@ -1,0 +1,192 @@
+name: Temporary cobalt oxide TEM archive inventory
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/temporary-cobalt-oxide-tem-archive-inventory.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install inventory-only dependency
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Download exact public archive and verify published MD5
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output /tmp/Segmented_images.zip \
+            "https://zenodo.org/records/14927582/files/Segmented_images.zip?download=1"
+          echo "63edc9b44264f8a1397bff806d58eade  /tmp/Segmented_images.zip" | md5sum --check
+          sha256sum /tmp/Segmented_images.zip > cobalt-oxide-tem-archive.sha256
+
+      - name: Build safe archive and image inventory
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import csv
+          import hashlib
+          import io
+          import json
+          import stat
+          import zipfile
+          from collections import Counter
+          from pathlib import Path, PurePosixPath
+
+          from PIL import Image
+
+          archive_path = Path("/tmp/Segmented_images.zip")
+          entries = []
+          suffix_counts: Counter[str] = Counter()
+          image_rows = []
+          seen_exact: set[str] = set()
+          seen_casefold: set[str] = set()
+          duplicate_exact: list[str] = []
+          duplicate_casefold: list[str] = []
+
+          with zipfile.ZipFile(archive_path) as zf:
+              assert zf.testzip() is None, "archive CRC check failed"
+              for info in zf.infolist():
+                  raw_name = info.filename
+                  normalized = raw_name.replace("\\", "/")
+                  path = PurePosixPath(normalized)
+                  assert raw_name == normalized, f"backslash path rejected: {raw_name!r}"
+                  assert not path.is_absolute(), f"absolute path rejected: {raw_name!r}"
+                  assert ".." not in path.parts, f"path traversal rejected: {raw_name!r}"
+                  assert not any(part in ("", ".") for part in path.parts), (
+                      f"non-canonical path rejected: {raw_name!r}"
+                  )
+                  unix_mode = (info.external_attr >> 16) & 0xFFFF
+                  assert not stat.S_ISLNK(unix_mode), f"symlink rejected: {raw_name!r}"
+                  assert not (info.flag_bits & 0x1), f"encrypted entry rejected: {raw_name!r}"
+
+                  if raw_name in seen_exact:
+                      duplicate_exact.append(raw_name)
+                  seen_exact.add(raw_name)
+                  folded = raw_name.casefold()
+                  if folded in seen_casefold:
+                      duplicate_casefold.append(raw_name)
+                  seen_casefold.add(folded)
+
+                  suffix = path.suffix.lower() or "<none>"
+                  suffix_counts[suffix] += 1
+                  ratio = (
+                      float(info.file_size) / float(info.compress_size)
+                      if info.compress_size
+                      else None
+                  )
+                  row = {
+                      "path": raw_name,
+                      "is_directory": info.is_dir(),
+                      "uncompressed_bytes": info.file_size,
+                      "compressed_bytes": info.compress_size,
+                      "compression_ratio": ratio,
+                      "crc32": f"{info.CRC:08x}",
+                      "suffix": suffix,
+                  }
+                  entries.append(row)
+
+                  if info.is_dir() or suffix not in {
+                      ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp"
+                  }:
+                      continue
+                  data = zf.read(info)
+                  with Image.open(io.BytesIO(data)) as image:
+                      image.load()
+                      extrema = image.getextrema()
+                      image_rows.append(
+                          {
+                              "path": raw_name,
+                              "format": image.format,
+                              "mode": image.mode,
+                              "width_px": image.width,
+                              "height_px": image.height,
+                              "frame_count": getattr(image, "n_frames", 1),
+                              "pixel_extrema": repr(extrema),
+                              "sha256": hashlib.sha256(data).hexdigest(),
+                          }
+                      )
+
+          assert not duplicate_exact, duplicate_exact
+          assert not duplicate_casefold, duplicate_casefold
+          assert entries, "archive contains no entries"
+
+          total_uncompressed = sum(row["uncompressed_bytes"] for row in entries)
+          max_ratio = max(
+              (row["compression_ratio"] or 0.0 for row in entries),
+              default=0.0,
+          )
+          inventory = {
+              "schema_version": "1.0",
+              "source": {
+                  "repository": "Zenodo",
+                  "record_id": 14927582,
+                  "doi": "10.5281/zenodo.14927582",
+                  "dataset_version": "v1",
+                  "license": "CC-BY-4.0",
+                  "file_name": "Segmented_images.zip",
+                  "published_md5": "63edc9b44264f8a1397bff806d58eade",
+                  "download_url": "https://zenodo.org/records/14927582/files/Segmented_images.zip?download=1",
+              },
+              "archive": {
+                  "sha256": hashlib.sha256(archive_path.read_bytes()).hexdigest(),
+                  "entry_count": len(entries),
+                  "image_entry_count": len(image_rows),
+                  "total_uncompressed_bytes": total_uncompressed,
+                  "max_entry_compression_ratio": max_ratio,
+                  "suffix_counts": dict(sorted(suffix_counts.items())),
+                  "duplicate_exact_paths": duplicate_exact,
+                  "duplicate_casefold_paths": duplicate_casefold,
+                  "crc_verified": True,
+                  "safe_paths_verified": True,
+                  "symlinks_absent": True,
+                  "encrypted_entries_absent": True,
+              },
+              "entries": entries,
+              "images": image_rows,
+              "scientific_interpretation_performed": False,
+              "segmentation_metric_computed": False,
+              "model_training_performed": False,
+          }
+          Path("cobalt-oxide-tem-archive-inventory.json").write_text(
+              json.dumps(inventory, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          with Path("cobalt-oxide-tem-image-inventory.csv").open(
+              "w", newline="", encoding="utf-8"
+          ) as handle:
+              writer = csv.DictWriter(handle, fieldnames=list(image_rows[0]) if image_rows else ["path"])
+              writer.writeheader()
+              writer.writerows(image_rows)
+          print(json.dumps(inventory["archive"], indent=2, sort_keys=True))
+          print("first image rows:")
+          print(json.dumps(image_rows[:10], indent=2, sort_keys=True))
+          PY
+
+      - name: Upload inventory evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: cobalt-oxide-tem-archive-inventory
+          path: |
+            cobalt-oxide-tem-archive.sha256
+            cobalt-oxide-tem-archive-inventory.json
+            cobalt-oxide-tem-image-inventory.csv
+          if-no-files-found: error
+          retention-days: 7
