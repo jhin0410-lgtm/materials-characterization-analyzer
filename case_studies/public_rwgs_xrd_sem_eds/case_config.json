@@ -1,6 +1,6 @@
 {
   "case_id": "public-rwgs-5cu-al2o3-xrd-sem-eds",
-  "software_release": "0.8.4",
+  "software_release": "0.8.5",
   "dataset": {
     "title": "Characterization datasets of RWGS catalysts",
     "doi": "10.5281/zenodo.13474908",
