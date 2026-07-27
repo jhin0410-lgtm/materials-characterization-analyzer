@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/jhin0410-lgtm/materials-characterization-analyzer/actions/workflows/ci.yml)
 
-`materials-characterization-analyzer` is a provenance-aware Python CLI for organizing XRD, SEM, EDS, Raman, TEM, SAED, XPS, and FTIR characterization inputs into validated tables, diagnostic figures, long-format features, manifests, and cautious summaries.
+`materials-characterization-analyzer` is a provenance-aware Python CLI for organizing XRD, SEM, EDS, Raman, TEM, SAED, XPS, FTIR, TGA, and DSC characterization inputs into validated tables, diagnostic figures, long-format features, manifests, and cautious summaries.
 
-It is an analysis-support workflow, not an automatic material-identification, phase-confirmation, chemical-state-assignment, functional-group-assignment, or quantitative-composition system.
+It is an analysis-support workflow, not an automatic material-identification, phase-confirmation, chemical-state-assignment, functional-group-assignment, reaction-mechanism, or quantitative-composition system.
 
 ## Current Scope
 
@@ -16,10 +16,11 @@ It is an analysis-support workflow, not an automatic material-identification, ph
 - **SAED**: 8/16-bit diffraction image preservation, explicit center, complete-annulus radial profile, ring candidates, optional calibrated `d_nm`, plots, features, and manifest.
 - **XPS**: monotonic two-column binding-energy import, explicit energy referencing, Shirley/linear/no background, optional smoothing, descriptive peak candidates, plots, features, and manifest.
 - **FTIR**: monotonic two-column wavenumber import, explicit absorbance/transmittance semantics, transmittance-to-absorbance conversion, optional baseline and smoothing, descriptive band candidates, plots, features, and manifest.
+- **TGA/DSC**: explicit thermal mode and signal units, single increasing heating-segment validation, TGA mass-retention/DTG-like candidates, DSC endotherm-oriented candidates, optional diagnostic enthalpy, plots, features, and manifest.
 - **Integrated XRD/SEM/EDS report**: combines existing result tables into one Markdown summary.
 - **Result contract**: records source SHA-256, acquisition metadata, preprocessing history, artifacts, long-format features, warnings, limitations, and software/schema versions.
 
-Raman, TEM, SAED, XPS, and FTIR are standalone baseline workflows and are not forced into the legacy integrated report.
+Raman, TEM, SAED, XPS, FTIR, TGA, and DSC are standalone baseline workflows and are not forced into the legacy integrated report.
 
 ## Scientific Design Principles
 
@@ -154,6 +155,48 @@ mca ftir \
 
 FTIR signal type is mandatory. Header text is not used to infer whether the second column is absorbance or transmittance.
 
+### TGA
+
+```bash
+python scripts/generate_synthetic_thermal_demo.py \
+  --mode tga \
+  --output outputs/thermal_demo/synthetic_tga.csv
+
+mca thermal \
+  --input outputs/thermal_demo/synthetic_tga.csv \
+  --output outputs/thermal_demo/tga_result \
+  --sample-id synthetic_tga_demo \
+  --mode tga \
+  --signal-type mass_percent \
+  --atmosphere N2 \
+  --heating-rate-c-min 10 \
+  --sample-mass-mg 10 \
+  --crucible-material alumina
+```
+
+### DSC
+
+```bash
+python scripts/generate_synthetic_thermal_demo.py \
+  --mode dsc \
+  --output outputs/thermal_demo/synthetic_dsc.csv
+
+mca thermal \
+  --input outputs/thermal_demo/synthetic_dsc.csv \
+  --output outputs/thermal_demo/dsc_result \
+  --sample-id synthetic_dsc_demo \
+  --mode dsc \
+  --signal-type heat_flow_w_g \
+  --endotherm-direction up \
+  --baseline-method linear \
+  --atmosphere N2 \
+  --heating-rate-c-min 10 \
+  --sample-mass-mg 10 \
+  --crucible-material aluminum
+```
+
+The thermal baseline accepts one strictly increasing heating segment. Cooling, holds, cycling, and multisegment programs require explicit segmentation and are not silently reordered.
+
 ## Main Outputs
 
 ### XRD
@@ -215,6 +258,14 @@ FTIR signal type is mandatory. Header text is not used to infer whether the seco
 - `ftir_spectrum_with_candidates.png`
 - `ftir_analysis_manifest.json`
 
+### TGA / DSC
+
+- `thermal_processed_data.csv`
+- `thermal_event_candidates.csv`
+- `thermal_features_long.csv`
+- `thermal_curve_with_candidates.png`
+- `thermal_analysis_manifest.json`
+
 ## Scientific Boundaries
 
 - XRD peak candidates do not confirm phases.
@@ -229,6 +280,9 @@ FTIR signal type is mandatory. Header text is not used to infer whether the seco
 - XPS energy referencing is never inferred automatically, and within-FWHM area is not quantitative composition.
 - FTIR candidates do not identify functional groups, compounds, phases, or bonding mechanisms.
 - FTIR transmittance conversion and band areas are not quantitative concentration analysis.
+- TGA candidates do not identify decomposition reactions, oxidation, evaporation, adsorption, or chemical species.
+- DSC candidates do not confirm melting, crystallization, curing, oxidation, glass transition, or solid-state transformation.
+- Thermal FWHM, area, and diagnostic enthalpy are not validated onset, fitted-component, or quantitative-composition results.
 - Passing tests confirms software behavior only; it does not establish experimental validity or scientific interpretation.
 
 Detailed limitations:
@@ -240,6 +294,7 @@ Detailed limitations:
 - [`docs/saed_workflow.md`](docs/saed_workflow.md)
 - [`docs/xps_workflow.md`](docs/xps_workflow.md)
 - [`docs/ftir_workflow.md`](docs/ftir_workflow.md)
+- [`docs/thermal_workflow.md`](docs/thermal_workflow.md)
 
 ## Testing
 
@@ -263,8 +318,8 @@ The repositories remain independently installable and should exchange informatio
 
 ## Next Development Order
 
-1. Validate Raman, TEM, SAED, XPS, and FTIR baselines on representative public or appropriately shareable data with complete metadata.
+1. Validate Raman, TEM, SAED, XPS, FTIR, TGA, and DSC baselines on representative public or appropriately shareable data with complete metadata.
 2. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
-3. Add TGA/DSC with temperature-program, atmosphere, mass normalization, and event-definition metadata.
-4. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
+3. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
+4. Add cooling, hold, cycling, simultaneous TGA-DSC, and multisegment thermal workflows only with explicit segment contracts.
 5. Extend integrated reporting only after individual contracts and scientific validation gates are stable.
