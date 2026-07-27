@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from mca.handoff_bundle import write_characterization_handoff_bundle
 DEFAULT_CONFIG = Path("case_studies/public_rwgs_xrd_sem_eds/case_config.json")
 PRODUCER_REPOSITORY = "jhin0410-lgtm/materials-characterization-analyzer"
 CONSUMER_REPOSITORY = "jhin0410-lgtm/materials-data-analyzer"
+BUNDLE_DIRECTORY_NAME = "handoff_bundle"
 
 
 def load_json(path: str | Path) -> dict[str, object]:
@@ -18,6 +20,23 @@ def load_json(path: str | Path) -> dict[str, object]:
     if not isinstance(payload, dict):
         raise ValueError(f"Expected JSON object: {path}")
     return payload
+
+
+def _copy_evidence_to_bundle(result: Path, bundle_dir: Path) -> dict[str, Path]:
+    evidence_names = {
+        "source_manifest": "selected_source_manifest.json",
+        "analysis_manifest": "characterization_manifest.json",
+        "comparability_matrix": "comparability_matrix.csv",
+    }
+    copied: dict[str, Path] = {}
+    for label, name in evidence_names.items():
+        source = result / name
+        if not source.is_file():
+            raise FileNotFoundError(f"RWGS {label} not found: {source}")
+        destination = bundle_dir / name
+        shutil.copyfile(source, destination)
+        copied[label] = destination
+    return copied
 
 
 def export_bundle(config_path: str | Path, result_dir: str | Path) -> dict[str, Path]:
@@ -49,6 +68,10 @@ def export_bundle(config_path: str | Path, result_dir: str | Path) -> dict[str, 
     if not isinstance(unexpected_elements, list):
         raise ValueError("RWGS unexpected-element review must provide an elements list.")
 
+    bundle_dir = result / BUNDLE_DIRECTORY_NAME
+    bundle_dir.mkdir(parents=False, exist_ok=False)
+    evidence = _copy_evidence_to_bundle(result, bundle_dir)
+
     sample_context = {
         "sample_id": primary_sample.get("sample_id"),
         "source_label": primary_sample.get("source_label"),
@@ -71,12 +94,12 @@ def export_bundle(config_path: str | Path, result_dir: str | Path) -> dict[str, 
     }
 
     paths = write_characterization_handoff_bundle(
-        result,
+        bundle_dir,
         case_id=str(config.get("case_id", "")),
         sample_context_rows=[sample_context],
-        source_manifest_path=result / "selected_source_manifest.json",
-        analysis_manifest_path=result / "characterization_manifest.json",
-        comparability_matrix_path=result / "comparability_matrix.csv",
+        source_manifest_path=evidence["source_manifest"],
+        analysis_manifest_path=evidence["analysis_manifest"],
+        comparability_matrix_path=evidence["comparability_matrix"],
         producer_repository=PRODUCER_REPOSITORY,
         evidence_level="Diagnostic",
         scientific_boundary={
@@ -112,9 +135,9 @@ def export_bundle(config_path: str | Path, result_dir: str | Path) -> dict[str, 
     summary_path = result / "case_summary.json"
     summary = load_json(summary_path)
     summary["cross_repository_handoff"] = {
-        "feature_table": paths["feature_table"].name,
-        "sample_context": paths["sample_context"].name,
-        "manifest": paths["manifest"].name,
+        "feature_table": str(paths["feature_table"].relative_to(result)),
+        "sample_context": str(paths["sample_context"].relative_to(result)),
+        "manifest": str(paths["manifest"].relative_to(result)),
         "consumer_repository": CONSUMER_REPOSITORY,
         "exported_instruments": ["eds", "xrd"],
         "sem_quantitative_segmentation_status": gate.get("status"),
