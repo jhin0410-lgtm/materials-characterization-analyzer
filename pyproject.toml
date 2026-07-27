@@ -59,4 +59,5 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "--basetemp=outputs/pytest-tmp"
