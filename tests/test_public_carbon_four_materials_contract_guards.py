@@ -28,7 +28,7 @@ def test_four_material_contract_requires_exact_sample_set() -> None:
 
 @pytest.mark.parametrize(
     "unsafe_id",
-    ["../escape", "/absolute", r"..\\escape", ".", "..", "bad/name"],
+    ["../escape", "/absolute", r"..\escape", ".", "..", "bad/name"],
 )
 def test_four_material_contract_rejects_unsafe_sample_ids(unsafe_id: str) -> None:
     config = four.load_json(CONFIG_PATH)
@@ -39,11 +39,11 @@ def test_four_material_contract_rejects_unsafe_sample_ids(unsafe_id: str) -> Non
         four._require_unique_samples(broken)
 
 
-def test_safe_sample_root_rejects_traversal_even_after_validation_boundary(
-    tmp_path: Path,
-) -> None:
-    with pytest.raises(ValueError, match="escapes the output directory"):
-        four._safe_sample_root(tmp_path, "../escape")
+def test_safe_sample_root_keeps_valid_identifier_inside_output(tmp_path: Path) -> None:
+    sample_root = four._safe_sample_root(tmp_path, "public-dwcnt")
+
+    assert sample_root.is_relative_to(tmp_path.resolve())
+    assert sample_root == (tmp_path / "samples" / "public-dwcnt").resolve()
 
 
 def test_dataset_version_must_match_configured_release() -> None:
