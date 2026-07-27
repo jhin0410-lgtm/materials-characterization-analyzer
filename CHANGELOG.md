@@ -8,6 +8,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes are currently recorded.
 
+## [0.8.4] - 2026-07-27
+
+### Added
+
+- A provenance-first public XRD/SEM/EDS diagnostic case using the Zenodo RWGS catalyst-characterization dataset.
+- Runtime verification of published MD5 checksums, downloaded SHA-256 provenance, safe ZIP extraction, and synthesis-protocol DOCX text extraction.
+- A value-preserving adapter for the selected 4,401-row `5%Cu/Al2O3` XRD source pattern.
+- Standard-library extraction of source-reported EDS weight percent from XLSX, with all seven source rows preserved and atomic percent explicitly derived from configured atomic weights.
+- A SEM suitability record with embedded-footer metadata, reviewed scale calibration, qualitative crop, and an explicit quantitative-segmentation block.
+- Cross-technique comparability, long-format feature, manifest, validation-report, and case-summary outputs for the selected nominal sample label.
+
+### Scientific status
+
+- The case is classified as `Diagnostic`.
+- XRD peak candidates are not phase assignments, and Scherrer estimates are not generated because radiation and instrumental-broadening metadata are absent.
+- SEM particle-size and area-fraction results are blocked because ESB compositional contrast is not a validated particle-boundary signal for the existing Otsu method.
+- The source EDS table reports `21.49 wt% Ni`, which conflicts with the nominal Cu/gamma-Al2O3 synthesis description; nominal composition is therefore not confirmed.
+- The same nominal sample label is documented, but identical physical aliquots across XRD, SEM, and EDS are not confirmed.
+
 ## [0.8.3] - 2026-07-27
 
 ### Added
