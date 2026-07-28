@@ -1,0 +1,15 @@
+name: Register TEM audit cleanup
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/temporary-cobalt-oxide-tem-training-data-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "cleanup workflow registered"
