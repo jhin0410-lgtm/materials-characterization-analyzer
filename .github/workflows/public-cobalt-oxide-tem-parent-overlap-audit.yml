@@ -12,6 +12,7 @@ on:
       - "src/mca/tem_parent_overlap_engine.py"
       - "src/mca/tem_parent_overlap_io.py"
       - "tests/test_public_cobalt_oxide_tem_parent_overlap_audit.py"
+      - "tests/test_tem_parent_overlap_archive_contract.py"
       - "pyproject.toml"
       - "src/mca/__init__.py"
       - "CITATION.cff"
@@ -28,6 +29,7 @@ on:
       - "src/mca/tem_parent_overlap_engine.py"
       - "src/mca/tem_parent_overlap_io.py"
       - "tests/test_public_cobalt_oxide_tem_parent_overlap_audit.py"
+      - "tests/test_tem_parent_overlap_archive_contract.py"
       - "pyproject.toml"
       - "src/mca/__init__.py"
       - "CITATION.cff"
@@ -168,7 +170,10 @@ jobs:
           PY
 
       - name: Run focused software tests
-        run: pytest -q tests/test_public_cobalt_oxide_tem_parent_overlap_audit.py
+        run: |
+          pytest -q \
+            tests/test_public_cobalt_oxide_tem_parent_overlap_audit.py \
+            tests/test_tem_parent_overlap_archive_contract.py
 
       - name: Verify package version and build
         run: |
