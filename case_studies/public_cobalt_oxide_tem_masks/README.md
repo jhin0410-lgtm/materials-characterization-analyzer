@@ -66,6 +66,20 @@ For every source mask, the workflow:
 
 It does **not** threshold, smooth, relabel, merge, split, remove, or otherwise re-segment the supplied masks.
 
+## Validated real-data result
+
+The dedicated GitHub Actions workflow processed all 50 masks and reproduced:
+
+- 10 explicit source-file identities;
+- 50 measurement identities;
+- 41,040 unfiltered 8-connected components;
+- 3,480 border-touching components;
+- 335,566,001 foreground pixels;
+- 400 long-format feature records;
+- complete source SHA-256 and preprocessing-ID coverage.
+
+These are descriptors of the supplied source-predicted binary masks. `41,040` must not be reported as a validated nanoparticle count.
+
 ## Outputs
 
 - `tem_source_mask_summary.csv`
