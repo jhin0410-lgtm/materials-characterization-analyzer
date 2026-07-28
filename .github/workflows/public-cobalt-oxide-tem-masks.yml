@@ -90,7 +90,7 @@ jobs:
           output = Path("outputs/public-cobalt-oxide-tem-masks")
           summary = json.loads((output / "case_summary.json").read_text(encoding="utf-8"))
           counts = summary["result_counts"]
-          assert summary["software_version"] == "0.9.1"
+          assert summary["software_version"] == "0.9.2"
           assert summary["source"]["doi"] == "10.5281/zenodo.14927582"
           assert summary["source"]["license"] == "CC-BY-4.0"
           assert summary["source"]["archive_md5"] == "63edc9b44264f8a1397bff806d58eade"
@@ -173,13 +173,13 @@ jobs:
         run: |
           set -euo pipefail
           mca --version | tee mca-version.txt
-          grep -F "0.9.1" mca-version.txt
+          grep -F "0.9.2" mca-version.txt
           python -m build
           python - <<'PY'
           from pathlib import Path
           files = sorted(path.name for path in Path("dist").iterdir())
-          assert "materials_characterization_analyzer-0.9.1-py3-none-any.whl" in files
-          assert "materials_characterization_analyzer-0.9.1.tar.gz" in files
+          assert "materials_characterization_analyzer-0.9.2-py3-none-any.whl" in files
+          assert "materials_characterization_analyzer-0.9.2.tar.gz" in files
           print(files)
           PY
 
@@ -197,7 +197,7 @@ jobs:
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: materials-characterization-analyzer-0.9.1-distributions
+          name: materials-characterization-analyzer-0.9.2-distributions
           path: dist/
           if-no-files-found: error
           retention-days: 14
