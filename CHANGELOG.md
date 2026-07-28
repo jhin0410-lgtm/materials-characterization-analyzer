@@ -8,6 +8,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes are currently recorded.
 
+## [0.9.1] - 2026-07-28
+
+### Added
+
+- A checksum-bound pairing audit for the ten public cobalt-oxide TEM source-image HDF5 members and their ten source-predicted mask members.
+- Fifty same-index frame-pair records with per-member and per-frame SHA-256 fingerprints, exact dataset/shape/dtype validation, and one-pair-at-a-time extraction.
+- Explicit detection that all selected `/images` frames are already numerically standardized to approximately zero mean and unit standard deviation.
+- Fail-closed checks for archive drift, unsafe ZIP entries, HDF5 schema or attribute drift, shape mismatch, nonfinite image arrays, nonbinary masks, standardization drift, and output overwrite.
+
+### Scientific status
+
+- Pairing is classified `source_asserted_structurally_consistent_not_independently_verified`: the Zenodo description, exact member prefixes, equal array shapes, equal frame counts, and same-index inventory agree, but no immutable source mapping manifest is embedded.
+- The selected `/images` arrays are standardized representations and do not preserve original detector-intensity units.
+- The publication's 86 pm context is not bound to individual public HDF5 members and is not used for physical conversion.
+- No segmentation accuracy, nanometre-scale size, filename-derived synthesis condition, particle identity, phase, mechanism, causal, predictive, optimization, or engineering-release claim is supported.
+- Synthetic fixtures are used only for software validation and do not contribute to real-data evidence.
+
 ## [0.9.0] - 2026-07-28
 
 ### Added
