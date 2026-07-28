@@ -97,11 +97,15 @@ jobs:
           assert summary["source"]["archive_sha256"] == (
               "bd7816f3cf2869e4a349fc04d3e0d0464b3e14e9c8c8655f51e6e487fb59824b"
           )
-          assert counts["source_file_count"] == 10
-          assert counts["mask_count"] == 50
-          assert counts["analysis_count"] == 50
-          assert counts["feature_record_count"] > 0
-          assert counts["connected_component_count"] > 0
+          assert counts == {
+              "analysis_count": 50,
+              "border_touching_component_count": 3480,
+              "connected_component_count": 41040,
+              "feature_record_count": 400,
+              "foreground_pixel_count": 335566001,
+              "mask_count": 50,
+              "source_file_count": 10,
+          }
           assert summary["hdf5_contract"] == {
               "allowed_values": [0.0, 1.0],
               "dataset_name": "labels",
@@ -126,6 +130,10 @@ jobs:
           assert not masks["pixel_calibration_applied"].any()
           assert int(components["area_pixels"].sum()) == counts["foreground_pixel_count"]
           assert len(components) == counts["connected_component_count"]
+          assert int(components["touches_border"].sum()) == counts[
+              "border_touching_component_count"
+          ]
+          assert len(features) == counts["feature_record_count"]
           assert set(features["unit"]).issubset({"fraction", "pixel", "pixel^2", "count"})
           assert not features["unit"].astype(str).str.contains("nm", case=False).any()
           assert set(features["quality_flag"]) == {"source_prediction_review_required"}
