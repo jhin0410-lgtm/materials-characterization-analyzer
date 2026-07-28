@@ -36,12 +36,8 @@ jobs:
                       "identity, parent-group leakage, pixel calibration, or physical particle dimensions.",
                   ),
               ],
-              Path(".github/workflows/public-cobalt-oxide-tem-masks.yml"): [
-                  ("0.9.1", "0.9.2"),
-              ],
-              Path(".github/workflows/public-cobalt-oxide-tem-source-image-mask-pairing.yml"): [
-                  ("0.9.1", "0.9.2"),
-              ],
+              Path(".github/workflows/public-cobalt-oxide-tem-masks.yml"): [("0.9.1", "0.9.2")],
+              Path(".github/workflows/public-cobalt-oxide-tem-source-image-mask-pairing.yml"): [("0.9.1", "0.9.2")],
           }
           for path, pairs in replacements.items():
               text = path.read_text(encoding="utf-8")
@@ -76,8 +72,7 @@ jobs:
           if "## [0.9.2] - 2026-07-28" not in text:
               if marker not in text:
                   raise SystemExit("changelog insertion marker not found")
-              text = text.replace(marker, marker + section, 1)
-              changelog.write_text(text, encoding="utf-8")
+              changelog.write_text(text.replace(marker, marker + section, 1), encoding="utf-8")
           PY
           rm .github/workflows/temporary-tem-training-audit-release-sync.yml
 
@@ -90,3 +85,5 @@ jobs:
           git add -A
           git commit -m "Release TEM training-data audit as 0.9.2"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+# Triggered after the workflow definition became visible to the pull-request event.
