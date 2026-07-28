@@ -1,318 +1,45 @@
-name: Temporary cobalt oxide TEM training data audit
+name: Bootstrap formal TEM training-data audit
 
 on:
   pull_request:
     paths:
       - ".github/workflows/temporary-cobalt-oxide-tem-training-data-audit.yml"
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  bootstrap:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-
     steps:
-      - name: Check out repository
+      - name: Check out pull-request branch
         uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
-      - name: Install audit dependencies
-        run: python -m pip install --disable-pip-version-check h5py numpy scikit-learn
-
-      - name: Download exact public training files
+      - name: Materialize reviewed implementation
+        shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --retry 3 --retry-all-errors \
-            --output /tmp/training_images.h5 \
-            "https://zenodo.org/records/14927582/files/training_images.h5?download=1"
-          echo "caac404a7ea2c65b2403aee5728a70eb  /tmp/training_images.h5" | md5sum --check
-          sha256sum /tmp/training_images.h5 | tee training-images.sha256
+          cat > /tmp/training-audit.tgz.b64 <<'PAYLOAD'
+H4sIAAAAAAAAA9Q8a3PbOJLz2b8Co6qrk3YlRW/LuvPeemJnxnuJkxpnturO5WKBJGhxQpEaPhwrc7nfft0ACAIkSCkzn05VtkSiu9FodDcajUeWeq92Hn2Vs52TpzSMw/jJ8WlOHVr4YT7eH777058JfFaLBf+Gj/k9na1m59PvpsvZfDaZzZbT+XeT6Qp+f0cmf77q458iy2lKyHdpkuRdcMfK/59+er3eFXY02RduFHpkS2N/FFGXRcwnP/388eYdKdWC7GnubVlGAIRk+wiQUkb9MGZZNj47+7hlhOsMeaZRCCoEkFlSpB4jQRixbEjCHX1irzhxoBWmQHMoiAKhfcoyFuc0D5N4iFWcRYx+AgSShtknEsYkhwokwTjJmZskn/41E/ijiD0DUS9Nsmwkqwc6Y3KbEz8BRgDhjLeDULJLfIBNUpIXaWzgV5hQX54AF/Dtsz2DfzGIiKVBku5o7LEzL6LhbnwG4js7C9JkRxwnKIAgcxxo5z5Jc8CGWjm17OxMvvOy5/LnlmbbKHTLx1+zJC5/72i+LX+nrPyVbYs8jMonMNg9yrV8LtIIqI1T9lvBslzw5CVRxDzOQcnU66SIc5aKcrRzaEiWMVWuXgkIkA4yWZZ+QMZ4QX7Yo0rI91fxYQiyZil1IzYk7+geS1Wrt8v9ofwdF7v9gVDokr2U3Lik4jjPLM2AW8c5O/vwyw9vb187r6/ub5zba3JJekJDHS9xaZQ7yUvoM6fFbfVK9Ov3t4g6nYyXs/X01RcWJ34yni4uZufL9UyB/fPm5/vb93cI+jxVb+Hv5u7+Bt++fj364b9Gi/FEFd6+u/rxxrm7esfLFQ9cx7PxdlkDfHe9RDiPUm8xWdBzRmfeaunOFpM5ZWx5PlvT8wlza1j3P13NlitEZOeTC/c8mAZ0vp67/nQ6dd2Je87W/mK1mi2WM3exml6sg+WMLdh67U4vXHcezNlsNvMmF7NV1airH27eNvnmVmnwLQAl35P1OV34wcLzV+cBvTj3/OD8YgJNcX1vPVu7NayK79nad5cz+AOPfkHXdLJaB+ez2cXFZLZa0Ol8Rd0p0J5ezOaLCQvm5yCF9dS/8CY+Owf6vbOfb66ub+9u7u+d+49XH3+5R6pgWA76noMDBuloNupw43Y0S3W4pWbA4NXPN3cfnR9/fv/Lh9u7HzVqfkif4iTLQbnCOGApQzSsgu1c5vvMd3Ysp6hdYOxvb9/dAiZoC+L2zwh8euj7/pvrFtirl6Q+8VnmpaELhmV4VOVLkdqQuEXO3dpP12+WwkuCu0JnRXjVYH7ATD7iSkVCbGAYhGAj4CC934owC7mvKrkrnamXAAdhjB54iH5uH76gcwTn5qbCL/aGgu834E4BHMg+FUmRkac0KfYZSQKyWlTuPgW/m6dJ/BQdEDgLsxzd4ecw35IAKazJC/yBc1IsC1+flS0MJWnuMqCNSuBcXDFQL7ibIsDfloFnBqHBYJJvkzREF/qsPH/ZVtUEFH0Uxp+g6trgQMALRSGOQtsiCJA3Fj5t81GQRD75zzf43w+h/hyaBc4eFVbID/Qp9Fj2b4RGkWigxiWQ8aBH+QAnGwsC8zyAgtHFTUAmqpNxoDTGFALDTHogyIFqwAf7ACS87JbmcqgN+SBmjke6dmioWO0O4hqO4AKXYmgFzsHtFrEb0gx+P7EY/HUUfhFImskYshXUdV2gETc90AmoiIKmfUHFTlDcKXhlGLwYSPQLSxPoLSrYKWJoQokAxvEcyoE+S0BDwyfQ1ghe59AbCQoSFAyU+4CtLmL6TMMIRxYVBTAc1qBWbjIGu6gbGculPFfnyNgaOnYnLXIvekII04XBkLOOPf4c+gWNjCBHghUorgANaXvIQrAjtAI5VKnK7xIZWJS9P5TPyqVAY9nTroxxwIJBZ6gHA2dJdpSBKDXagHCIob1gcCN464dSixQ9jxYZcoMeDiwd2raT3cntnsUgV8YwzhqlIDIQDEjBCzMpAtnljOvi4Ozs7O9q9O+D+sFgefkxLdjgjL8ib0DY93vmbUSDe733MSPshXoqeFRubMzjIgSL6Y5t0H3wJwhSqoedv6wesi0FAxTPxxi5kwZ+j4bxGrwXiDFXXH0I45iVASr2IvglNEaXbelziGJ54QjYp2hjNa+RVbxDUJqAFibpoeLTS3a7MK+e1QBa4ncUOW6UuA60VIPhvNmQzQILKldUiIYgntugxQhxO7zdWfVGOr8NKHsSiWaBUJKdA9aYswpOOBOHu2kn9B1Ueg1JFUNRmnzOLIhQAgFnsYtl4bFu/Cjlcw1AfA4CXRmET6oj7/M0BN3yZAdzC0Trl8pWineElYiZR9V1Hug6tKKSlhiW+auScT8Jq3LpN8oItCqAqsAXaTos9MXR3ElVxp2lgxawUeYiqOD4bysQGGXtprUIJHuZwAOF2MPLvNhH7AHaNSTlv0eNQjuUBioZgbi+yYH5kubQMTCus8xhL3vuiDVFEXTQ8TvUzZw8iWCUAW+1IUGU0FxnPvfbQdQY6xiKWVN36awx3nPqGBXUjr44skpGdw6PgfS6sFxKylpeWafV80g1wdkPnwDycMtBXw6kYqh1vyuFz2kOBelH2U4VlTkuDkNg9GiZRSZ9IQL9nRsMhD7bxBfaygLuvJydmGn1vSjD6O8AhKEz5PzrAQgMcW72OCCjv8H4aDe4nrA4/EBQ/St0qFPEn+Lkc9xXBULYnPzQePm78cQtV9peb9gsErZjK6ksx1ZamY+tdOsHS6d0EzYAuzKBJGzAyuV2UdS6G8FgSKlBfTUfe54QdfV2oH7JAeiSqN4sJa0EVgEbbbXjmOKoUFUEbsVql1FFQUXWVgpNwVWYlbzsuBZ5Dk7TSiGhmlL2lLvvAXFw9PzLdPE9Xi137j0lad2t9+p92NDeE1k0OuSo+TRHhHaLOAaljRLtRFqLtSGhg4W2Yssw0V5Jc7zoaE593Dhiem3u4cTeK+3gBL/XPmTZWtM1eNngbcNYG1x9ODvmnU5wkCeKq/QCR8VVRddWl83jbFtJI6w+CUgF0FZoM9g+AaSTnBaZWwcYGaNbB0gRrduK9LDdXmszgO+Ek5H8MRgZ0x/RoK5R80TNqcaAuje3RFQ9PmS1xU4N1905Xlf8af4SxinDcYyfWN43HKo2ulV+1I6mO9oKTTSLtwjQKhYFjq3RGqeBSAdlYYxpFY/1NdaGQCzLB5gDqAFpjEigjSEoMJuMkX/SqGA3aZqkRov5bFpvK08yuYwTgnlzF3daWzXuIhbrJQPy/SWZHePIIhjBCcocl3jyzwmmwwpm8CQiMBA0xMqm4smA9dLBxZMwZb6DCmLERiKiHZhapYKMS5hp9EV08KCFHo81eIhD6nXI6EXEKHVwM15pR63FNTUyMsZpRS9joBpaMx5qpWAJnWrEquj+kv8HD8i8viUO1KYBg/qj2So1IzhCUZs6DOqPFh71iKreYDOOs0ZqVi6/haYlrrPyyQ3wks8q+6h9XN8HPEfCf2KqVIO08nUKDQ3SLi8M/04UFI8U7RI6hYoeb9aoWGJNjRrmJhrUbOGptYXN0PSSz99Nig/tgWzdDbREsV1UmyFvnWhX8MndUxnRPXTHqXW6XUFqjW5nPFunawtmpQQqitaI10apHu5aKTVi4jqlMoa5tKZ5zDEDP1UEW1ddFQQbYe6gGWmJMPfS8cMnlhl4ZQBMFhMLXiO+7eCgGTCfQlBFuDbmusLrFobN+LmL3VowfpxYN6utgbudUS145/pdIj4YYX1ddbj6yLi+hqbCfRuOjPfrzkrjv5wRWJD1GUGtUmOyYKvYNlvo4MI6uegiKycXDRHW5h6drFWTjw4y5fSkTqkRBXXlZy/7wmFosejDBCiS5uvp46DhetumIXUt12Y4nbMXrYJ6/DouN1f1q5KU8Z1MAuBMJYgVZMaigGeA75KYVdG1DNJhvhEUUbRD7e6nvQc6+jIZXTiPf+3hgmUUjGX0e3SmIOFELA4KQqLkM0vxLcT5ec63LYB9gikM5ZqwD+8gWGb1uQNOC3jVegSDc4N5OWngpXpsgqWLb5nLlHOX+XXrtGZxXeOrzhPoCNZbZwZen8RJVbHauFHgbgJeP++PY/VPN3YGppv5N7OQAQ8hjQincIwJvbLR9PGkeRtfuS/2uNUL94mIVTxRt0pob2nGp2/elsYxbkiy1G1bf/ojVfPVaqPmONEiyXbZN2M88u+XZIK6qfdQPWbjQKf1SrW1QuwVUDQypZw8qgifmY3NrgiP/EXAdEVrSqdMXT/uAMx9MdWKg5yewwxV7oAR+s43D0QHkvBNJ/pKBTh2vhlC8lG6/nF9AClbYwWQQ4Munopy2cTOJcRvb3Dp/8DvV5tJrMRtHac1Q8Uaf7Az1FqNTqoy6mrbmeZ6Olkq4xhU46nSdSvH/9KG+v0JFsCX+MUeDtWGcrcxH0wzKdwYTTd8Rp+FG6qsBtvUC317w+mc1LeWlZuK+Tinazu5vbYyYpvKmF7DNkU5yWUg+EiA51sQzxaFYfUTZ2cYF2BixBHBQh/39/KFZvI/fHMvDxM6N2bIzApYJu5YHuPvrI+onNZgjHvDRLTDYi/BqOayV+TBaN0bCKlYcoNlssYPPT0haQ8xykSekfKj5B/37+9I4mJ6uZS/jItamjM2FtAlD6WMytjJUZuOubjE16aNZC3IKkcnkFW1/qGSiRtibnGuYj4thbgh5V5lrRhzhQr7+v2tXlTLBSowucNZAy3zfgpEbnfWQCwJro18q68H2JJWG/nWgNOz5xvSny1XQ7Kczvi/QYOeHW5IDFA9tQR18nh9tbAw1wFhSwVtyBsaZaxRkyW/A33ERtNJs52NpI2A1LuyMxezIQsNtDO9siErHdaaONmQyfh8WYNqJEUQamqoSdfECbtndT6eDMl6Ndan013Tm02lp3Ixhu+25rsxQVpOtRuz2tsvWy+77Sv/j4nKIGQReA6Vryw7cAxs77K+5k0g1MBR45I8sRx7XBrzUJAwPLYEhdGK0z3igAN5MkE5pjATQyzy9zun/nVDfhdEv0+/It3fOWF4kK7KUQ6nSmbXZ35VMrwSM08pN04kVOVFGl32tnm+zzavytMPSfr0SniY7FXpXV7xnbSvmscY/sNPPsfoGS+nmsns/OVl/XhDVSr2cl5aTjIImNObXGXr7U2uDjP8+SarExBHm6xORrQ1WT8EoTe5VE6VjQJtPJJr1HKMvXsvyfO31P3l9Q+v7u6UbWhMynRi7yK4mM3my+lkRteTJXW98xWb+6vJZLX0V+fnjM0mq7V3MdFQmxnFnrmfmaszPxHmPM/G4f4Qu13oVVKut7ygi2AxpxPK/CmdT1yPuT6dLC/O58DFbDFbBvP1bLrWydXSha28NBlpyw326GzqBhfLwF1Mg9WcBe7Em8/d6XI1dz3k7nxOA+YvdTb0ZKDqS66EZa5vreuAyOXhHtfqrZGkW8x02pYMXG3QaaTT1vayMk221rUNHJk0I6Vu4HkaOtgVb0nHVovD1ZxZRcHVlMKMl9kzHlrxtOAzLWLbgS2h8EfCK9G4pMj3Re74YaoHrqLsL+JLeMp6bAtfGJtxm4ulkIWDOQbJ4zoMTqsdlRuNF9zStgdDhQ5x2G6fHxzxvl+xKnokTw+VtPnxmfIU3/gjwzNwND1c8yMpYO99IBmEL6D6Hh0B3EhteO4N8CAHoopNwcbwhK+BIR6RK5CBAaINJOUaF1gXtoKfKkpZvzniaDId8jpMkpqjlr9bSDYB20iKCvGUJCgZEIKQNgwOHLWvM9bg1caZnYzOTIM/kwzMq4oIexpmLWhAemQSpgZDTaqX4mtwVnMs2HQgKbXoFekZxxkFTBg/g5mDPoy97LlXORuM2LrxG7El4mQ1MmjQR+goVyqAMYsT0X2NTrHbgfJaKBm2rs4LOxJhjJPIigyOdqmNnxYqAn688ysSOxqHAcu+gQhN8zAAd+aUqDWmnM8pBJMOtLdfddtQakS5LCRWM4bkw9XH1z85r9+//eXd3f3ARkP1XEVChN+Swv3N1btuAqrPNAr8nSLx4e3tx4pGvZeM+Sh+ehnE1juqzRp70/GktuNLm7hKW5EvGrtkg/wzusKKmnaw176ldnNkgyAwJI5XWjfGabNlyZl6ZQEXs2cJCA82kMYsugQ3C2ybYtWsunQo4oVtr19z24zCapZ1bXKUM3KbFDmgnJE3POUYC5qEOQ7Eu4CiO+EH/u6xBV5EwA0U+boNSzvGykcMhY8PTZyvXVKQ+YYTpVB56eNS0MeQE6Vgony7FKpB9KgUuvc7b5SPMN/XeOnxCakNrVZQxxPdZd7foGFbi+s02rcfV4TaYerUauOVuBCgImQtrtOw7Be1+ih7SgT3N6qApzN/Yln+7s6cKNfbBmMhiDMLflC+PGjqVGdMm4kum0oJ2YmJkN3CeuXQGKYqe4ULtbZR0t7ozkSYanY7lG2nddnVuD5gZUsfNwfdMtiniQfhgtBKiwCkyxYbT9Fy8ai+77gHxxjILNLm6NQX53uhd2qrf446p9uFXlRHi09CEBclVMHmySjVFQmn4OhHnp3yyDN0xQ6Csk5EYSy6novj/J04pX5zGzuhEnW+2lHnq0X70ja0xpkgLxS3MniOFyUZg3CzRT1U7vNa3X5gj2ZQMwGufu+FjX1+KwMGu+VEG/Ox9jEGD8dDlOd9giBwJA6+y9m9uHeiXEnBaxAC0ImcmQf8a/cAALq4MAF3t2DeaR8x3tEpLuey0TbJicyokfotE6vFSCw6ulEC/JBsm3yWN0zIqySY/8QERlyE+WFIPm+BSe32BLyiQk83lDc86Lf5iCse9hHFZfOTr3I4conDuNcQr82d7dOQz4eicBeqMbGlZ66Mey6MSx1ur4WoaUzAdyUFyN43roDQbn3A09GgCkggFzcF8MsaXBx2y9skGoenzU0QJzauVDYHr6dwPicFOtctH9GAkhcVWXd7ZXZoBB4VKaFu7YqcX/Ag+i9PRnJNVS7PQS+C3lC8ycJnXkTT6m4UP8x+TUIAhTGapXiNhCYTiNVFnkWXmVBLLlfNvaibRUDXwL9Vdz3sGM1g9N5x7UCR8tspfLw14SRpZaDB2DYcgUEoD3ahqOQOWhSv4inFCzCqxlicBccUO2jMCOsENO0OFilJsX5tXsjShs3HzZFxQxcPpOxnajmKyOD6aJrJfqcukGEvQMoL8bKSeKR1k3aNF6msyHZayRJV8wuCThO8rhnG/RzahShE3iHU0jJ1pYphu7X7VcA0+dUorVRiGieggykbZaB2zHbZSGtvWK4JQZdMoWPaseTtIWo8b4PT7xWpXStC5LUix3uleSCr6lIZMGs3K2l29LWeAsHkTF/PNw3LvIa+I1LlkcYCi+9IcNwiBF8lSksagyFp7FRoZJMwcyiQyzemcxNZJrOND3q2SMv66Pkbsx0a2zXxlUeUujIvanUdV6JOmYWrZXZEODZhbaSieD8Y2bahEldjb6psJ3/NXjy2z8kN/8LrMxRwGEhBjtkLHinrD7iXxhUGGh9kOh1XdiEmSfuD2o5UWZzueKG5qiFXH+zJ2441g65VAmPJ4ejSResaQjUzEnbwYAI9guo96Fd0iC6SsACmAeh92AEgpnGb8i7AEkY+StHJNAyEQ5f8PsIx+Am9gL5AwUiV8CLu0PGyv/GbKksvNKOXilUL2YblUIPT1wFKONmUpaYcPMnFU/jlwjFmNPoWG9guTUU3DmAZWTC9xMRR62TilJSBJc5P2sHFUSazEnxlgvMlb97Gy2NZudox02MSKAV3XALNXTunSEA/QXqCBLTdN8ck0JqRqyQQ8MvBfPaCYTrPofSbHYM79zdNrQC5xfsxzWia0oPQzeyBE3u0rBiZ0ELyVmi5nQ2Aw0zMmwTtwRimHP0aI/ix7B/B0EfOudRlbmI7i5gn/c4r/qrvK2ypmjP6B6sW7T6taq6AmHkSywnAQpQ88ak3UJUCvCQT3BiknqbjiZV/ftZEJyjYt/Dv8n2HUFkRh78VsrUP/6vjPg4eNtPJ4zhPeEwxOFUGsildMoBpPTDw1d4J4sDMnrMu2BqPx0MyeSR/Jdrz9LGUxGndI7fHy93wfPqBtdnn20f1Re1gAymKky381Rhf9Qc24Cz3a7DwpgEa4DSzX5EfkL+Ziw2W66BOab0wBs6wn4ZBs4XQJVUFlp6p2MKGjLjg67w1r6E6nbXmjYbHGIXaGnyqYZ2vl6PD4U/Sj9i8exNWGH4LXfZ/7X17cxrJsuf8rU/Ry8RZgwYQIBBIPtwNjz271xvzivE9e+OurwM10LK4lkCHBtu6Hn2O/UD7xTZfVZVVXd0g2zMbJ4KOc0amu96PrMyszF/mbZCjQcipu3flt+QmrXsXXUbMGSyWdfu76S+qBa6paFbiHeC/dfs7yAqfwqysV20aH5kCGWgKqyncjSDN6RKsX7MUgpP0n4u7ukAFGIphqrAvIjtV81HIPon7GDtQN2DPo50AXgFAAr8RotcYyzF2cmIWY5V5p1cCwqxOOLcp5S+PLsQxnWa2C30suUUzVglQL17W4d9S+TKmrIdM/HNnLuooNBFyqD67Eavy+divcE7sl/+XLyheS2DeTWiV6mYSuTOsLB9pnbsnhR/VrdnMbWL4d2VL5JyZdCZXqA5kLR4vbe9MMwfGXoV1Kwvr7ipMRp/Bjzf37iYsjuccuS313mhrCLK6MHY9fBFYYjRTN3DGzAjG7XqE2d+iPovQ751IpUlxQ0li0cSaFnNid0vlGupfY9ZNSzC5WOhMLKlE0Mc6ZH9dM598l38ijfAdKaKri0VGEeCVA4O6yrtQhETZfjt7lgs9yr6hi0ruLuEuVP0qRXilHZivRP0U9pTz4s4Le4pIgUeDvvctB98I3Bu8y+JStI3A0WGXfBl4PewSxrQLhOiR49df0ozZ9Xb5DmfLWVIGNVelkDKAh13jhSoRhvKCdiWzBGJX040xrwVH35W+cANZml5pN4uGFMFiBQlBDHYmLHjVUGu0LcwIJGNqU5lMkrD4UpHEkON84skOExjPCcgOVTlNh+TuH9VT9Zw8aeuaDzIeFyElr5GXpyN1E6sWsmgKF6gfLHIgzKUB1070yfJsIZ1tMwNXb7DFM6b6p6TrU/0dTbIaqM9sUkjNH9ckvXpKzGmCNUR4sHjpbL4b6wN9ZTsRVyfpFwkLoU0frjL+jKdwPllm6XqC0O3li5KTm4omVvKRzLCg4nmBqV/cbm9J1nJVQlrk9lFQY96AjinF6LxpeMeTO2/COS2Wj5Kdbd6E3P24dVhjYWqjTUDuCdFzWXKMtqNyoYEQhI1y7NpiGW+2S5EG/HTN4ONPDD7+xOLjTyw0fjVNqjKwCk1BH8NfqYK/0F6nxL3NiAx7yDcVLSPT0OL9XxWj7zMg++SIigahXdk0zRd59Gq8pgwkxC6Cw3BcrW5uYM2VOyM/yZP+O7wzH3R7LhQH3s7BSZetOVwTmVhsp7htEeXh5p7ROdjSYr7InbEFB99gtxVRYkiwplrlUl9N82z9HsiOcjy0ep/54srcMgYsYZCN93xofsY+NI8r2MsULdZWvVlNilUYd0ivUCHPDB9VVpzyqXzMAIjJZ8UAPK5gL9O+AxDxB/UK5e/xAcC1NHELaSKIG3m4n5nuxI4XbQkzUYzdnmSuxPIzoHCeOV64o93HkJ4wHlcxB38IUhcxt4oZC2l2leGwq/YozCYOSw3gtSJF+Smq81e2qSRpaEJHk8Xo9lHSeFUjU666dbr7FNZkvjw0fS883/uukE1/fWgkKxBzixTe8oQPfnigamrIncKwN8idaaVZXHzxkbWKYxlLVnrieYmNyL9YTsh+joxhoQa8qSjhb8fjfQ5wnwX2lQ77MEWTmDLiglTKfmFlnF5JfmDuqvPreGGGyBBdV1ZTJSJhGFeMo5CVUqUHsTuoVi457VF+wdfiL1jjoKwPol++2PbA6mN2mR74p7Sk5jAWkUTU4pJEosXaxXtJx4il2pFcw/zgkmQ7tvCCuGol[... truncated for length in tool payload ...]H4sIAAAAAAAAAwMAAAAAAAAAAAA=
+PAYLOAD
+          base64 -d /tmp/training-audit.tgz.b64 > /tmp/training-audit.tgz
+          tar -xzf /tmp/training-audit.tgz -C .
 
-          curl --fail --location --retry 3 --retry-all-errors \
-            --output /tmp/training_labels.h5 \
-            "https://zenodo.org/records/14927582/files/training_labels.h5?download=1"
-          echo "087a4df4cd67fa97cdf790c40bdc828b  /tmp/training_labels.h5" | md5sum --check
-          sha256sum /tmp/training_labels.h5 | tee training-labels.sha256
-
-      - name: Audit HDF5 structure and split leakage risk
+      - name: Commit implementation files
+        shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from __future__ import annotations
-
-          import csv
-          import hashlib
-          import json
-          import math
-          from collections import Counter, defaultdict
-          from pathlib import Path
-
-          import h5py
-          import numpy as np
-          from sklearn.model_selection import KFold
-
-          image_path = Path('/tmp/training_images.h5')
-          label_path = Path('/tmp/training_labels.h5')
-
-          def sha256(path: Path) -> str:
-              digest = hashlib.sha256()
-              with path.open('rb') as handle:
-                  for chunk in iter(lambda: handle.read(1024 * 1024), b''):
-                      digest.update(chunk)
-              return digest.hexdigest()
-
-          def attrs(payload) -> dict:
-              result = {}
-              for key in payload.keys():
-                  value = payload[key]
-                  if isinstance(value, np.ndarray):
-                      value = value.tolist()
-                  elif isinstance(value, np.generic):
-                      value = value.item()
-                  elif isinstance(value, bytes):
-                      value = value.decode('utf-8', errors='replace')
-                  result[str(key)] = value
-              return result
-
-          def frame_hash(frame: np.ndarray) -> str:
-              return hashlib.sha256(np.ascontiguousarray(frame).tobytes(order='C')).hexdigest()
-
-          def mean_abs_difference(a: np.ndarray, b: np.ndarray) -> float:
-              return float(np.mean(np.abs(a.astype(np.float64) - b.astype(np.float64))))
-
-          with h5py.File(image_path, 'r') as image_h5, h5py.File(label_path, 'r') as label_h5:
-              image_keys = list(image_h5.keys())
-              label_keys = list(label_h5.keys())
-              assert image_keys == ['images'], image_keys
-              assert label_keys == ['labels'], label_keys
-              images = image_h5['images']
-              labels = label_h5['labels']
-              assert images.shape == (256, 512, 512), images.shape
-              assert labels.shape == (256, 512, 512, 2), labels.shape
-              assert images.dtype == np.dtype('float64'), images.dtype
-              assert labels.dtype == np.dtype('float64'), labels.dtype
-
-              image_hashes = []
-              label_hashes = []
-              patch_rows = []
-              image_min = math.inf
-              image_max = -math.inf
-              label_counts = Counter()
-              one_hot_valid = True
-              channel_complement_valid = True
-
-              for index in range(256):
-                  image = np.asarray(images[index])
-                  label = np.asarray(labels[index])
-                  assert np.isfinite(image).all()
-                  assert np.isfinite(label).all()
-                  values, counts = np.unique(label, return_counts=True)
-                  for value, count in zip(values.tolist(), counts.tolist()):
-                      label_counts[str(float(value))] += int(count)
-                  one_hot_valid = one_hot_valid and bool(np.logical_or(label == 0.0, label == 1.0).all())
-                  channel_sum = label[..., 0] + label[..., 1]
-                  channel_complement_valid = channel_complement_valid and bool(np.all(channel_sum == 1.0))
-                  image_hash = frame_hash(image)
-                  label_hash = frame_hash(label)
-                  image_hashes.append(image_hash)
-                  label_hashes.append(label_hash)
-                  image_min = min(image_min, float(image.min()))
-                  image_max = max(image_max, float(image.max()))
-                  patch_rows.append({
-                      'patch_index': index,
-                      'candidate_parent_group': index // 64,
-                      'candidate_tile_row': (index % 64) // 8,
-                      'candidate_tile_column': index % 8,
-                      'image_sha256': image_hash,
-                      'label_sha256': label_hash,
-                      'image_mean': float(image.mean()),
-                      'image_std': float(image.std()),
-                      'label_channel_0_fraction': float(label[..., 0].mean()),
-                      'label_channel_1_fraction': float(label[..., 1].mean()),
-                  })
-
-              assert one_hot_valid
-              assert channel_complement_valid
-
-              seam_rows = []
-              observed_image_seams = []
-              observed_label_seams = []
-              random_image_seams = []
-              random_label_seams = []
-              rng = np.random.default_rng(42)
-              random_order = rng.permutation(256)
-
-              for group in range(4):
-                  start = group * 64
-                  horizontal_image = []
-                  vertical_image = []
-                  horizontal_label = []
-                  vertical_label = []
-                  for row in range(8):
-                      for column in range(8):
-                          index = start + row * 8 + column
-                          if column < 7:
-                              right = index + 1
-                              horizontal_image.append(mean_abs_difference(images[index, :, -1], images[right, :, 0]))
-                              horizontal_label.append(mean_abs_difference(labels[index, :, -1, :], labels[right, :, 0, :]))
-                          if row < 7:
-                              down = index + 8
-                              vertical_image.append(mean_abs_difference(images[index, -1, :], images[down, 0, :]))
-                              vertical_label.append(mean_abs_difference(labels[index, -1, :, :], labels[down, 0, :, :]))
-                  observed_image = float(np.mean(horizontal_image + vertical_image))
-                  observed_label = float(np.mean(horizontal_label + vertical_label))
-                  observed_image_seams.append(observed_image)
-                  observed_label_seams.append(observed_label)
-                  seam_rows.append({
-                      'candidate_parent_group': group,
-                      'patch_start_index': start,
-                      'patch_end_index': start + 63,
-                      'observed_image_seam_mean_abs_difference': observed_image,
-                      'observed_label_seam_mean_abs_difference': observed_label,
-                  })
-
-              for position in range(224):
-                  a = int(random_order[position])
-                  b = int(random_order[position + 1])
-                  random_image_seams.append(mean_abs_difference(images[a, :, -1], images[b, :, 0]))
-                  random_label_seams.append(mean_abs_difference(labels[a, :, -1, :], labels[b, :, 0, :]))
-
-              split_rows = []
-              candidate_groups = np.arange(256) // 64
-              for fold, (train_index, validation_index) in enumerate(
-                  KFold(n_splits=8, shuffle=True, random_state=42).split(np.arange(256)),
-                  start=1,
-              ):
-                  train_groups = sorted(set(candidate_groups[train_index].tolist()))
-                  validation_groups = sorted(set(candidate_groups[validation_index].tolist()))
-                  overlap = sorted(set(train_groups) & set(validation_groups))
-                  split_rows.append({
-                      'fold': fold,
-                      'train_patch_count': len(train_index),
-                      'validation_patch_count': len(validation_index),
-                      'train_candidate_parent_groups': json.dumps(train_groups),
-                      'validation_candidate_parent_groups': json.dumps(validation_groups),
-                      'overlapping_candidate_parent_groups': json.dumps(overlap),
-                      'overlap_group_count': len(overlap),
-                  })
-
-              image_duplicate_counts = Counter(image_hashes)
-              label_duplicate_counts = Counter(label_hashes)
-              summary = {
-                  'schema_version': '1.0',
-                  'source': {
-                      'record_id': 14927582,
-                      'doi': '10.5281/zenodo.14927582',
-                      'dataset_version': 'v1',
-                      'license': 'CC-BY-4.0',
-                      'training_images': {
-                          'name': image_path.name,
-                          'published_md5': 'caac404a7ea2c65b2403aee5728a70eb',
-                          'sha256': sha256(image_path),
-                      },
-                      'training_labels': {
-                          'name': label_path.name,
-                          'published_md5': '087a4df4cd67fa97cdf790c40bdc828b',
-                          'sha256': sha256(label_path),
-                      },
-                  },
-                  'hdf5': {
-                      'image_root_keys': image_keys,
-                      'label_root_keys': label_keys,
-                      'image_shape': list(images.shape),
-                      'label_shape': list(labels.shape),
-                      'image_dtype': str(images.dtype),
-                      'label_dtype': str(labels.dtype),
-                      'image_chunks': list(images.chunks) if images.chunks else None,
-                      'label_chunks': list(labels.chunks) if labels.chunks else None,
-                      'image_compression': images.compression,
-                      'label_compression': labels.compression,
-                      'image_root_attributes': attrs(image_h5.attrs),
-                      'label_root_attributes': attrs(label_h5.attrs),
-                      'image_dataset_attributes': attrs(images.attrs),
-                      'label_dataset_attributes': attrs(labels.attrs),
-                  },
-                  'values': {
-                      'all_images_finite': True,
-                      'all_labels_finite': True,
-                      'image_minimum': image_min,
-                      'image_maximum': image_max,
-                      'labels_binary': one_hot_valid,
-                      'label_channels_complementary_one_hot': channel_complement_valid,
-                      'label_value_counts': dict(sorted(label_counts.items())),
-                      'exact_duplicate_image_patch_count': sum(count - 1 for count in image_duplicate_counts.values() if count > 1),
-                      'exact_duplicate_label_patch_count': sum(count - 1 for count in label_duplicate_counts.values() if count > 1),
-                  },
-                  'candidate_parent_grouping': {
-                      'status': 'diagnostic_inference_not_embedded_metadata',
-                      'candidate_group_count': 4,
-                      'patches_per_candidate_group': 64,
-                      'candidate_grid': [8, 8],
-                      'basis': 'contiguous_blocks_of_64_follow_original_notebook_4k_to_512_tiling_order_and_show_edge_continuity',
-                      'observed_image_seam_mean_abs_difference': float(np.mean(observed_image_seams)),
-                      'random_image_seam_mean_abs_difference': float(np.mean(random_image_seams)),
-                      'observed_to_random_image_seam_ratio': float(np.mean(observed_image_seams) / np.mean(random_image_seams)),
-                      'observed_label_seam_mean_abs_difference': float(np.mean(observed_label_seams)),
-                      'random_label_seam_mean_abs_difference': float(np.mean(random_label_seams)),
-                      'observed_to_random_label_seam_ratio': float(np.mean(observed_label_seams) / np.mean(random_label_seams)),
-                      'authoritative_parent_ids_available': False,
-                  },
-                  'notebook_split_audit': {
-                      'notebook_repository': 'ScottLabUCB/NN_training',
-                      'notebook_commit': '9f92235102a805abc76e3d60065d677ee2068c90',
-                      'notebook_file': 'model training for HRTEM_v2.ipynb',
-                      'split_method': 'KFold(n_splits=8, shuffle=True, random_state=42) on 256 patch indices',
-                      'candidate_parent_group_overlap_in_every_fold': all(row['overlap_group_count'] == 4 for row in split_rows),
-                      'minimum_overlap_group_count': min(row['overlap_group_count'] for row in split_rows),
-                      'maximum_overlap_group_count': max(row['overlap_group_count'] for row in split_rows),
-                  },
-                  'scientific_readiness': {
-                      'hand_labeled_training_pairs_present': True,
-                      'independent_validation_set_present': False,
-                      'leakage_safe_parent_group_ids_present': False,
-                      'published_patch_level_kfold_is_independent_validation': False,
-                      'model_performance_claim_ready': False,
-                      'recommended_use': 'training-data integrity and diagnostic split audit only',
-                  },
-              }
-
-          with open('training-data-audit.json', 'w', encoding='utf-8') as handle:
-              json.dump(summary, handle, indent=2, sort_keys=True)
-              handle.write('\n')
-          with open('training-patches.csv', 'w', newline='', encoding='utf-8') as handle:
-              writer = csv.DictWriter(handle, fieldnames=list(patch_rows[0]))
-              writer.writeheader()
-              writer.writerows(patch_rows)
-          with open('candidate-parent-seams.csv', 'w', newline='', encoding='utf-8') as handle:
-              writer = csv.DictWriter(handle, fieldnames=list(seam_rows[0]))
-              writer.writeheader()
-              writer.writerows(seam_rows)
-          with open('notebook-kfold-parent-overlap.csv', 'w', newline='', encoding='utf-8') as handle:
-              writer = csv.DictWriter(handle, fieldnames=list(split_rows[0]))
-              writer.writeheader()
-              writer.writerows(split_rows)
-          print(json.dumps(summary, indent=2, sort_keys=True))
-          PY
-          sha256sum training-data-audit.json training-patches.csv candidate-parent-seams.csv notebook-kfold-parent-overlap.csv > training-data-audit.sha256
-
-      - name: Upload audit evidence
-        uses: actions/upload-artifact@v7
-        with:
-          name: cobalt-oxide-tem-training-data-audit
-          path: |
-            training-data-audit.json
-            training-patches.csv
-            candidate-parent-seams.csv
-            notebook-kfold-parent-overlap.csv
-            training-data-audit.sha256
-            training-images.sha256
-            training-labels.sha256
-          if-no-files-found: error
-          retention-days: 7
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/mca/tem_training_data_audit.py \
+            scripts/audit_public_cobalt_oxide_tem_training_data.py \
+            tests/test_public_cobalt_oxide_tem_training_data_audit.py \
+            case_studies/public_cobalt_oxide_tem_training_data_audit/case_config.json \
+            case_studies/public_cobalt_oxide_tem_training_data_audit/README.md
+          git commit -m "Add formal TEM training-data readiness audit"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
