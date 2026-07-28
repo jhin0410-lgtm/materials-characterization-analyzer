@@ -8,6 +8,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes are currently recorded.
 
+## [0.9.2] - 2026-07-28
+
+### Added
+
+- A checksum-bound audit comparing all fifty public cobalt-oxide TEM source frames with four reconstructed training-parent candidates.
+- Exact aligned-tile identity testing using the pinned `8 x 8` tiling and per-tile standardization path, plus block-signature NCC diagnostics for review-required near matches.
+- Frame-level and pairwise evidence tables, a scientific-readiness summary, a Markdown report, and a checksum-bound artifact manifest.
+- A dedicated real-data GitHub Actions workflow and focused fail-closed regression tests.
+
+### Scientific status
+
+- The audit is `Diagnostic`: the four training parents remain reconstructed candidates because authoritative patch-to-parent metadata are absent.
+- A source frame is called content-equivalent only when all 64 corresponding standardized tile fingerprints match one reconstructed parent; partial or high-similarity matches require review.
+- Frames without detected content-equivalent overlap remain image-only candidates, not external validation samples, because the public masks are source-predicted outputs rather than independent labels.
+- No independent segmentation-performance, parent-disjoint generalization, physical-size, causal, optimization, or engineering-release claim is supported.
+
 ## [0.9.1] - 2026-07-28
 
 ### Added
