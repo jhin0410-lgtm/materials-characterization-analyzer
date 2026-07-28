@@ -8,7 +8,7 @@ import shutil
 import stat
 import urllib.request
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping
 
 from . import __version__
@@ -54,21 +54,43 @@ def _verify_hashes(path: Path, spec: FileSpec | ArchiveSpec) -> dict[str, str]:
 
 
 def _validate_zip(path: Path, expected: tuple[str, ...]) -> dict[str, Any]:
+    expected_set = set(expected)
+    observed: set[str] = set()
+    metadata: list[str] = []
+    data_infos: list[zipfile.ZipInfo] = []
     with zipfile.ZipFile(path) as archive:
-        infos = archive.infolist()
-        names = [info.filename for info in infos if not info.is_dir()]
-        if names != list(expected):
-            raise ValueError(f"ZIP member inventory changed: {names!r} != {list(expected)!r}.")
-        for info in infos:
-            _validate_member_name(info.filename)
+        for info in archive.infolist():
+            name = info.filename
+            normalized = name.replace("\\", "/")
+            posix = PurePosixPath(normalized)
+            if posix.is_absolute() or ".." in posix.parts or normalized != name:
+                raise ValueError(f"unsafe ZIP member path: {name}")
             if stat.S_ISLNK(info.external_attr >> 16):
-                raise ValueError(f"ZIP member must not be a symlink: {info.filename}")
+                raise ValueError(f"ZIP member must not be a symlink: {name}")
+            if info.is_dir():
+                continue
+            if name.startswith("__MACOSX/") or posix.name.startswith("._"):
+                metadata.append(name)
+                continue
+            _validate_member_name(name)
+            observed.add(name)
+            data_infos.append(info)
+        if observed != expected_set:
+            raise ValueError(
+                "ZIP member inventory changed; "
+                f"missing={sorted(expected_set - observed)}, "
+                f"unexpected={sorted(observed - expected_set)}"
+            )
         return {
-            "member_count": len(names),
-            "members": names,
-            "compressed_bytes": sum(info.compress_size for info in infos if not info.is_dir()),
-            "uncompressed_bytes": sum(info.file_size for info in infos if not info.is_dir()),
+            "member_count": len(observed),
+            "members": sorted(observed),
+            "metadata_member_count": len(metadata),
+            "metadata_members": sorted(metadata),
+            "compressed_bytes": sum(info.compress_size for info in data_infos),
+            "uncompressed_bytes": sum(info.file_size for info in data_infos),
             "central_directory_validated": True,
+            "safe_paths_verified": True,
+            "symlinks_absent": True,
         }
 
 
