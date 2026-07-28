@@ -1,0 +1,117 @@
+{
+  "case_id": "public_cobalt_oxide_tem_source_image_mask_pairing",
+  "source": {
+    "record_id": 14927582,
+    "doi": "10.5281/zenodo.14927582",
+    "dataset_version": "v1",
+    "license": "CC-BY-4.0",
+    "source_description": "TEM image arrays and corresponding source-predicted segmentation results"
+  },
+  "literature_context": {
+    "paper_doi": "10.1021/acsnano.4c09312",
+    "paper_reported_four_k_pixel_size_pm": 86,
+    "calibration_binding_status": "paper_context_not_bound_to_individual_public_hdf5_members"
+  },
+  "mask_archive": {
+    "name": "Segmented_images.zip",
+    "url": "https://zenodo.org/records/14927582/files/Segmented_images.zip?download=1",
+    "md5": "63edc9b44264f8a1397bff806d58eade",
+    "sha256": "bd7816f3cf2869e4a349fc04d3e0d0464b3e14e9c8c8655f51e6e487fb59824b",
+    "expected_members": [
+      "Co0_2_segmented_images.h5",
+      "Co0_4_segmented_images.h5",
+      "Co0_5_segmented_images.h5",
+      "Co0_7_segmented_images.h5",
+      "Co0_8_segmented_images.h5",
+      "DW0_6_segmented_images.h5",
+      "DW0_7_segmented_images.h5",
+      "DW0_43_segmented_images.h5",
+      "DW0_85_segmented_images.h5",
+      "DW1_0_segmented_images.h5"
+    ]
+  },
+  "image_archive": {
+    "name": "TEM_images.zip",
+    "url": "https://zenodo.org/records/14927582/files/TEM_images.zip?download=1",
+    "md5": "d1e991346d07b8a112c4b6dbfd8367ba",
+    "sha256": "a9e4618f697205bf8560ab14bc5e313d4011b51aaa6dbf8a5c62ddc22bc558d8",
+    "expected_members": [
+      "Co0_2_TEM_images.h5",
+      "Co0_4_TEM_images.h5",
+      "Co0_5_TEM_images.h5",
+      "Co0_7_TEM_images.h5",
+      "Co0_8_TEM_images.h5",
+      "DW0_6_TEM_images.h5",
+      "DW0_7_TEM_images.h5",
+      "DW0_43_TEM_images.h5",
+      "DW0_85_TEM_images.h5",
+      "DW1_0_TEM_images.h5"
+    ]
+  },
+  "pairs": [
+    {
+      "pair_id": "co0_2",
+      "mask_member": "Co0_2_segmented_images.h5",
+      "image_member": "Co0_2_TEM_images.h5"
+    },
+    {
+      "pair_id": "co0_4",
+      "mask_member": "Co0_4_segmented_images.h5",
+      "image_member": "Co0_4_TEM_images.h5"
+    },
+    {
+      "pair_id": "co0_5",
+      "mask_member": "Co0_5_segmented_images.h5",
+      "image_member": "Co0_5_TEM_images.h5"
+    },
+    {
+      "pair_id": "co0_7",
+      "mask_member": "Co0_7_segmented_images.h5",
+      "image_member": "Co0_7_TEM_images.h5"
+    },
+    {
+      "pair_id": "co0_8",
+      "mask_member": "Co0_8_segmented_images.h5",
+      "image_member": "Co0_8_TEM_images.h5"
+    },
+    {
+      "pair_id": "dw0_6",
+      "mask_member": "DW0_6_segmented_images.h5",
+      "image_member": "DW0_6_TEM_images.h5"
+    },
+    {
+      "pair_id": "dw0_7",
+      "mask_member": "DW0_7_segmented_images.h5",
+      "image_member": "DW0_7_TEM_images.h5"
+    },
+    {
+      "pair_id": "dw0_43",
+      "mask_member": "DW0_43_segmented_images.h5",
+      "image_member": "DW0_43_TEM_images.h5"
+    },
+    {
+      "pair_id": "dw0_85",
+      "mask_member": "DW0_85_segmented_images.h5",
+      "image_member": "DW0_85_TEM_images.h5"
+    },
+    {
+      "pair_id": "dw1_0",
+      "mask_member": "DW1_0_segmented_images.h5",
+      "image_member": "DW1_0_TEM_images.h5"
+    }
+  ],
+  "hdf5_contract": {
+    "mask_dataset_name": "labels",
+    "expected_shape": [
+      5,
+      4096,
+      4096
+    ],
+    "mask_dtype": "float64",
+    "attributes_expected": false,
+    "image_dataset_name": "images",
+    "image_dtype": "float64",
+    "image_mean_abs_tolerance": 1e-10,
+    "image_std_abs_tolerance": 1e-12
+  }
+}

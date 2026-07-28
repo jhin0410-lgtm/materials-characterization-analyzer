@@ -4,7 +4,7 @@ type: software
 title: "Materials Characterization Analyzer"
 authors:
   - name: "jhin0410-lgtm"
-version: 0.9.0
+version: 0.9.1
 date-released: 2026-07-28
 repository-code: "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
 url: "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
@@ -15,8 +15,8 @@ abstract: >-
   XPS, FTIR, TGA, and DSC characterization workflows. The software separates
   software validation from scientific validation and does not automatically
   confirm phases, compounds, chemical states, functional groups, reactions,
-  mechanisms, quantitative composition, segmentation validity, or physical
-  particle dimensions.
+  mechanisms, quantitative composition, segmentation validity, raw-image
+  identity, pixel calibration, or physical particle dimensions.
 keywords:
   - materials science
   - materials characterization
