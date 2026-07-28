@@ -1,0 +1,203 @@
+name: Public cobalt oxide TEM source masks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/public-cobalt-oxide-tem-masks.yml"
+      - "case_studies/public_cobalt_oxide_tem_masks/**"
+      - "scripts/run_public_cobalt_oxide_tem_masks_case.py"
+      - "src/mca/tem_mask_import.py"
+      - "src/mca/contracts.py"
+      - "src/mca/provenance.py"
+      - "tests/test_public_cobalt_oxide_tem_masks.py"
+      - "pyproject.toml"
+      - "src/mca/__init__.py"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/public-cobalt-oxide-tem-masks.yml"
+      - "case_studies/public_cobalt_oxide_tem_masks/**"
+      - "scripts/run_public_cobalt_oxide_tem_masks_case.py"
+      - "src/mca/tem_mask_import.py"
+      - "src/mca/contracts.py"
+      - "src/mca/provenance.py"
+      - "tests/test_public_cobalt_oxide_tem_masks.py"
+      - "pyproject.toml"
+      - "src/mca/__init__.py"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-cobalt-oxide-tem-masks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-real-data-case:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Download exact public archive
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output /tmp/Segmented_images.zip \
+            "https://zenodo.org/records/14927582/files/Segmented_images.zip?download=1"
+          echo "63edc9b44264f8a1397bff806d58eade  /tmp/Segmented_images.zip" | md5sum --check
+          echo "bd7816f3cf2869e4a349fc04d3e0d0464b3e14e9c8c8655f51e6e487fb59824b  /tmp/Segmented_images.zip" | sha256sum --check
+
+      - name: Run all 50 real source masks
+        run: |
+          set -euo pipefail
+          python scripts/run_public_cobalt_oxide_tem_masks_case.py \
+            --config case_studies/public_cobalt_oxide_tem_masks/case_config.json \
+            --archive /tmp/Segmented_images.zip \
+            --output outputs/public-cobalt-oxide-tem-masks \
+            | tee outputs/public-cobalt-oxide-tem-masks-console.json
+
+      - name: Verify scientific and artifact contracts
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          from pathlib import Path
+
+          import pandas as pd
+
+          output = Path("outputs/public-cobalt-oxide-tem-masks")
+          summary = json.loads((output / "case_summary.json").read_text(encoding="utf-8"))
+          counts = summary["result_counts"]
+          assert summary["software_version"] == "0.9.0"
+          assert summary["source"]["doi"] == "10.5281/zenodo.14927582"
+          assert summary["source"]["license"] == "CC-BY-4.0"
+          assert summary["source"]["archive_md5"] == "63edc9b44264f8a1397bff806d58eade"
+          assert summary["source"]["archive_sha256"] == (
+              "bd7816f3cf2869e4a349fc04d3e0d0464b3e14e9c8c8655f51e6e487fb59824b"
+          )
+          assert counts == {
+              "analysis_count": 50,
+              "border_touching_component_count": 3480,
+              "connected_component_count": 41040,
+              "feature_record_count": 400,
+              "foreground_pixel_count": 335566001,
+              "mask_count": 50,
+              "source_file_count": 10,
+          }
+          assert summary["hdf5_contract"] == {
+              "allowed_values": [0.0, 1.0],
+              "dataset_name": "labels",
+              "dtype": "float64",
+              "file_count": 10,
+              "full_array_binary_validation_performed": True,
+              "shape_per_file": [5, 4096, 4096],
+              "source_attributes_present": False,
+          }
+          assert summary["scientific_closeout"]["status"] == "Diagnostic"
+          assert all(value is False for value in summary["processing"].values())
+
+          masks = pd.read_csv(output / "tem_source_mask_summary.csv")
+          components = pd.read_csv(output / "tem_source_mask_components.csv")
+          features = pd.read_csv(output / "tem_source_mask_features_long.csv")
+          assert len(masks) == 50
+          assert masks["sample_id"].nunique() == 10
+          assert masks["measurement_id"].nunique() == 50
+          assert (masks["height_px"] == 4096).all()
+          assert (masks["width_px"] == 4096).all()
+          assert (masks["component_filtering"] == "none").all()
+          assert not masks["pixel_calibration_applied"].any()
+          assert int(components["area_pixels"].sum()) == counts["foreground_pixel_count"]
+          assert len(components) == counts["connected_component_count"]
+          assert int(components["touches_border"].sum()) == counts[
+              "border_touching_component_count"
+          ]
+          assert len(features) == counts["feature_record_count"]
+          assert set(features["unit"]).issubset({"fraction", "pixel", "pixel^2", "count"})
+          assert not features["unit"].astype(str).str.contains("nm", case=False).any()
+          assert set(features["quality_flag"]) == {"source_prediction_review_required"}
+          assert features["source_sha256"].str.fullmatch(r"[0-9a-f]{64}").all()
+          assert features["preprocessing_id"].str.fullmatch(r"[0-9a-f]{16}").all()
+
+          analysis = json.loads((output / "case_analysis_manifest.json").read_text())
+          assert analysis["analysis_count"] == 50
+          for item in analysis["analyses"]:
+              assert item["acquisition_metadata"]["mask_provenance"] == (
+                  "source_predicted_segmentation"
+              )
+              assert item["acquisition_metadata"]["raw_tem_pairing"] == (
+                  "not_verified_in_selected_archive"
+              )
+              assert item["acquisition_metadata"]["pixel_calibration"] == (
+                  "not_embedded_in_selected_hdf5"
+              )
+              assert "source_prediction_not_independent_ground_truth" in item["warnings"]
+
+          manifest = json.loads((output / "case_artifact_manifest.json").read_text())
+          assert manifest["artifact_count"] == 6
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert path.stat().st_size == record["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+
+          forbidden_suffixes = {".pkl", ".pickle", ".joblib", ".pt", ".pth", ".onnx"}
+          assert not [path for path in output.rglob("*") if path.suffix.lower() in forbidden_suffixes]
+          print(json.dumps(counts, indent=2, sort_keys=True))
+          PY
+
+      - name: Run focused software tests
+        run: pytest -q tests/test_public_cobalt_oxide_tem_masks.py
+
+      - name: Verify package version and build
+        run: |
+          set -euo pipefail
+          mca --version | tee mca-version.txt
+          grep -F "0.9.0" mca-version.txt
+          python -m build
+          python - <<'PY'
+          from pathlib import Path
+          files = sorted(path.name for path in Path("dist").iterdir())
+          assert "materials_characterization_analyzer-0.9.0-py3-none-any.whl" in files
+          assert "materials_characterization_analyzer-0.9.0.tar.gz" in files
+          print(files)
+          PY
+
+      - name: Upload real-data evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-cobalt-oxide-tem-mask-evidence
+          path: |
+            outputs/public-cobalt-oxide-tem-masks/
+            outputs/public-cobalt-oxide-tem-masks-console.json
+            mca-version.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: materials-characterization-analyzer-0.9.0-distributions
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
