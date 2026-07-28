@@ -1,0 +1,318 @@
+name: Temporary cobalt oxide TEM training data audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/temporary-cobalt-oxide-tem-training-data-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install audit dependencies
+        run: python -m pip install --disable-pip-version-check h5py numpy scikit-learn
+
+      - name: Download exact public training files
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output /tmp/training_images.h5 \
+            "https://zenodo.org/records/14927582/files/training_images.h5?download=1"
+          echo "caac404a7ea2c65b2403aee5728a70eb  /tmp/training_images.h5" | md5sum --check
+          sha256sum /tmp/training_images.h5 | tee training-images.sha256
+
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output /tmp/training_labels.h5 \
+            "https://zenodo.org/records/14927582/files/training_labels.h5?download=1"
+          echo "087a4df4cd67fa97cdf790c40bdc828b  /tmp/training_labels.h5" | md5sum --check
+          sha256sum /tmp/training_labels.h5 | tee training-labels.sha256
+
+      - name: Audit HDF5 structure and split leakage risk
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import csv
+          import hashlib
+          import json
+          import math
+          from collections import Counter, defaultdict
+          from pathlib import Path
+
+          import h5py
+          import numpy as np
+          from sklearn.model_selection import KFold
+
+          image_path = Path('/tmp/training_images.h5')
+          label_path = Path('/tmp/training_labels.h5')
+
+          def sha256(path: Path) -> str:
+              digest = hashlib.sha256()
+              with path.open('rb') as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          def attrs(payload) -> dict:
+              result = {}
+              for key in payload.keys():
+                  value = payload[key]
+                  if isinstance(value, np.ndarray):
+                      value = value.tolist()
+                  elif isinstance(value, np.generic):
+                      value = value.item()
+                  elif isinstance(value, bytes):
+                      value = value.decode('utf-8', errors='replace')
+                  result[str(key)] = value
+              return result
+
+          def frame_hash(frame: np.ndarray) -> str:
+              return hashlib.sha256(np.ascontiguousarray(frame).tobytes(order='C')).hexdigest()
+
+          def mean_abs_difference(a: np.ndarray, b: np.ndarray) -> float:
+              return float(np.mean(np.abs(a.astype(np.float64) - b.astype(np.float64))))
+
+          with h5py.File(image_path, 'r') as image_h5, h5py.File(label_path, 'r') as label_h5:
+              image_keys = list(image_h5.keys())
+              label_keys = list(label_h5.keys())
+              assert image_keys == ['images'], image_keys
+              assert label_keys == ['labels'], label_keys
+              images = image_h5['images']
+              labels = label_h5['labels']
+              assert images.shape == (256, 512, 512), images.shape
+              assert labels.shape == (256, 512, 512, 2), labels.shape
+              assert images.dtype == np.dtype('float64'), images.dtype
+              assert labels.dtype == np.dtype('float64'), labels.dtype
+
+              image_hashes = []
+              label_hashes = []
+              patch_rows = []
+              image_min = math.inf
+              image_max = -math.inf
+              label_counts = Counter()
+              one_hot_valid = True
+              channel_complement_valid = True
+
+              for index in range(256):
+                  image = np.asarray(images[index])
+                  label = np.asarray(labels[index])
+                  assert np.isfinite(image).all()
+                  assert np.isfinite(label).all()
+                  values, counts = np.unique(label, return_counts=True)
+                  for value, count in zip(values.tolist(), counts.tolist()):
+                      label_counts[str(float(value))] += int(count)
+                  one_hot_valid = one_hot_valid and bool(np.logical_or(label == 0.0, label == 1.0).all())
+                  channel_sum = label[..., 0] + label[..., 1]
+                  channel_complement_valid = channel_complement_valid and bool(np.all(channel_sum == 1.0))
+                  image_hash = frame_hash(image)
+                  label_hash = frame_hash(label)
+                  image_hashes.append(image_hash)
+                  label_hashes.append(label_hash)
+                  image_min = min(image_min, float(image.min()))
+                  image_max = max(image_max, float(image.max()))
+                  patch_rows.append({
+                      'patch_index': index,
+                      'candidate_parent_group': index // 64,
+                      'candidate_tile_row': (index % 64) // 8,
+                      'candidate_tile_column': index % 8,
+                      'image_sha256': image_hash,
+                      'label_sha256': label_hash,
+                      'image_mean': float(image.mean()),
+                      'image_std': float(image.std()),
+                      'label_channel_0_fraction': float(label[..., 0].mean()),
+                      'label_channel_1_fraction': float(label[..., 1].mean()),
+                  })
+
+              assert one_hot_valid
+              assert channel_complement_valid
+
+              seam_rows = []
+              observed_image_seams = []
+              observed_label_seams = []
+              random_image_seams = []
+              random_label_seams = []
+              rng = np.random.default_rng(42)
+              random_order = rng.permutation(256)
+
+              for group in range(4):
+                  start = group * 64
+                  horizontal_image = []
+                  vertical_image = []
+                  horizontal_label = []
+                  vertical_label = []
+                  for row in range(8):
+                      for column in range(8):
+                          index = start + row * 8 + column
+                          if column < 7:
+                              right = index + 1
+                              horizontal_image.append(mean_abs_difference(images[index, :, -1], images[right, :, 0]))
+                              horizontal_label.append(mean_abs_difference(labels[index, :, -1, :], labels[right, :, 0, :]))
+                          if row < 7:
+                              down = index + 8
+                              vertical_image.append(mean_abs_difference(images[index, -1, :], images[down, 0, :]))
+                              vertical_label.append(mean_abs_difference(labels[index, -1, :, :], labels[down, 0, :, :]))
+                  observed_image = float(np.mean(horizontal_image + vertical_image))
+                  observed_label = float(np.mean(horizontal_label + vertical_label))
+                  observed_image_seams.append(observed_image)
+                  observed_label_seams.append(observed_label)
+                  seam_rows.append({
+                      'candidate_parent_group': group,
+                      'patch_start_index': start,
+                      'patch_end_index': start + 63,
+                      'observed_image_seam_mean_abs_difference': observed_image,
+                      'observed_label_seam_mean_abs_difference': observed_label,
+                  })
+
+              for position in range(224):
+                  a = int(random_order[position])
+                  b = int(random_order[position + 1])
+                  random_image_seams.append(mean_abs_difference(images[a, :, -1], images[b, :, 0]))
+                  random_label_seams.append(mean_abs_difference(labels[a, :, -1, :], labels[b, :, 0, :]))
+
+              split_rows = []
+              candidate_groups = np.arange(256) // 64
+              for fold, (train_index, validation_index) in enumerate(
+                  KFold(n_splits=8, shuffle=True, random_state=42).split(np.arange(256)),
+                  start=1,
+              ):
+                  train_groups = sorted(set(candidate_groups[train_index].tolist()))
+                  validation_groups = sorted(set(candidate_groups[validation_index].tolist()))
+                  overlap = sorted(set(train_groups) & set(validation_groups))
+                  split_rows.append({
+                      'fold': fold,
+                      'train_patch_count': len(train_index),
+                      'validation_patch_count': len(validation_index),
+                      'train_candidate_parent_groups': json.dumps(train_groups),
+                      'validation_candidate_parent_groups': json.dumps(validation_groups),
+                      'overlapping_candidate_parent_groups': json.dumps(overlap),
+                      'overlap_group_count': len(overlap),
+                  })
+
+              image_duplicate_counts = Counter(image_hashes)
+              label_duplicate_counts = Counter(label_hashes)
+              summary = {
+                  'schema_version': '1.0',
+                  'source': {
+                      'record_id': 14927582,
+                      'doi': '10.5281/zenodo.14927582',
+                      'dataset_version': 'v1',
+                      'license': 'CC-BY-4.0',
+                      'training_images': {
+                          'name': image_path.name,
+                          'published_md5': 'caac404a7ea2c65b2403aee5728a70eb',
+                          'sha256': sha256(image_path),
+                      },
+                      'training_labels': {
+                          'name': label_path.name,
+                          'published_md5': '087a4df4cd67fa97cdf790c40bdc828b',
+                          'sha256': sha256(label_path),
+                      },
+                  },
+                  'hdf5': {
+                      'image_root_keys': image_keys,
+                      'label_root_keys': label_keys,
+                      'image_shape': list(images.shape),
+                      'label_shape': list(labels.shape),
+                      'image_dtype': str(images.dtype),
+                      'label_dtype': str(labels.dtype),
+                      'image_chunks': list(images.chunks) if images.chunks else None,
+                      'label_chunks': list(labels.chunks) if labels.chunks else None,
+                      'image_compression': images.compression,
+                      'label_compression': labels.compression,
+                      'image_root_attributes': attrs(image_h5.attrs),
+                      'label_root_attributes': attrs(label_h5.attrs),
+                      'image_dataset_attributes': attrs(images.attrs),
+                      'label_dataset_attributes': attrs(labels.attrs),
+                  },
+                  'values': {
+                      'all_images_finite': True,
+                      'all_labels_finite': True,
+                      'image_minimum': image_min,
+                      'image_maximum': image_max,
+                      'labels_binary': one_hot_valid,
+                      'label_channels_complementary_one_hot': channel_complement_valid,
+                      'label_value_counts': dict(sorted(label_counts.items())),
+                      'exact_duplicate_image_patch_count': sum(count - 1 for count in image_duplicate_counts.values() if count > 1),
+                      'exact_duplicate_label_patch_count': sum(count - 1 for count in label_duplicate_counts.values() if count > 1),
+                  },
+                  'candidate_parent_grouping': {
+                      'status': 'diagnostic_inference_not_embedded_metadata',
+                      'candidate_group_count': 4,
+                      'patches_per_candidate_group': 64,
+                      'candidate_grid': [8, 8],
+                      'basis': 'contiguous_blocks_of_64_follow_original_notebook_4k_to_512_tiling_order_and_show_edge_continuity',
+                      'observed_image_seam_mean_abs_difference': float(np.mean(observed_image_seams)),
+                      'random_image_seam_mean_abs_difference': float(np.mean(random_image_seams)),
+                      'observed_to_random_image_seam_ratio': float(np.mean(observed_image_seams) / np.mean(random_image_seams)),
+                      'observed_label_seam_mean_abs_difference': float(np.mean(observed_label_seams)),
+                      'random_label_seam_mean_abs_difference': float(np.mean(random_label_seams)),
+                      'observed_to_random_label_seam_ratio': float(np.mean(observed_label_seams) / np.mean(random_label_seams)),
+                      'authoritative_parent_ids_available': False,
+                  },
+                  'notebook_split_audit': {
+                      'notebook_repository': 'ScottLabUCB/NN_training',
+                      'notebook_commit': '9f92235102a805abc76e3d60065d677ee2068c90',
+                      'notebook_file': 'model training for HRTEM_v2.ipynb',
+                      'split_method': 'KFold(n_splits=8, shuffle=True, random_state=42) on 256 patch indices',
+                      'candidate_parent_group_overlap_in_every_fold': all(row['overlap_group_count'] == 4 for row in split_rows),
+                      'minimum_overlap_group_count': min(row['overlap_group_count'] for row in split_rows),
+                      'maximum_overlap_group_count': max(row['overlap_group_count'] for row in split_rows),
+                  },
+                  'scientific_readiness': {
+                      'hand_labeled_training_pairs_present': True,
+                      'independent_validation_set_present': False,
+                      'leakage_safe_parent_group_ids_present': False,
+                      'published_patch_level_kfold_is_independent_validation': False,
+                      'model_performance_claim_ready': False,
+                      'recommended_use': 'training-data integrity and diagnostic split audit only',
+                  },
+              }
+
+          with open('training-data-audit.json', 'w', encoding='utf-8') as handle:
+              json.dump(summary, handle, indent=2, sort_keys=True)
+              handle.write('\n')
+          with open('training-patches.csv', 'w', newline='', encoding='utf-8') as handle:
+              writer = csv.DictWriter(handle, fieldnames=list(patch_rows[0]))
+              writer.writeheader()
+              writer.writerows(patch_rows)
+          with open('candidate-parent-seams.csv', 'w', newline='', encoding='utf-8') as handle:
+              writer = csv.DictWriter(handle, fieldnames=list(seam_rows[0]))
+              writer.writeheader()
+              writer.writerows(seam_rows)
+          with open('notebook-kfold-parent-overlap.csv', 'w', newline='', encoding='utf-8') as handle:
+              writer = csv.DictWriter(handle, fieldnames=list(split_rows[0]))
+              writer.writeheader()
+              writer.writerows(split_rows)
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+          sha256sum training-data-audit.json training-patches.csv candidate-parent-seams.csv notebook-kfold-parent-overlap.csv > training-data-audit.sha256
+
+      - name: Upload audit evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: cobalt-oxide-tem-training-data-audit
+          path: |
+            training-data-audit.json
+            training-patches.csv
+            candidate-parent-seams.csv
+            notebook-kfold-parent-overlap.csv
+            training-data-audit.sha256
+            training-images.sha256
+            training-labels.sha256
+          if-no-files-found: error
+          retention-days: 7
