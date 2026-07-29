@@ -71,6 +71,7 @@ jobs:
               "https://datadryad.org/api/v2/files/$file_id"
           done
           python scripts/resolve_dryad_pilot_file_metadata.py \
+            --doi "10.7941/D1SP93" \
             --output-dir /tmp/dryad-version-metadata \
             /tmp/dryad-images-api.json \
             /tmp/dryad-labels-api.json \
@@ -125,6 +126,7 @@ jobs:
       - name: Audit real pair and training overlap
         run: |
           set -euo pipefail
+          mkdir -p outputs
           python scripts/audit_dryad_hrtem_pilot_pair.py \
             --config case_studies/dryad_hrtem_pilot_pair_audit/case_config.json \
             --images /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5 \
@@ -136,6 +138,7 @@ jobs:
             --processed-metadata-api /tmp/dryad-metadata-api.json \
             --output outputs/dryad-hrtem-pilot-pair-audit \
             | tee outputs/dryad-hrtem-pilot-pair-audit-console.json
+          cp -R /tmp/dryad-version-metadata outputs/dryad-version-metadata
 
       - name: Verify real-data and scientific contracts
         run: |
@@ -213,6 +216,6 @@ jobs:
           path: |
             outputs/dryad-hrtem-pilot-pair-audit/
             outputs/dryad-hrtem-pilot-pair-audit-console.json
-            /tmp/dryad-version-metadata/
+            outputs/dryad-version-metadata/
           if-no-files-found: error
           retention-days: 30
