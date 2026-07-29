@@ -8,6 +8,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes are currently recorded.
 
+## [0.9.3] - 2026-07-29
+
+### Added
+
+- A pinned Dryad HRTEM pilot-pair contract for file IDs `2451485`, `2451482`, and `2451515` from dataset `10.7941/D1SP93`.
+- Live resolution of the files' directly linked Dryad source version and paginated file inventory instead of rebinding them to the DOI's later metadata version.
+- Source-declared SHA-256 validation, downloaded byte-size and hash verification, HDF5 image-label pairing checks, exact label-value inspection, patch provenance tables, and cobalt-training content-overlap screening.
+- A credential-aware GitHub Actions workflow that records `blocked_missing_dryad_api_token` when authenticated file acquisition is unavailable and cannot be mistaken for a completed real-data audit.
+- Separate provenance/I/O and scientific comparison modules while preserving the existing audit callable and CLI path.
+- Regression coverage for MD5 and SHA-256 metadata, exact-overlap blocking, nonbinary-label rejection, checksum mismatch, overwrite refusal, and parent-image standardization before patching.
+
+### Changed
+
+- Dryad source standardization is represented correctly: the source reports standardizing each `4096 x 4096` parent image before `512 x 512` patching, so individual patch mean and standard deviation are diagnostic rather than required to equal zero and one.
+- Per-patch standardization is applied only to content-identity comparison and is explicitly recorded as such.
+
+### Scientific status
+
+- Current live metadata and source-version evidence are verified, but the real Dryad HDF5 and cross-dataset content-overlap audits remain **Inconclusive** until repository secret `DRYAD_API_TOKEN` permits authenticated acquisition.
+- The pilot material is Au rather than cobalt oxide, the labels were produced by one human, one creator overlaps with the cobalt-oxide source, and authoritative cross-dataset acquisition independence is unavailable.
+- Even after authenticated audit, this case can support only a diagnostic cross-material stress-test protocol, not in-domain cobalt-oxide external-validation performance.
+- No model training, inference, segmentation metric, label remapping, physical conversion, causal, optimization, or engineering-release claim is supported.
+
 ## [0.9.2] - 2026-07-28
 
 ### Added
