@@ -1,0 +1,77 @@
+{
+  "case_id": "dryad_hrtem_pilot_pair_audit",
+  "source": {
+    "repository": "Dryad",
+    "doi": "10.7941/D1SP93",
+    "published_date": "2023-07-31",
+    "version_label": "2023-07-31",
+    "license": "CC0-1.0",
+    "api_file_endpoint_template": "https://datadryad.org/api/v2/files/{file_id}",
+    "download_endpoint_template": "https://datadryad.org/api/v2/files/{file_id}/download"
+  },
+  "pilot_pair": {
+    "pair_id": "au_5nm_260kx_450e",
+    "material": "Au",
+    "particle_diameter_nm": 5.0,
+    "magnification_kx": 260,
+    "electron_dose_e_per_a2": 450,
+    "substrate": "ultrathin C",
+    "microscope": "TEAM 0.5 aberration-corrected transmission electron microscope",
+    "camera": "OneView (Gatan)",
+    "labeler_count": 1,
+    "annotation_tool": "LabelBox",
+    "image_file": {
+      "file_id": 2451485,
+      "name": "Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5",
+      "landing_page_size_mb": 184.55
+    },
+    "label_file": {
+      "file_id": 2451482,
+      "name": "Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "landing_page_size_mb": 92.28
+    },
+    "processed_metadata_file": {
+      "file_id": 2451515,
+      "name": "Processed_datasets_metadata.csv",
+      "landing_page_size_kb": 2.10
+    }
+  },
+  "hdf5_contract": {
+    "image_dataset_name": "images",
+    "label_dataset_name": "labels",
+    "patch_height": 512,
+    "patch_width": 512,
+    "image_mean_abs_tolerance": 0.00001,
+    "image_std_abs_tolerance": 0.00001,
+    "allowed_label_values": [0, 1]
+  },
+  "cobalt_training_reference": {
+    "repository": "Zenodo",
+    "record_id": 14927582,
+    "doi": "10.5281/zenodo.14927582",
+    "dataset_version": "v1",
+    "name": "training_images.h5",
+    "url": "https://zenodo.org/records/14927582/files/training_images.h5?download=1",
+    "md5": "caac404a7ea2c65b2403aee5728a70eb",
+    "sha256": "e709b7f1fa383bd111bb0b7e8d4662452b46198f52e4e88b19bb3f3e222c0926",
+    "dataset_name": "images",
+    "shape": [256, 512, 512],
+    "candidate_parent_patch_count": 64,
+    "candidate_parent_count": 4
+  },
+  "overlap_contract": {
+    "quantization_decimals": 9,
+    "signature_block_size": 16,
+    "review_ncc_threshold": 0.995,
+    "exact_match_rule": "quantized_per_patch_standardized_sha256"
+  },
+  "target_model_provenance": {
+    "repository": "ScottLabUCB/NN_training",
+    "commit": "9f92235102a805abc76e3d60065d677ee2068c90",
+    "notebook": "model training for HRTEM.ipynb",
+    "notebook_blob_sha": "a21bf95fb41f63efb0c33b1563bc43a073afed58",
+    "verified_training_input_name": "training_images.h5",
+    "dryad_pilot_pair_named_as_training_input": false,
+    "authoritative_cross_dataset_acquisition_lineage_manifest_available": false
+  }
+}
