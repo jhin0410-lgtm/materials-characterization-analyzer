@@ -4,10 +4,10 @@
     "repository": "Dryad",
     "doi": "10.7941/D1SP93",
     "published_date": "2023-07-31",
-    "version_label": "2023-07-31",
+    "version_label": "247105",
     "license": "CC0-1.0",
     "api_file_endpoint_template": "https://datadryad.org/api/v2/files/{file_id}",
-    "download_endpoint_template": "https://datadryad.org/downloads/file_stream/{file_id}"
+    "download_endpoint_template": "https://datadryad.org/api/v2/files/{file_id}/download"
   },
   "pilot_pair": {
     "pair_id": "au_5nm_260kx_450e",
