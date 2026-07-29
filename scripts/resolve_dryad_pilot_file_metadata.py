@@ -131,11 +131,33 @@ def _file_pages(start_url: str) -> tuple[list[tuple[str, Mapping[str, Any]]], li
     return pages, records
 
 
-def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
-    source_paths = list(paths)
-    source_payloads = [json.loads(path.read_text(encoding="utf-8")) for path in source_paths]
+def _parse_file_binding(value: str) -> tuple[int, Path]:
+    identifier, separator, path_text = value.partition("=")
+    if not separator or not path_text:
+        raise argparse.ArgumentTypeError("file bindings must use FILE_ID=PATH")
+    try:
+        file_id = int(identifier)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("Dryad file ID must be an integer") from exc
+    if file_id <= 0:
+        raise argparse.ArgumentTypeError("Dryad file ID must be positive")
+    return file_id, Path(path_text)
+
+
+def resolve(
+    doi: str,
+    bindings: Iterable[tuple[int, Path]],
+    output_dir: Path,
+) -> None:
+    source_bindings = list(bindings)
+    source_payloads = [
+        json.loads(path.read_text(encoding="utf-8")) for _, path in source_bindings
+    ]
     if not all(isinstance(payload, Mapping) for payload in source_payloads):
         raise ValueError("all Dryad individual-file responses must be objects.")
+    expected_ids = [file_id for file_id, _ in source_bindings]
+    if len(set(expected_ids)) != len(expected_ids):
+        raise ValueError("Dryad endpoint file IDs must be unique.")
 
     dataset_url = _dataset_url(doi)
     dataset_payload = _fetch(dataset_url)
@@ -173,35 +195,43 @@ def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
         encoding="utf-8",
     )
 
-    for path, payload in zip(source_paths, source_payloads):
-        source_id = _id(payload)
+    for (expected_id, path), payload in zip(source_bindings, source_payloads):
+        response_id = _id(payload)
+        if response_id is not None and response_id != expected_id:
+            raise ValueError(
+                f"individual Dryad response ID mismatch: {response_id} != {expected_id}"
+            )
         expected_name = _name(payload)
         if expected_name is None:
             raise ValueError(f"individual Dryad response has no filename: {path}")
         name_matches = [record for record in records if _name(record) == expected_name]
-        matches = (
-            [record for record in name_matches if _id(record) == source_id]
-            if source_id is not None
-            else name_matches
-        )
+        matches = [
+            record
+            for record in name_matches
+            if _id(record) in (None, expected_id)
+        ]
         if len(matches) != 1:
             raise ValueError(
-                f"expected exactly one version-file record for {source_id} {expected_name!r}; "
-                f"found {len(matches)} across {len(pages)} pages and {len(records)} records"
+                f"expected exactly one version-file record for endpoint ID {expected_id} "
+                f"and name {expected_name!r}; found {len(matches)} across {len(pages)} "
+                f"pages and {len(records)} records"
             )
-        resolved_id = _id(matches[0])
-        if resolved_id is None:
-            raise ValueError(f"version-file record lacks ID for {expected_name}.")
+        record_id = _id(matches[0])
+        if record_id is not None and record_id != expected_id:
+            raise ValueError(
+                f"version-file record ID mismatch: {record_id} != {expected_id}"
+            )
         digest = _digest(matches[0])
         if digest is None:
             raise ValueError(f"version-file record lacks checksum for {expected_name}.")
         enriched = dict(payload)
-        enriched["id"] = resolved_id
+        enriched["id"] = expected_id
         enriched["digest"] = digest
         enriched["dataset_api_url"] = dataset_url
         enriched["version_api_url"] = version_url
         enriched["version_files_api_url"] = files_url
         enriched["version_files_page_count"] = len(pages)
+        enriched["endpoint_file_id_source"] = "workflow_pinned_request_path"
         enriched["version_file_record"] = dict(matches[0])
         path.write_text(
             json.dumps(enriched, indent=2, sort_keys=True) + "\n",
@@ -209,7 +239,7 @@ def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
         )
         print(
             json.dumps(
-                {"file_id": resolved_id, "name": expected_name, "digest": digest}
+                {"file_id": expected_id, "name": expected_name, "digest": digest}
             )
         )
 
@@ -218,7 +248,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--doi", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("files", nargs="+", type=Path)
+    parser.add_argument("files", nargs="+", type=_parse_file_binding)
     args = parser.parse_args()
     resolve(args.doi, args.files, args.output_dir)
     return 0
