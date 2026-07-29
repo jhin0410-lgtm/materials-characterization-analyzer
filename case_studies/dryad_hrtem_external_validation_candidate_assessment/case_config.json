@@ -1,0 +1,148 @@
+{
+  "case_id": "dryad_hrtem_external_validation_candidate_assessment",
+  "source": {
+    "repository": "Dryad",
+    "doi": "10.7941/D1SP93",
+    "published_date": "2023-07-31",
+    "version_label": "2023-07-31",
+    "license": "CC0-1.0",
+    "total_size_gb": 33.69,
+    "raw_image_count": 407,
+    "curated_pair_count": 13
+  },
+  "reported_measurement_context": {
+    "materials": ["Au", "Ag", "CdSe"],
+    "substrates": ["ultrathin C", "SiN"],
+    "pixel_size_nm_range": [0.02, 0.042],
+    "electron_dose_e_per_a2_range": [80, 884],
+    "particle_diameter_nm_range": [2.2, 20],
+    "microscope": "TEAM 0.5 aberration-corrected transmission electron microscope",
+    "camera": "OneView (Gatan)",
+    "raw_image_shape": [4096, 4096],
+    "labeler_count": 1,
+    "annotation_tool": "LabelBox"
+  },
+  "processed_data_contract": {
+    "image_dataset_key": "images",
+    "label_dataset_key": "labels",
+    "preprocessing_steps": [
+      "x-ray artifact removal",
+      "flat-field correction",
+      "per-image standardization",
+      "512 x 512 patching",
+      "majority-background patch removal"
+    ]
+  },
+  "target_comparison": {
+    "target_material": "cobalt oxide",
+    "overlapping_creator_names": ["Mary Scott"],
+    "immutable_cross_dataset_lineage_manifest_available": false,
+    "verified_not_used_for_target_model_training": false
+  },
+  "pairs": [
+    {
+      "pair_id": "ag_5nm_330kx_423e",
+      "material": "Ag",
+      "image_file": "Ag_5nm_330kx_423e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 901.78,
+      "label_file": "Ag_5nm_330kx_423e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 450.89
+    },
+    {
+      "pair_id": "au_10nm_330kx_425e",
+      "material": "Au",
+      "image_file": "Au_10nm_330kx_425e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 268.44,
+      "label_file": "Au_10nm_330kx_425e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 134.22
+    },
+    {
+      "pair_id": "au_2p2nm_330kx_423e",
+      "material": "Au",
+      "image_file": "Au_2p2nm_330kx_423e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 744.49,
+      "label_file": "Au_2p2nm_330kx_423e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 372.25
+    },
+    {
+      "pair_id": "au_5nm_160kx_425e",
+      "material": "Au",
+      "image_file": "Au_5nm_160kx_425e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 612.37,
+      "label_file": "Au_5nm_160kx_425e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 306.19
+    },
+    {
+      "pair_id": "au_5nm_205kx_420e",
+      "material": "Au",
+      "image_file": "Au_5nm_205kx_420e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 236.98,
+      "label_file": "Au_5nm_205kx_420e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 118.49
+    },
+    {
+      "pair_id": "au_5nm_260kx_450e",
+      "material": "Au",
+      "image_file": "Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 184.55,
+      "label_file": "Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 92.28
+    },
+    {
+      "pair_id": "au_5nm_330kx_421e_session_1109",
+      "material": "Au",
+      "image_file": "Au_5nm_330kx_421e_UTC_Team05_Std_Sess1109FFCorr_Images.h5",
+      "image_size_mb": 440.40,
+      "label_file": "Au_5nm_330kx_421e_UTC_Team05_Std_Sess1109FFCorr_Labels.h5",
+      "label_size_mb": 220.20
+    },
+    {
+      "pair_id": "au_5nm_330kx_423e_session_0821",
+      "material": "Au",
+      "image_file": "Au_5nm_330kx_423e_UTC_Team05_Std_Sess0821FFCorr_Images.h5",
+      "image_size_mb": 442.50,
+      "label_file": "Au_5nm_330kx_423e_UTC_Team05_Std_Sess0821FFCorr_Labels.h5",
+      "label_size_mb": 221.25
+    },
+    {
+      "pair_id": "au_5nm_330kx_423e_session_1006",
+      "material": "Au",
+      "image_file": "Au_5nm_330kx_423e_UTC_Team05_Std_Sess1006FFCorr_Images.h5",
+      "image_size_mb": 637.54,
+      "label_file": "Au_5nm_330kx_423e_UTC_Team05_Std_Sess1006FFCorr_Labels.h5",
+      "label_size_mb": 318.77
+    },
+    {
+      "pair_id": "au_5nm_330kx_425e_session_1025",
+      "material": "Au",
+      "image_file": "Au_5nm_330kx_425e_UTC_Team05_Std_Sess1025FFCorr_Images.h5",
+      "image_size_mb": 545.26,
+      "label_file": "Au_5nm_330kx_425e_UTC_Team05_Std_Sess1025FFCorr_Labels.h5",
+      "label_size_mb": 272.63
+    },
+    {
+      "pair_id": "au_5nm_330kx_80e",
+      "material": "Au",
+      "image_file": "Au_5nm_330kx_80e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 425.72,
+      "label_file": "Au_5nm_330kx_80e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 212.86
+    },
+    {
+      "pair_id": "au_5nm_330kx_884e",
+      "material": "Au",
+      "image_file": "Au_5nm_330kx_884e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 385.88,
+      "label_file": "Au_5nm_330kx_884e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 192.94
+    },
+    {
+      "pair_id": "cdse_5nm_330kx_421e",
+      "material": "CdSe",
+      "image_file": "CdSe_5nm_330kx_421e_Std_UTC_FFCorr_Team05_Images.h5",
+      "image_size_mb": 788.53,
+      "label_file": "CdSe_5nm_330kx_421e_Std_UTC_FFCorr_Team05_Labels.h5",
+      "label_size_mb": 394.27
+    }
+  ]
+}
