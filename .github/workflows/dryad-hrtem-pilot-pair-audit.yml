@@ -67,6 +67,7 @@ jobs:
             file_id="${entry%%:*}"
             output="${entry#*:}"
             curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+              --user-agent "materials-characterization-analyzer/0.9" \
               --output "$output" \
               "https://datadryad.org/api/v2/files/$file_id"
           done
@@ -107,20 +108,24 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
-            --continue-at - --output /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5 \
+            --user-agent "materials-characterization-analyzer/0.9" \
+            --output /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5 \
             "https://datadryad.org/downloads/file_stream/2451485"
           curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
-            --continue-at - --output /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Labels.h5 \
+            --user-agent "materials-characterization-analyzer/0.9" \
+            --output /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Labels.h5 \
             "https://datadryad.org/downloads/file_stream/2451482"
           curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
-            --continue-at - --output /tmp/Processed_datasets_metadata.csv \
+            --user-agent "materials-characterization-analyzer/0.9" \
+            --output /tmp/Processed_datasets_metadata.csv \
             "https://datadryad.org/downloads/file_stream/2451515"
 
       - name: Download pinned cobalt training images
         run: |
           set -euo pipefail
           curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
-            --continue-at - --output /tmp/training_images.h5 \
+            --user-agent "materials-characterization-analyzer/0.9" \
+            --output /tmp/training_images.h5 \
             "https://zenodo.org/records/14927582/files/training_images.h5?download=1"
 
       - name: Audit real pair and training overlap
