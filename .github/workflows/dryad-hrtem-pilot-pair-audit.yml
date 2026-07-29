@@ -73,9 +73,9 @@ jobs:
           python scripts/resolve_dryad_pilot_file_metadata.py \
             --doi "10.7941/D1SP93" \
             --output-dir /tmp/dryad-version-metadata \
-            /tmp/dryad-images-api.json \
-            /tmp/dryad-labels-api.json \
-            /tmp/dryad-metadata-api.json
+            2451485=/tmp/dryad-images-api.json \
+            2451482=/tmp/dryad-labels-api.json \
+            2451515=/tmp/dryad-metadata-api.json
           python - <<'PY'
           import json
           from pathlib import Path
