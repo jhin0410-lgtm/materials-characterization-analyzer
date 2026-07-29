@@ -1,8 +1,9 @@
 """Checksum-bound real-data audit for one Dryad HRTEM image-label pair.
 
-The audit validates repository metadata, downloaded bytes, HDF5 structure, patch
-pairing, label values, image standardization, and content overlap against the
-pinned cobalt-oxide training patches. It performs no model training or inference.
+This module validates source metadata, downloaded bytes, HDF5 structure,
+image-label pairing, label values, numeric standardization, and content overlap
+against the pinned cobalt-oxide training patches. It performs no model training,
+inference, segmentation scoring, or physical conversion.
 """
 from __future__ import annotations
 
@@ -65,18 +66,19 @@ def run_pilot_pair_audit(
     label_api_metadata_path: str | Path | None = None,
     processed_metadata_api_path: str | Path | None = None,
 ) -> dict[str, Any]:
+    """Run the complete pilot-pair audit and return its machine-readable summary."""
     output = _prepare_output(output_dir)
     try:
         with tempfile.TemporaryDirectory(prefix="mca-dryad-pilot-") as temp_name:
             temp = Path(temp_name)
-            image_meta, image = _resolve_dryad_file(
+            image_meta, images_path = _resolve_dryad_file(
                 config,
                 config.image_file,
                 local_path=image_path,
                 api_metadata_path=image_api_metadata_path,
                 temp=temp,
             )
-            label_meta, labels = _resolve_dryad_file(
+            label_meta, labels_path = _resolve_dryad_file(
                 config,
                 config.label_file,
                 local_path=label_path,
@@ -92,8 +94,8 @@ def run_pilot_pair_audit(
             )
             training, training_mode = _acquire_training(config, training_path, temp)
             training_hashes = _verify_training(training, config)
-            binding = _bind_processed_metadata(metadata_csv, config)
-            pair_result = _inspect_pair(image, labels, config)
+            metadata_binding = _bind_processed_metadata(metadata_csv, config)
+            pair_result = _inspect_pair(images_path, labels_path, config)
             overlap_rows = _compare_to_training(
                 pair_result.pop("standardized_patch_hashes"),
                 pair_result.pop("normalized_signatures"),
@@ -101,6 +103,7 @@ def run_pilot_pair_audit(
                 config,
             )
 
+        patch_rows = pair_result.pop("patch_rows")
         patch_table = output / "tem_pilot_patch_inventory.csv"
         overlap_table = output / "tem_pilot_training_overlap.csv"
         source_metadata_path = output / "pilot_source_metadata_binding.json"
@@ -108,12 +111,24 @@ def run_pilot_pair_audit(
         report_path = output / "pilot_pair_audit_report.md"
         manifest_path = output / "pilot_pair_audit_artifact_manifest.json"
 
-        _write_csv(patch_table, pair_result.pop("patch_rows"), PATCH_COLUMNS)
+        _write_csv(patch_table, patch_rows, PATCH_COLUMNS)
         _write_csv(overlap_table, overlap_rows, OVERLAP_COLUMNS)
-        _write_json(source_metadata_path, binding)
+        _write_json(source_metadata_path, metadata_binding)
 
-        exact_rows = [row for row in overlap_rows if row["exact_quantized_hash_match"]]
-        review_rows = [row for row in overlap_rows if row["overlap_status"] == "review_required"]
+        exact_rows = [
+            row for row in overlap_rows if row["overlap_status"] == "exact_content_match"
+        ]
+        review_rows = [
+            row for row in overlap_rows if row["overlap_status"] == "review_required"
+        ]
+        clear_rows = [
+            row
+            for row in overlap_rows
+            if row["overlap_status"] == "no_content_overlap_detected"
+        ]
+        if len(exact_rows) + len(review_rows) + len(clear_rows) != len(overlap_rows):
+            raise AssertionError("overlap statuses are not mutually exhaustive.")
+
         overlap_clear = not exact_rows and not review_rows
         next_status = (
             "eligible_to_freeze_diagnostic_cross_material_stress_test_protocol"
@@ -147,7 +162,7 @@ def run_pilot_pair_audit(
                     "labels": label_meta,
                     "processed_metadata": metadata_meta,
                 },
-                "processed_metadata_binding": binding,
+                "processed_metadata_binding": metadata_binding,
             },
             "hdf5_pair_audit": pair_result,
             "cobalt_training_reference": {
@@ -168,8 +183,12 @@ def run_pilot_pair_audit(
                 "notebook": config.notebook,
                 "notebook_blob_sha": config.notebook_blob_sha,
                 "verified_training_input_name": config.verified_training_input_name,
-                "dryad_pilot_pair_named_as_training_input": config.dryad_pilot_pair_named_as_training_input,
-                "authoritative_cross_dataset_acquisition_lineage_manifest_available": config.authoritative_cross_dataset_acquisition_lineage_manifest_available,
+                "dryad_pilot_pair_named_as_training_input": (
+                    config.dryad_pilot_pair_named_as_training_input
+                ),
+                "authoritative_cross_dataset_acquisition_lineage_manifest_available": (
+                    config.authoritative_cross_dataset_acquisition_lineage_manifest_available
+                ),
             },
             "content_overlap_audit": {
                 "exact_match_rule": config.overlap.exact_match_rule,
@@ -180,7 +199,7 @@ def run_pilot_pair_audit(
                 "training_patch_count": config.training.shape[0],
                 "exact_content_match_patch_count": len(exact_rows),
                 "review_required_patch_count": len(review_rows),
-                "no_detected_overlap_patch_count": len(overlap_rows) - len(review_rows),
+                "no_detected_overlap_patch_count": len(clear_rows),
                 "maximum_signature_ncc": max(
                     float(row["best_signature_ncc"]) for row in overlap_rows
                 ),
@@ -221,19 +240,20 @@ def run_pilot_pair_audit(
                 "result": next_status,
                 "strongest_evidence": (
                     f"The exact Dryad API-bound image and label files contain "
-                    f"{pair_result['patch_count']} same-index 512 x 512 patches; file bytes, "
-                    "HDF5 structure, numeric standardization, binary labels, and content overlap "
-                    "against all 256 pinned cobalt-oxide training patches were audited."
+                    f"{pair_result['patch_count']} same-index 512 x 512 patches; "
+                    "source-declared file digests, byte sizes, HDF5 structure, numeric "
+                    "standardization, binary labels, and content overlap against all 256 "
+                    "pinned cobalt-oxide training patches were audited."
                 ),
                 "primary_limitation": (
-                    "The pilot material is Au rather than cobalt oxide, one source creator overlaps, "
-                    "the labels were produced by one human, and no authoritative cross-dataset "
-                    "acquisition-lineage exclusion manifest is available."
+                    "The pilot material is Au rather than cobalt oxide, one source creator "
+                    "overlaps, the labels were produced by one human, and no authoritative "
+                    "cross-dataset acquisition-lineage exclusion manifest is available."
                 ),
                 "evidence_that_would_change_conclusion": (
-                    "A predeclared cobalt-oxide image set from independent acquisitions with expert "
-                    "labels, immutable sample/acquisition lineage, and documented non-use in training, "
-                    "tuning, threshold selection, and model selection."
+                    "A predeclared cobalt-oxide image set from independent acquisitions with "
+                    "expert labels, immutable sample/acquisition lineage, and documented non-use "
+                    "in training, tuning, threshold selection, and model selection."
                 ),
                 "suitable_for": [
                     "source and HDF5 contract verification",
@@ -250,12 +270,20 @@ def run_pilot_pair_audit(
         }
         _write_json(summary_path, summary)
         report_path.write_text(_build_report(summary), encoding="utf-8")
-        manifest = _build_manifest(
-            output,
-            [patch_table, overlap_table, source_metadata_path, summary_path, report_path],
-            config.case_id,
+        _write_json(
+            manifest_path,
+            _build_manifest(
+                output,
+                [
+                    patch_table,
+                    overlap_table,
+                    source_metadata_path,
+                    summary_path,
+                    report_path,
+                ],
+                config.case_id,
+            ),
         )
-        _write_json(manifest_path, manifest)
         return summary
     except Exception:
         if output.exists() and not any(output.iterdir()):
@@ -295,23 +323,31 @@ def _resolve_dryad_file(
         if not destination.is_file():
             raise FileNotFoundError(destination)
         acquisition_mode = "user_supplied_local_file"
+
     actual = _file_hashes(destination)
-    if destination.stat().st_size != metadata["size_bytes"]:
+    if actual["bytes"] != metadata["size_bytes"]:
         raise ValueError(
-            f"Dryad size mismatch for {spec.name}: {destination.stat().st_size} != "
+            f"Dryad size mismatch for {spec.name}: {actual['bytes']} != "
             f"{metadata['size_bytes']}"
         )
-    if actual["md5"] != metadata["digest"]:
+    algorithm = str(metadata["digest_algorithm"])
+    if algorithm not in actual:
+        raise ValueError(f"unsupported calculated digest algorithm: {algorithm!r}.")
+    if actual[algorithm] != metadata["digest"]:
         raise ValueError(
-            f"Dryad MD5 mismatch for {spec.name}: {actual['md5']} != {metadata['digest']}"
+            f"Dryad {algorithm} mismatch for {spec.name}: {actual[algorithm]} != "
+            f"{metadata['digest']}"
         )
     metadata.update(actual)
+    metadata["source_digest_verified"] = True
     metadata["acquisition_mode"] = acquisition_mode
     return metadata, destination
 
 
 def _acquire_training(
-    config: PilotAuditConfig, local_path: str | Path | None, temp: Path
+    config: PilotAuditConfig,
+    local_path: str | Path | None,
+    temp: Path,
 ) -> tuple[Path, str]:
     if local_path is not None:
         path = Path(local_path)
@@ -332,7 +368,11 @@ def _verify_training(path: Path, config: PilotAuditConfig) -> dict[str, Any]:
     return hashes
 
 
-def _inspect_pair(image_path: Path, label_path: Path, config: PilotAuditConfig) -> dict[str, Any]:
+def _inspect_pair(
+    image_path: Path,
+    label_path: Path,
+    config: PilotAuditConfig,
+) -> dict[str, Any]:
     patch_rows: list[dict[str, Any]] = []
     patch_hashes: list[str] = []
     signatures: list[np.ndarray] = []
@@ -343,14 +383,26 @@ def _inspect_pair(image_path: Path, label_path: Path, config: PilotAuditConfig) 
     empty_count = 0
     full_count = 0
 
-    with h5py.File(image_path, "r") as image_handle, h5py.File(label_path, "r") as label_handle:
-        images = _single_dataset(image_handle, config.hdf5.image_dataset_name, "image file")
-        labels = _single_dataset(label_handle, config.hdf5.label_dataset_name, "label file")
+    with h5py.File(image_path, "r") as image_handle, h5py.File(
+        label_path, "r"
+    ) as label_handle:
+        images = _single_dataset(
+            image_handle, config.hdf5.image_dataset_name, "image file"
+        )
+        labels = _single_dataset(
+            label_handle, config.hdf5.label_dataset_name, "label file"
+        )
         expected_tail = (config.hdf5.patch_height, config.hdf5.patch_width)
         if images.ndim != 3 or tuple(images.shape[1:]) != expected_tail:
-            raise ValueError(f"image shape {tuple(images.shape)} is not (N, {expected_tail[0]}, {expected_tail[1]}).")
+            raise ValueError(
+                f"image shape {tuple(images.shape)} is not "
+                f"(N, {expected_tail[0]}, {expected_tail[1]})."
+            )
         if labels.ndim != 3 or tuple(labels.shape[1:]) != expected_tail:
-            raise ValueError(f"label shape {tuple(labels.shape)} is not (N, {expected_tail[0]}, {expected_tail[1]}).")
+            raise ValueError(
+                f"label shape {tuple(labels.shape)} is not "
+                f"(N, {expected_tail[0]}, {expected_tail[1]})."
+            )
         if images.shape[0] <= 0 or images.shape[0] != labels.shape[0]:
             raise ValueError("image and label patch counts must be equal and positive.")
         if images.dtype.kind not in "fiu" or labels.dtype.kind not in "biuf":
@@ -366,27 +418,33 @@ def _inspect_pair(image_path: Path, label_path: Path, config: PilotAuditConfig) 
             if abs(mean) > config.hdf5.image_mean_abs_tolerance:
                 raise ValueError(f"image patch {index} mean drift: {mean}")
             if abs(std - 1.0) > config.hdf5.image_std_abs_tolerance:
-                raise ValueError(f"image patch {index} standard deviation drift: {std}")
-            unique = np.unique(label)
-            normalized_values: list[int] = []
-            for value in unique.tolist():
-                numeric = float(value)
-                if not numeric.is_integer():
-                    raise ValueError(f"non-integer label value in patch {index}: {value}")
-                normalized_values.append(int(numeric))
-            unexpected = set(normalized_values) - set(config.hdf5.allowed_label_values)
+                raise ValueError(
+                    f"image patch {index} standard deviation drift: {std}"
+                )
+
+            normalized_values = _normalized_label_values(label, index)
+            unexpected = set(normalized_values) - set(
+                config.hdf5.allowed_label_values
+            )
             if unexpected:
-                raise ValueError(f"unexpected label values in patch {index}: {sorted(unexpected)}")
+                raise ValueError(
+                    f"unexpected label values in patch {index}: {sorted(unexpected)}"
+                )
             label_values_seen.update(normalized_values)
             foreground = float(np.count_nonzero(label == 1) / label.size)
             empty = foreground == 0.0
             full = foreground == 1.0
             empty_count += int(empty)
             full_count += int(full)
+
             standardized = _standardize(image)
-            patch_hash = _array_hash(standardized, config.overlap.quantization_decimals)
-            signature = _normalized_signature(
-                standardized, config.overlap.signature_block_size
+            patch_hashes.append(
+                _array_hash(standardized, config.overlap.quantization_decimals)
+            )
+            signatures.append(
+                _normalized_signature(
+                    standardized, config.overlap.signature_block_size
+                )
             )
             patch_rows.append(
                 {
@@ -396,14 +454,14 @@ def _inspect_pair(image_path: Path, label_path: Path, config: PilotAuditConfig) 
                     "label_sha256": _raw_array_hash(label),
                     "image_mean": mean,
                     "image_std": std,
-                    "label_values": ";".join(str(value) for value in normalized_values),
+                    "label_values": ";".join(
+                        str(value) for value in normalized_values
+                    ),
                     "foreground_pixel_fraction": foreground,
                     "empty_label": empty,
                     "full_label": full,
                 }
             )
-            patch_hashes.append(patch_hash)
-            signatures.append(signature)
             image_means.append(mean)
             image_stds.append(std)
             foreground_fractions.append(foreground)
@@ -426,15 +484,31 @@ def _inspect_pair(image_path: Path, label_path: Path, config: PilotAuditConfig) 
             "empty_label_patch_count": empty_count,
             "full_label_patch_count": full_count,
             "foreground_pixel_fraction_min": min(foreground_fractions),
-            "foreground_pixel_fraction_median": float(np.median(foreground_fractions)),
+            "foreground_pixel_fraction_median": float(
+                np.median(foreground_fractions)
+            ),
             "foreground_pixel_fraction_max": max(foreground_fractions),
             "maximum_image_mean_abs": max(abs(value) for value in image_means),
-            "maximum_image_std_abs_error": max(abs(value - 1.0) for value in image_stds),
+            "maximum_image_std_abs_error": max(
+                abs(value - 1.0) for value in image_stds
+            ),
             "source_values_written_to_outputs": False,
             "patch_rows": patch_rows,
             "standardized_patch_hashes": patch_hashes,
             "normalized_signatures": np.vstack(signatures),
         }
+
+
+def _normalized_label_values(label: np.ndarray, patch_index: int) -> list[int]:
+    values: list[int] = []
+    for value in np.unique(label).tolist():
+        numeric = float(value)
+        if not numeric.is_integer():
+            raise ValueError(
+                f"non-integer label value in patch {patch_index}: {value}"
+            )
+        values.append(int(numeric))
+    return values
 
 
 def _compare_to_training(
@@ -446,7 +520,9 @@ def _compare_to_training(
     training_hashes: list[str] = []
     training_signatures: list[np.ndarray] = []
     with h5py.File(training_path, "r") as handle:
-        dataset = _single_dataset(handle, config.training.dataset_name, "training file")
+        dataset = _single_dataset(
+            handle, config.training.dataset_name, "training file"
+        )
         if tuple(dataset.shape) != config.training.shape:
             raise ValueError(
                 f"training shape {tuple(dataset.shape)} != {config.training.shape}."
@@ -460,21 +536,25 @@ def _compare_to_training(
                 _array_hash(standardized, config.overlap.quantization_decimals)
             )
             training_signatures.append(
-                _normalized_signature(standardized, config.overlap.signature_block_size)
+                _normalized_signature(
+                    standardized, config.overlap.signature_block_size
+                )
             )
+
     training_matrix = np.vstack(training_signatures)
     hash_to_indices: dict[str, list[int]] = {}
     for index, digest in enumerate(training_hashes):
         hash_to_indices.setdefault(digest, []).append(index)
 
     rows: list[dict[str, Any]] = []
-    for patch_index, (digest, signature) in enumerate(zip(dryad_hashes, dryad_signatures)):
+    for patch_index, (digest, signature) in enumerate(
+        zip(dryad_hashes, dryad_signatures)
+    ):
         scores = training_matrix @ signature
         best_index = int(np.argmax(scores))
         best_ncc = float(scores[best_index])
         exact_indices = hash_to_indices.get(digest, [])
-        exact = bool(exact_indices)
-        if exact:
+        if exact_indices:
             best_index = int(exact_indices[0])
             status = "exact_content_match"
         elif best_ncc >= config.overlap.review_ncc_threshold:
@@ -490,7 +570,7 @@ def _compare_to_training(
                     best_index // config.training.candidate_parent_patch_count
                 ),
                 "best_signature_ncc": max(-1.0, min(1.0, best_ncc)),
-                "exact_quantized_hash_match": exact,
+                "exact_quantized_hash_match": bool(exact_indices),
                 "exact_match_training_patch_count": len(exact_indices),
                 "overlap_status": status,
             }
@@ -498,7 +578,10 @@ def _compare_to_training(
     return rows
 
 
-def _bind_processed_metadata(path: Path, config: PilotAuditConfig) -> dict[str, Any]:
+def _bind_processed_metadata(
+    path: Path,
+    config: PilotAuditConfig,
+) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8-sig")
     reader = csv.DictReader(text.splitlines())
     if not reader.fieldnames:
@@ -508,7 +591,9 @@ def _bind_processed_metadata(path: Path, config: PilotAuditConfig) -> dict[str, 
     prefix: list[dict[str, str]] = []
     pair_prefix = config.image_file.name.removesuffix("_Images.h5")
     for row in rows:
-        values = {str(value).strip() for value in row.values() if value is not None}
+        values = {
+            str(value).strip() for value in row.values() if value is not None
+        }
         if config.image_file.name in values and config.label_file.name in values:
             exact.append(row)
         elif any(pair_prefix in value for value in values):
@@ -533,10 +618,16 @@ def _bind_processed_metadata(path: Path, config: PilotAuditConfig) -> dict[str, 
     }
 
 
-def _single_dataset(handle: h5py.File, name: str, label: str) -> h5py.Dataset:
+def _single_dataset(
+    handle: h5py.File,
+    name: str,
+    label: str,
+) -> h5py.Dataset:
     keys = list(handle.keys())
     if keys != [name]:
-        raise ValueError(f"{label} must contain only dataset {name!r}; observed {keys!r}.")
+        raise ValueError(
+            f"{label} must contain only dataset {name!r}; observed {keys!r}."
+        )
     dataset = handle[name]
     if not isinstance(dataset, h5py.Dataset):
         raise ValueError(f"{label} entry {name!r} is not a dataset.")
@@ -548,10 +639,11 @@ def _attributes(obj: Any) -> dict[str, Any]:
     for key, value in obj.attrs.items():
         array = np.asarray(value)
         if array.ndim == 0:
-            scalar = array.item()
-            result[str(key)] = _json_scalar(scalar)
+            result[str(key)] = _json_scalar(array.item())
         else:
-            result[str(key)] = [_json_scalar(item) for item in array.ravel().tolist()]
+            result[str(key)] = [
+                _json_scalar(item) for item in array.ravel().tolist()
+            ]
     return result
 
 
@@ -590,7 +682,10 @@ def _raw_array_hash(values: np.ndarray) -> str:
 def _normalized_signature(values: np.ndarray, block: int) -> np.ndarray:
     height, width = values.shape
     signature = values.reshape(
-        height // block, block, width // block, block
+        height // block,
+        block,
+        width // block,
+        block,
     ).mean(axis=(1, 3)).ravel()
     centered = signature - signature.mean()
     norm = float(np.linalg.norm(centered))
@@ -612,7 +707,12 @@ def _fetch_json(url: str, attempts: int = 5) -> Mapping[str, Any]:
             if not isinstance(payload, Mapping):
                 raise ValueError("remote JSON response is not an object.")
             return payload
-        except (OSError, urllib.error.URLError, json.JSONDecodeError, ValueError) as exc:
+        except (
+            OSError,
+            urllib.error.URLError,
+            json.JSONDecodeError,
+            ValueError,
+        ) as exc:
             last_error = exc
             if attempt + 1 < attempts:
                 time.sleep(2**attempt)
@@ -630,7 +730,9 @@ def _download(url: str, destination: Path, attempts: int = 5) -> None:
             headers={"User-Agent": "materials-characterization-analyzer/0.9"},
         )
         try:
-            with urllib.request.urlopen(request, timeout=180) as response, partial.open("wb") as handle:
+            with urllib.request.urlopen(request, timeout=180) as response, partial.open(
+                "wb"
+            ) as handle:
                 shutil.copyfileobj(response, handle, length=1024 * 1024)
             os.replace(partial, destination)
             return
@@ -664,9 +766,17 @@ def _prepare_output(path: str | Path) -> Path:
     return output
 
 
-def _write_csv(path: Path, rows: Sequence[Mapping[str, Any]], columns: Sequence[str]) -> None:
+def _write_csv(
+    path: Path,
+    rows: Sequence[Mapping[str, Any]],
+    columns: Sequence[str],
+) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(columns), extrasaction="raise")
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=list(columns),
+            extrasaction="raise",
+        )
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
@@ -679,16 +789,19 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     )
 
 
-def _build_manifest(output: Path, paths: Sequence[Path], case_id: str) -> dict[str, Any]:
-    records = []
-    for path in paths:
-        records.append(
-            {
-                "path": path.relative_to(output).as_posix(),
-                "bytes": path.stat().st_size,
-                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            }
-        )
+def _build_manifest(
+    output: Path,
+    paths: Sequence[Path],
+    case_id: str,
+) -> dict[str, Any]:
+    records = [
+        {
+            "path": path.relative_to(output).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+        for path in paths
+    ]
     return {
         "schema_version": "1.0",
         "case_id": case_id,
@@ -714,18 +827,23 @@ def _build_report(summary: Mapping[str, Any]) -> str:
             f"- Image shape: `{pair['image_shape']}`",
             f"- Label shape: `{pair['label_shape']}`",
             f"- Observed label values: `{pair['observed_label_values']}`",
-            f"- Exact cobalt-training content matches: `{overlap['exact_content_match_patch_count']}`",
-            f"- NCC review-required patches: `{overlap['review_required_patch_count']}`",
+            f"- Exact cobalt-training content matches: "
+            f"`{overlap['exact_content_match_patch_count']}`",
+            f"- NCC review-required patches: "
+            f"`{overlap['review_required_patch_count']}`",
             f"- Maximum block-signature NCC: `{overlap['maximum_signature_ncc']}`",
             f"- Processed metadata binding: `{binding['status']}`",
-            f"- Cross-material content-overlap gate passed: `{readiness['content_overlap_gate_passed']}`",
+            f"- Cross-material content-overlap gate passed: "
+            f"`{readiness['content_overlap_gate_passed']}`",
             "",
             "## Scientific boundary",
             "",
             summary["scientific_closeout"]["primary_limitation"],
             "",
-            "No model was trained or executed and no segmentation performance metric was computed.",
-            "This pair remains cross-material diagnostic evidence, not in-domain cobalt-oxide external validation.",
+            "No model was trained or executed and no segmentation performance metric "
+            "was computed.",
+            "This pair remains cross-material diagnostic evidence, not in-domain "
+            "cobalt-oxide external validation.",
             "",
         ]
     )
