@@ -8,6 +8,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes are currently recorded.
 
+## [0.9.2] - 2026-07-28
+
+### Added
+
+- A checksum-bound audit comparing all fifty public cobalt-oxide TEM source frames with four reconstructed training-parent candidates.
+- Exact aligned-tile identity testing using the pinned `8 x 8` tiling and per-tile standardization path, plus block-signature NCC diagnostics for review-required near matches.
+- Frame-level and pairwise evidence tables, a scientific-readiness summary, a Markdown report, and a checksum-bound artifact manifest.
+- A focused 64-tile pixel- and block-level similarity review for the single unresolved `co0_7:frame-0` versus reconstructed candidate-parent-3 pair.
+- A dedicated real-data GitHub Actions workflow and focused fail-closed regression tests.
+
+### Scientific status
+
+- The audit is `Diagnostic`: the four training parents remain reconstructed candidates because authoritative patch-to-parent metadata are absent.
+- The broad audit found zero exact content-equivalent overlaps, forty-nine no-overlap-detected frames, and one review-required frame under the aligned 64-tile fingerprint rule.
+- The focused review found strong full-image correspondence for `co0_7:frame-0` versus reconstructed candidate parent 3: global pixel NCC `0.9990847724679279`, median tile NCC `0.9996866574918363`, minimum tile NCC `0.9941011260031625`, all 64 tiles at least `0.99`, and zero exact quantized tile hashes.
+- `co0_7:frame-0` is conservatively excluded from the external-candidate pool as leakage control, but authoritative parent or acquisition identity is not confirmed.
+- The other forty-nine frames remain image-only candidates, not external validation samples, because authoritative parent-disjoint provenance and independent labels are absent.
+- No independent segmentation-performance, parent-disjoint generalization, physical-size, causal, optimization, or engineering-release claim is supported.
+
 ## [0.9.1] - 2026-07-28
 
 ### Added

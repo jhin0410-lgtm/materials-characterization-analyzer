@@ -1,0 +1,79 @@
+{
+  "case_id": "public_cobalt_oxide_tem_parent_overlap_audit",
+  "source": {
+    "record_id": 14927582,
+    "doi": "10.5281/zenodo.14927582",
+    "dataset_version": "v1",
+    "license": "CC-BY-4.0",
+    "source_description": "Public standardized 4k TEM source frames audited against reconstructed hand-labeled training-parent candidates"
+  },
+  "training_file": {
+    "name": "training_images.h5",
+    "url": "https://zenodo.org/records/14927582/files/training_images.h5?download=1",
+    "md5": "caac404a7ea2c65b2403aee5728a70eb",
+    "sha256": "e709b7f1fa383bd111bb0b7e8d4662452b46198f52e4e88b19bb3f3e222c0926"
+  },
+  "source_archive": {
+    "name": "TEM_images.zip",
+    "url": "https://zenodo.org/records/14927582/files/TEM_images.zip?download=1",
+    "md5": "d1e991346d07b8a112c4b6dbfd8367ba",
+    "sha256": "a9e4618f697205bf8560ab14bc5e313d4011b51aaa6dbf8a5c62ddc22bc558d8",
+    "expected_members": [
+      "Co0_2_TEM_images.h5",
+      "Co0_4_TEM_images.h5",
+      "Co0_5_TEM_images.h5",
+      "Co0_7_TEM_images.h5",
+      "Co0_8_TEM_images.h5",
+      "DW0_6_TEM_images.h5",
+      "DW0_7_TEM_images.h5",
+      "DW0_43_TEM_images.h5",
+      "DW0_85_TEM_images.h5",
+      "DW1_0_TEM_images.h5"
+    ]
+  },
+  "source_members": [
+    {"source_id": "co0_2", "image_member": "Co0_2_TEM_images.h5"},
+    {"source_id": "co0_4", "image_member": "Co0_4_TEM_images.h5"},
+    {"source_id": "co0_5", "image_member": "Co0_5_TEM_images.h5"},
+    {"source_id": "co0_7", "image_member": "Co0_7_TEM_images.h5"},
+    {"source_id": "co0_8", "image_member": "Co0_8_TEM_images.h5"},
+    {"source_id": "dw0_6", "image_member": "DW0_6_TEM_images.h5"},
+    {"source_id": "dw0_7", "image_member": "DW0_7_TEM_images.h5"},
+    {"source_id": "dw0_43", "image_member": "DW0_43_TEM_images.h5"},
+    {"source_id": "dw0_85", "image_member": "DW0_85_TEM_images.h5"},
+    {"source_id": "dw1_0", "image_member": "DW1_0_TEM_images.h5"}
+  ],
+  "hdf5_contract": {
+    "training_dataset_name": "images",
+    "source_dataset_name": "images",
+    "training_shape": [256, 512, 512],
+    "source_member_shape": [5, 4096, 4096],
+    "dtype": "float64",
+    "attributes_expected": false
+  },
+  "parent_reconstruction": {
+    "parent_count": 4,
+    "grid_rows": 8,
+    "grid_columns": 8,
+    "tile_height": 512,
+    "tile_width": 512
+  },
+  "comparison_contract": {
+    "image_mean_abs_tolerance": 1e-10,
+    "image_std_abs_tolerance": 1e-12,
+    "quantization_decimals": 9,
+    "signature_block_size": 16,
+    "review_ncc_threshold": 0.995
+  },
+  "label_contract": {
+    "independent_label_status": "source_predicted_masks_not_independent_validation_labels"
+  },
+  "notebook_contract": {
+    "repository": "ScottLabUCB/NN_training",
+    "commit": "9f92235102a805abc76e3d60065d677ee2068c90",
+    "tiling_notebook": "model training for HRTEM.ipynb",
+    "tiling_notebook_blob_sha": "a21bf95fb41f63efb0c33b1563bc43a073afed58",
+    "normalization_notebook": "model training for HRTEM.ipynb",
+    "normalization_notebook_blob_sha": "a21bf95fb41f63efb0c33b1563bc43a073afed58"
+  }
+}
