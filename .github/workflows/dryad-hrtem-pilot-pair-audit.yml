@@ -41,6 +41,9 @@ jobs:
   run-real-data-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      DRYAD_API_TOKEN: ${{ secrets.DRYAD_API_TOKEN }}
+      DRYAD_LANDING_URL: https://datadryad.org/dataset/doi%3A10.7941/D1SP93
 
     steps:
       - name: Check out repository
@@ -59,6 +62,7 @@ jobs:
       - name: Resolve current Dryad version-level checksums
         run: |
           set -euo pipefail
+          mkdir -p outputs/dryad-api-responses
           for entry in \
             "2451485:/tmp/dryad-images-api.json" \
             "2451482:/tmp/dryad-labels-api.json" \
@@ -77,6 +81,8 @@ jobs:
             2451485=/tmp/dryad-images-api.json \
             2451482=/tmp/dryad-labels-api.json \
             2451515=/tmp/dryad-metadata-api.json
+          cp /tmp/dryad-*-api.json outputs/dryad-api-responses/
+          cp -R /tmp/dryad-version-metadata outputs/dryad-version-metadata
           python - <<'PY'
           import json
           from pathlib import Path
@@ -104,21 +110,38 @@ jobs:
               print(json.dumps(result, sort_keys=True))
           PY
 
+      - name: Establish Dryad download session
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-all-errors --retry-delay 3 \
+            --user-agent "Mozilla/5.0 materials-characterization-analyzer/0.9" \
+            --cookie-jar /tmp/dryad.cookies \
+            --output /tmp/dryad-landing.html \
+            "$DRYAD_LANDING_URL"
+          test -s /tmp/dryad-landing.html
+
       - name: Download exact Dryad pilot files
         run: |
           set -euo pipefail
-          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
-            --user-agent "materials-characterization-analyzer/0.9" \
-            --output /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5 \
-            "https://datadryad.org/downloads/file_stream/2451485"
-          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
-            --user-agent "materials-characterization-analyzer/0.9" \
-            --output /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Labels.h5 \
-            "https://datadryad.org/downloads/file_stream/2451482"
-          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
-            --user-agent "materials-characterization-analyzer/0.9" \
-            --output /tmp/Processed_datasets_metadata.csv \
-            "https://datadryad.org/downloads/file_stream/2451515"
+          auth=()
+          if [[ -n "${DRYAD_API_TOKEN:-}" ]]; then
+            auth=(--header "Authorization: Bearer $DRYAD_API_TOKEN")
+          fi
+          download() {
+            local file_id="$1"
+            local output="$2"
+            curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+              --user-agent "Mozilla/5.0 materials-characterization-analyzer/0.9" \
+              --cookie /tmp/dryad.cookies \
+              --referer "$DRYAD_LANDING_URL" \
+              --header "Accept: application/octet-stream" \
+              "${auth[@]}" \
+              --output "$output" \
+              "https://datadryad.org/downloads/file_stream/$file_id"
+          }
+          download 2451515 /tmp/Processed_datasets_metadata.csv
+          download 2451485 /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5
+          download 2451482 /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Labels.h5
 
       - name: Download pinned cobalt training images
         run: |
@@ -131,7 +154,6 @@ jobs:
       - name: Audit real pair and training overlap
         run: |
           set -euo pipefail
-          mkdir -p outputs
           python scripts/audit_dryad_hrtem_pilot_pair.py \
             --config case_studies/dryad_hrtem_pilot_pair_audit/case_config.json \
             --images /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5 \
@@ -143,7 +165,6 @@ jobs:
             --processed-metadata-api /tmp/dryad-metadata-api.json \
             --output outputs/dryad-hrtem-pilot-pair-audit \
             | tee outputs/dryad-hrtem-pilot-pair-audit-console.json
-          cp -R /tmp/dryad-version-metadata outputs/dryad-version-metadata
 
       - name: Verify real-data and scientific contracts
         run: |
@@ -163,6 +184,10 @@ jobs:
           assert summary["source"]["doi"] == "10.7941/D1SP93"
           assert summary["source"]["pilot_pair"]["pair_id"] == "au_5nm_260kx_450e"
           assert summary["source"]["pilot_pair"]["material"] == "Au"
+          assert all(
+              record["source_digest_verified"]
+              for record in summary["source"]["files"].values()
+          )
           assert pair["patch_count"] > 0
           assert pair["image_shape"] == pair["label_shape"]
           assert pair["image_shape"][1:] == [512, 512]
@@ -214,13 +239,15 @@ jobs:
           mca --version
           python -m build
 
-      - name: Upload real-data evidence
+      - name: Upload audit evidence and diagnostics
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: dryad-hrtem-pilot-pair-audit-evidence
           path: |
             outputs/dryad-hrtem-pilot-pair-audit/
             outputs/dryad-hrtem-pilot-pair-audit-console.json
+            outputs/dryad-api-responses/
             outputs/dryad-version-metadata/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
