@@ -113,6 +113,24 @@ def _files_url(version_payload: Mapping[str, Any], version_url: str) -> str:
     return version_url.rstrip("/") + "/files"
 
 
+def _file_pages(start_url: str) -> tuple[list[tuple[str, Mapping[str, Any]]], list[Mapping[str, Any]]]:
+    pages: list[tuple[str, Mapping[str, Any]]] = []
+    records: list[Mapping[str, Any]] = []
+    seen: set[str] = set()
+    url: str | None = start_url
+    while url is not None:
+        if url in seen:
+            raise ValueError(f"Dryad file pagination cycle detected at {url}")
+        seen.add(url)
+        payload = _fetch(url)
+        pages.append((url, payload))
+        records.extend(_records(payload))
+        url = _link(payload, url, "next", "stash:next")
+    if not records:
+        raise ValueError("Dryad version file inventory is empty.")
+    return pages, records
+
+
 def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
     source_paths = list(paths)
     source_payloads = [json.loads(path.read_text(encoding="utf-8")) for path in source_paths]
@@ -124,19 +142,36 @@ def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
     version_url = _version_url(dataset_payload, dataset_url)
     version_payload = _fetch(version_url)
     files_url = _files_url(version_payload, version_url)
-    files_payload = _fetch(files_url)
-    records = _records(files_payload)
+    pages, records = _file_pages(files_url)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     for name, payload in (
         ("dryad-dataset-api.json", dataset_payload),
         ("dryad-version-api.json", version_payload),
-        ("dryad-version-files-api.json", files_payload),
     ):
         (output_dir / name).write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+    for index, (url, payload) in enumerate(pages, start=1):
+        page_record = {"request_url": url, "response": payload}
+        (output_dir / f"dryad-version-files-page-{index:03d}.json").write_text(
+            json.dumps(page_record, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    (output_dir / "dryad-version-files-inventory.json").write_text(
+        json.dumps(
+            {
+                "page_count": len(pages),
+                "file_record_count": len(records),
+                "records": records,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     for path, payload in zip(source_paths, source_payloads):
         source_id = _id(payload)
@@ -152,7 +187,7 @@ def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
         if len(matches) != 1:
             raise ValueError(
                 f"expected exactly one version-file record for {source_id} {expected_name!r}; "
-                f"found {len(matches)}"
+                f"found {len(matches)} across {len(pages)} pages and {len(records)} records"
             )
         resolved_id = _id(matches[0])
         if resolved_id is None:
@@ -166,6 +201,7 @@ def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
         enriched["dataset_api_url"] = dataset_url
         enriched["version_api_url"] = version_url
         enriched["version_files_api_url"] = files_url
+        enriched["version_files_page_count"] = len(pages)
         enriched["version_file_record"] = dict(matches[0])
         path.write_text(
             json.dumps(enriched, indent=2, sort_keys=True) + "\n",
