@@ -1,0 +1,136 @@
+name: Dryad HRTEM external-validation candidate assessment
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/dryad-hrtem-external-validation-candidate-assessment.yml"
+      - "case_studies/dryad_hrtem_external_validation_candidate_assessment/**"
+      - "scripts/assess_dryad_hrtem_external_validation_candidate.py"
+      - "src/mca/tem_external_validation_candidate_assessment.py"
+      - "tests/test_dryad_hrtem_external_validation_candidate_assessment.py"
+      - "tests/test_dryad_hrtem_candidate_inventory_contract.py"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/dryad-hrtem-external-validation-candidate-assessment.yml"
+      - "case_studies/dryad_hrtem_external_validation_candidate_assessment/**"
+      - "scripts/assess_dryad_hrtem_external_validation_candidate.py"
+      - "src/mca/tem_external_validation_candidate_assessment.py"
+      - "tests/test_dryad_hrtem_external_validation_candidate_assessment.py"
+      - "tests/test_dryad_hrtem_candidate_inventory_contract.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dryad-hrtem-external-validation-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assess-source-readiness:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run source-readiness assessment
+        run: |
+          set -euo pipefail
+          python scripts/assess_dryad_hrtem_external_validation_candidate.py \
+            --config case_studies/dryad_hrtem_external_validation_candidate_assessment/case_config.json \
+            --output outputs/dryad-hrtem-external-validation-candidate-assessment \
+            | tee outputs/dryad-hrtem-external-validation-candidate-assessment-console.json
+
+      - name: Verify scientific and artifact contracts
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          from pathlib import Path
+
+          import pandas as pd
+
+          output = Path("outputs/dryad-hrtem-external-validation-candidate-assessment")
+          summary = json.loads(
+              (output / "external_validation_candidate_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert summary["source"]["doi"] == "10.7941/D1SP93"
+          assert summary["source"]["raw_image_count"] == 407
+          assert summary["source"]["curated_image_label_pair_count"] == 13
+          assert summary["result_counts"] == {
+              "candidate_pair_count": 13,
+              "cross_material_pair_count": 13,
+              "in_domain_material_pair_count": 0,
+              "independent_in_domain_external_validation_pair_count": 0,
+          }
+          assert summary["readiness"]["status"] == (
+              "not_ready_for_in_domain_external_validation"
+          )
+          assert summary["readiness"]["cross_material_domain_shift_status"] == (
+              "candidate_for_cross_material_domain_shift_stress_test_after_data_audit"
+          )
+          assert not summary["readiness"]["model_evaluation_allowed_now"]
+          assert summary["pilot_recommendation"]["pair_id"] == "au_5nm_260kx_450e"
+          assert summary["pilot_recommendation"]["combined_size_mb"] == 276.83
+          assert summary["scientific_closeout"]["status"] == "Diagnostic"
+          assert all(value is False for value in summary["processing"].values())
+
+          inventory = pd.read_csv(
+              output / "tem_external_validation_candidate_inventory.csv"
+          )
+          assert len(inventory) == 13
+          assert set(inventory["material"]) == {"Au", "Ag", "CdSe"}
+          assert not inventory["in_domain_material_match"].any()
+          assert inventory["image_file"].str.endswith("_Images.h5").all()
+          assert inventory["label_file"].str.endswith("_Labels.h5").all()
+
+          manifest = json.loads(
+              (output / "external_validation_candidate_artifact_manifest.json").read_text()
+          )
+          assert manifest["artifact_count"] == 3
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert path.stat().st_size == record["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+
+          forbidden_suffixes = {".pkl", ".pickle", ".joblib", ".pt", ".pth", ".onnx"}
+          assert not [
+              path for path in output.rglob("*")
+              if path.suffix.lower() in forbidden_suffixes
+          ]
+          print(json.dumps(summary["pilot_recommendation"], indent=2, sort_keys=True))
+          PY
+
+      - name: Run focused tests
+        run: |
+          pytest -q \
+            tests/test_dryad_hrtem_external_validation_candidate_assessment.py \
+            tests/test_dryad_hrtem_candidate_inventory_contract.py
+
+      - name: Upload assessment evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: dryad-hrtem-external-validation-candidate-assessment
+          path: |
+            outputs/dryad-hrtem-external-validation-candidate-assessment/
+            outputs/dryad-hrtem-external-validation-candidate-assessment-console.json
+          if-no-files-found: error
+          retention-days: 30
