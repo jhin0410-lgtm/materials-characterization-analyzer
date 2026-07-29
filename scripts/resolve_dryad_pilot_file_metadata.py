@@ -139,22 +139,29 @@ def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
         )
 
     for path, payload in zip(source_paths, source_payloads):
-        expected_id = _id(payload)
+        source_id = _id(payload)
         expected_name = _name(payload)
-        matches = [
-            record
-            for record in records
-            if _id(record) == expected_id and _name(record) == expected_name
-        ]
+        if expected_name is None:
+            raise ValueError(f"individual Dryad response has no filename: {path}")
+        name_matches = [record for record in records if _name(record) == expected_name]
+        matches = (
+            [record for record in name_matches if _id(record) == source_id]
+            if source_id is not None
+            else name_matches
+        )
         if len(matches) != 1:
             raise ValueError(
-                f"expected exactly one version-file record for {expected_id} {expected_name!r}; "
+                f"expected exactly one version-file record for {source_id} {expected_name!r}; "
                 f"found {len(matches)}"
             )
+        resolved_id = _id(matches[0])
+        if resolved_id is None:
+            raise ValueError(f"version-file record lacks ID for {expected_name}.")
         digest = _digest(matches[0])
         if digest is None:
             raise ValueError(f"version-file record lacks checksum for {expected_name}.")
         enriched = dict(payload)
+        enriched["id"] = resolved_id
         enriched["digest"] = digest
         enriched["dataset_api_url"] = dataset_url
         enriched["version_api_url"] = version_url
@@ -164,7 +171,11 @@ def resolve(doi: str, paths: Iterable[Path], output_dir: Path) -> None:
             json.dumps(enriched, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        print(json.dumps({"file_id": expected_id, "name": expected_name, "digest": digest}))
+        print(
+            json.dumps(
+                {"file_id": resolved_id, "name": expected_name, "digest": digest}
+            )
+        )
 
 
 def main() -> int:
