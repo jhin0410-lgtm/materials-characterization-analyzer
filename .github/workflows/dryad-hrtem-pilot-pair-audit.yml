@@ -1,0 +1,218 @@
+name: Dryad HRTEM pilot-pair audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/dryad-hrtem-pilot-pair-audit.yml"
+      - "case_studies/dryad_hrtem_pilot_pair_audit/**"
+      - "scripts/audit_dryad_hrtem_pilot_pair.py"
+      - "scripts/resolve_dryad_pilot_file_metadata.py"
+      - "src/mca/tem_external_validation_pilot_contract.py"
+      - "src/mca/tem_external_validation_pilot_audit.py"
+      - "tests/test_dryad_hrtem_pilot_pair_audit.py"
+      - "pyproject.toml"
+      - "src/mca/__init__.py"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dryad-hrtem-pilot-pair-audit.yml"
+      - "case_studies/dryad_hrtem_pilot_pair_audit/**"
+      - "scripts/audit_dryad_hrtem_pilot_pair.py"
+      - "scripts/resolve_dryad_pilot_file_metadata.py"
+      - "src/mca/tem_external_validation_pilot_contract.py"
+      - "src/mca/tem_external_validation_pilot_audit.py"
+      - "tests/test_dryad_hrtem_pilot_pair_audit.py"
+      - "pyproject.toml"
+      - "src/mca/__init__.py"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dryad-hrtem-pilot-pair-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-real-data-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Resolve current Dryad version-level checksums
+        run: |
+          set -euo pipefail
+          for entry in \
+            "2451485:/tmp/dryad-images-api.json" \
+            "2451482:/tmp/dryad-labels-api.json" \
+            "2451515:/tmp/dryad-metadata-api.json"
+          do
+            file_id="${entry%%:*}"
+            output="${entry#*:}"
+            curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+              --output "$output" \
+              "https://datadryad.org/api/v2/files/$file_id"
+          done
+          python scripts/resolve_dryad_pilot_file_metadata.py \
+            --output-dir /tmp/dryad-version-metadata \
+            /tmp/dryad-images-api.json \
+            /tmp/dryad-labels-api.json \
+            /tmp/dryad-metadata-api.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from mca.tem_external_validation_pilot_contract import (
+              load_config,
+              normalize_dryad_file_metadata,
+              validate_public_config,
+          )
+
+          config = load_config(
+              "case_studies/dryad_hrtem_pilot_pair_audit/case_config.json"
+          )
+          validate_public_config(config)
+          for spec, path in (
+              (config.image_file, "/tmp/dryad-images-api.json"),
+              (config.label_file, "/tmp/dryad-labels-api.json"),
+              (config.processed_metadata_file, "/tmp/dryad-metadata-api.json"),
+          ):
+              payload = json.loads(Path(path).read_text(encoding="utf-8"))
+              result = normalize_dryad_file_metadata(
+                  payload,
+                  spec,
+                  config.download_endpoint_template.format(file_id=spec.file_id),
+              )
+              print(json.dumps(result, sort_keys=True))
+          PY
+
+      - name: Download exact Dryad pilot files
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+            --continue-at - --output /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5 \
+            "https://datadryad.org/downloads/file_stream/2451485"
+          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+            --continue-at - --output /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Labels.h5 \
+            "https://datadryad.org/downloads/file_stream/2451482"
+          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+            --continue-at - --output /tmp/Processed_datasets_metadata.csv \
+            "https://datadryad.org/downloads/file_stream/2451515"
+
+      - name: Download pinned cobalt training images
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+            --continue-at - --output /tmp/training_images.h5 \
+            "https://zenodo.org/records/14927582/files/training_images.h5?download=1"
+
+      - name: Audit real pair and training overlap
+        run: |
+          set -euo pipefail
+          python scripts/audit_dryad_hrtem_pilot_pair.py \
+            --config case_studies/dryad_hrtem_pilot_pair_audit/case_config.json \
+            --images /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5 \
+            --labels /tmp/Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Labels.h5 \
+            --processed-metadata /tmp/Processed_datasets_metadata.csv \
+            --training-images /tmp/training_images.h5 \
+            --images-api-metadata /tmp/dryad-images-api.json \
+            --labels-api-metadata /tmp/dryad-labels-api.json \
+            --processed-metadata-api /tmp/dryad-metadata-api.json \
+            --output outputs/dryad-hrtem-pilot-pair-audit \
+            | tee outputs/dryad-hrtem-pilot-pair-audit-console.json
+
+      - name: Verify real-data and scientific contracts
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          import pandas as pd
+
+          output = Path("outputs/dryad-hrtem-pilot-pair-audit")
+          summary = json.loads(
+              (output / "pilot_pair_audit_summary.json").read_text(encoding="utf-8")
+          )
+          pair = summary["hdf5_pair_audit"]
+          overlap = summary["content_overlap_audit"]
+          assert summary["source"]["doi"] == "10.7941/D1SP93"
+          assert summary["source"]["pilot_pair"]["pair_id"] == "au_5nm_260kx_450e"
+          assert summary["source"]["pilot_pair"]["material"] == "Au"
+          assert pair["patch_count"] > 0
+          assert pair["image_shape"] == pair["label_shape"]
+          assert pair["image_shape"][1:] == [512, 512]
+          assert pair["observed_label_values"] == [0, 1]
+          assert pair["pairing_status"] == "same_index_structurally_validated"
+          assert overlap["dryad_patch_count"] == pair["patch_count"]
+          assert overlap["training_patch_count"] == 256
+          assert (
+              overlap["exact_content_match_patch_count"]
+              + overlap["review_required_patch_count"]
+              + overlap["no_detected_overlap_patch_count"]
+              == pair["patch_count"]
+          )
+          assert not summary["readiness"]["in_domain_cobalt_oxide_external_validation"]
+          assert not summary["readiness"][
+              "diagnostic_cross_material_stress_test_model_evaluation_performed"
+          ]
+          assert summary["scientific_closeout"]["status"] == "Diagnostic"
+          processing = summary["processing"]
+          assert processing["per_patch_restandardization_for_overlap_identity_only"]
+          for key, value in processing.items():
+              if key != "per_patch_restandardization_for_overlap_identity_only":
+                  assert value is False, (key, value)
+
+          patches = pd.read_csv(output / "tem_pilot_patch_inventory.csv")
+          comparisons = pd.read_csv(output / "tem_pilot_training_overlap.csv")
+          assert len(patches) == pair["patch_count"]
+          assert len(comparisons) == pair["patch_count"]
+          assert patches["patch_index"].tolist() == list(range(pair["patch_count"]))
+          assert comparisons["patch_index"].tolist() == list(range(pair["patch_count"]))
+          assert comparisons["best_signature_ncc"].between(-1.000000001, 1.000000001).all()
+
+          manifest = json.loads(
+              (output / "pilot_pair_audit_artifact_manifest.json").read_text()
+          )
+          assert manifest["artifact_count"] == 5
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert path.stat().st_size == record["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+          print(json.dumps(overlap, indent=2, sort_keys=True))
+          PY
+
+      - name: Run focused software tests
+        run: pytest -q tests/test_dryad_hrtem_pilot_pair_audit.py
+
+      - name: Verify package build
+        run: |
+          mca --version
+          python -m build
+
+      - name: Upload real-data evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: dryad-hrtem-pilot-pair-audit-evidence
+          path: |
+            outputs/dryad-hrtem-pilot-pair-audit/
+            outputs/dryad-hrtem-pilot-pair-audit-console.json
+            /tmp/dryad-version-metadata/
+          if-no-files-found: error
+          retention-days: 30
