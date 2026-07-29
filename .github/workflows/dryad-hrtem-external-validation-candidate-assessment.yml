@@ -62,6 +62,7 @@ jobs:
 
           import hashlib
           import json
+          import math
           from pathlib import Path
 
           import pandas as pd
@@ -89,7 +90,11 @@ jobs:
           )
           assert not summary["readiness"]["model_evaluation_allowed_now"]
           assert summary["pilot_recommendation"]["pair_id"] == "au_5nm_260kx_450e"
-          assert summary["pilot_recommendation"]["combined_size_mb"] == 276.83
+          assert math.isclose(
+              summary["pilot_recommendation"]["combined_size_mb"],
+              276.83,
+              abs_tol=1e-12,
+          )
           assert summary["scientific_closeout"]["status"] == "Diagnostic"
           assert all(value is False for value in summary["processing"].values())
 
