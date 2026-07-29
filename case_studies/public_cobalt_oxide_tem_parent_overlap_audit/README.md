@@ -45,12 +45,38 @@ A source frame is classified `content_equivalent_to_training_candidate_parent` o
 
 A negative result means only that no content-equivalent overlap was detected under this audited alignment and standardization path. It does not prove acquisition-level independence against unknown crops, transforms, or unpublished images.
 
+## Reproduced real-data result
+
+The checksum-bound public audit reproduced:
+
+- 4 reconstructed training-parent candidates;
+- 50 public source frames;
+- 200 aligned parent/frame comparisons;
+- 0 exact content-equivalent overlaps under the 64-tile fingerprint rule;
+- 49 frames with no content-equivalent overlap detected under the audited path;
+- 1 frame requiring focused review: `co0_7:frame-0` against reconstructed candidate parent `3`;
+- 0 independent external-validation candidates.
+
+The focused review compared every corresponding tile at pixel and block-signature levels. It found:
+
+- global pixel NCC: `0.9990847724679279`;
+- global block-signature NCC: `0.9973949216510015`;
+- median tile pixel NCC: `0.9996866574918363`;
+- minimum tile pixel NCC: `0.9941011260031625`;
+- all 64 tiles with pixel NCC at least `0.99`;
+- 63 of 64 tiles with pixel NCC at least `0.995`;
+- 0 exact quantized tile-hash matches.
+
+This meets the predeclared strong-content-correspondence thresholds. Therefore `co0_7:frame-0` is conservatively excluded from any external-candidate pool as leakage control. This does **not** confirm authoritative parent or acquisition identity because the public files do not embed an immutable mapping.
+
+The focused evidence and exact limitations are documented in `../public_cobalt_oxide_tem_parent_similarity_review/`.
+
 ## External validation boundary
 
 The public `Segmented_images.zip` masks were previously audited as source-predicted outputs. They are not independent hand labels. Therefore:
 
-- a frame overlapping a training parent is excluded;
-- a frame without detected overlap is only an image candidate;
+- `co0_7:frame-0` is conservatively excluded because of strong content correspondence;
+- the other 49 frames remain image-only candidates rather than proven parent-disjoint samples;
 - no frame is an independent external validation sample in the current public bundle.
 
 The conclusion can change only with an immutable source patch-to-parent/acquisition map and a predeclared parent-disjoint image set with independent labels that was never used for training, tuning, or model selection.
@@ -75,7 +101,19 @@ python scripts/audit_public_cobalt_oxide_tem_parent_overlap.py \
   --output outputs/public-cobalt-oxide-tem-parent-overlap-audit
 ```
 
+Focused review:
+
+```bash
+python scripts/audit_public_cobalt_oxide_tem_parent_similarity.py \
+  --config case_studies/public_cobalt_oxide_tem_parent_similarity_review/case_config.json \
+  --training-images /path/to/training_images.h5 \
+  --source-archive /path/to/TEM_images.zip \
+  --output outputs/public-cobalt-oxide-tem-parent-similarity-review
+```
+
 ## Outputs
+
+Broad audit:
 
 - `tem_parent_overlap_frame_inventory.csv`
 - `tem_parent_overlap_pairwise_comparisons.csv`
@@ -83,7 +121,14 @@ python scripts/audit_public_cobalt_oxide_tem_parent_overlap.py \
 - `parent_overlap_audit_report.md`
 - `parent_overlap_audit_artifact_manifest.json`
 
-No raw image arrays, model files, or generated masks are copied into the evidence package.
+Focused review:
+
+- `tem_parent_similarity_review_tiles.csv`
+- `parent_similarity_review_summary.json`
+- `parent_similarity_review_report.md`
+- `parent_similarity_review_artifact_manifest.json`
+
+No raw image arrays, model files, generated masks, or physical measurements are copied into the evidence package.
 
 ## Scientific closeout
 
@@ -91,4 +136,4 @@ No raw image arrays, model files, or generated masks are copied into the evidenc
 
 **Result: `no_independent_external_validation_set_available`**
 
-This audit can identify and exclude content-equivalent training-parent overlap and document image-only candidates. It cannot establish independent segmentation performance because authoritative parent metadata and independent labels are absent.
+The strongest supported action is conservative exclusion of `co0_7:frame-0` from an external-candidate pool. The remaining 49 frames are image-only candidates. They cannot support independent segmentation performance because authoritative parent metadata and independent labels are absent.
