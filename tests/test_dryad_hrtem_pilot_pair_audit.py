@@ -26,13 +26,21 @@ def _standardized(seed: int) -> np.ndarray:
 
 
 def _hashes(path: Path) -> tuple[str, str]:
-    md5 = hashlib.md5(path.read_bytes(), usedforsecurity=False).hexdigest()
-    sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    payload = path.read_bytes()
+    md5 = hashlib.md5(payload, usedforsecurity=False).hexdigest()
+    sha256 = hashlib.sha256(payload).hexdigest()
     return md5, sha256
 
 
-def _api(path: Path, file_id: int, name: str) -> Path:
-    md5, _ = _hashes(path)
+def _api(
+    path: Path,
+    file_id: int,
+    name: str,
+    *,
+    algorithm: str = "md5",
+) -> Path:
+    md5, sha256 = _hashes(path)
+    digest = {"md5": md5, "sha256": sha256}[algorithm]
     target = path.with_suffix(path.suffix + ".api.json")
     target.write_text(
         json.dumps(
@@ -40,10 +48,13 @@ def _api(path: Path, file_id: int, name: str) -> Path:
                 "id": file_id,
                 "path": name,
                 "size": path.stat().st_size,
-                "digest": f"md5:{md5}",
+                "digest": f"{algorithm}:{digest}",
                 "_links": {
                     "stash:download": {
-                        "href": f"https://datadryad.org/downloads/file_stream/{file_id}"
+                        "href": (
+                            "https://datadryad.org/downloads/file_stream/"
+                            f"{file_id}"
+                        )
                     }
                 },
             }
@@ -53,7 +64,13 @@ def _api(path: Path, file_id: int, name: str) -> Path:
     return target
 
 
-def _fixture(tmp_path: Path, *, exact_overlap: bool = False, bad_label: bool = False):
+def _fixture(
+    tmp_path: Path,
+    *,
+    exact_overlap: bool = False,
+    bad_label: bool = False,
+    source_algorithm: str = "md5",
+) -> dict[str, object]:
     config = load_config(CONFIG)
     validate_public_config(config)
     images_path = tmp_path / config.image_file.name
@@ -88,32 +105,45 @@ def _fixture(tmp_path: Path, *, exact_overlap: bool = False, bad_label: bool = F
         encoding="utf-8",
     )
     training_md5, training_sha = _hashes(training_path)
-    training_reference = replace(
-        config.training,
-        md5=training_md5,
-        sha256=training_sha,
-        shape=(4, 512, 512),
-        candidate_parent_patch_count=2,
-        candidate_parent_count=2,
+    config = replace(
+        config,
+        training=replace(
+            config.training,
+            md5=training_md5,
+            sha256=training_sha,
+            shape=(4, 512, 512),
+            candidate_parent_patch_count=2,
+            candidate_parent_count=2,
+        ),
     )
-    config = replace(config, training=training_reference)
     return {
         "config": config,
         "images": images_path,
         "labels": labels_path,
         "metadata": metadata_path,
         "training": training_path,
-        "images_api": _api(images_path, config.image_file.file_id, config.image_file.name),
-        "labels_api": _api(labels_path, config.label_file.file_id, config.label_file.name),
+        "images_api": _api(
+            images_path,
+            config.image_file.file_id,
+            config.image_file.name,
+            algorithm=source_algorithm,
+        ),
+        "labels_api": _api(
+            labels_path,
+            config.label_file.file_id,
+            config.label_file.name,
+            algorithm=source_algorithm,
+        ),
         "metadata_api": _api(
             metadata_path,
             config.processed_metadata_file.file_id,
             config.processed_metadata_file.name,
+            algorithm=source_algorithm,
         ),
     }
 
 
-def _run(tmp_path: Path, fixture: dict):
+def _run(tmp_path: Path, fixture: dict[str, object]):
     return run_pilot_pair_audit(
         fixture["config"],
         tmp_path / "out",
@@ -127,20 +157,40 @@ def _run(tmp_path: Path, fixture: dict):
     )
 
 
+def _assert_overlap_partition(summary: dict) -> None:
+    overlap = summary["content_overlap_audit"]
+    assert (
+        overlap["exact_content_match_patch_count"]
+        + overlap["review_required_patch_count"]
+        + overlap["no_detected_overlap_patch_count"]
+        == overlap["dryad_patch_count"]
+    )
+
+
 def test_public_contract_is_pinned() -> None:
     validate_public_config(load_config(CONFIG))
 
 
-def test_valid_pair_without_overlap_is_ready_for_protocol_freeze(tmp_path: Path) -> None:
-    fixture = _fixture(tmp_path)
+@pytest.mark.parametrize("source_algorithm", ["md5", "sha256"])
+def test_valid_pair_without_overlap_is_ready_for_protocol_freeze(
+    tmp_path: Path,
+    source_algorithm: str,
+) -> None:
+    fixture = _fixture(tmp_path, source_algorithm=source_algorithm)
     summary = _run(tmp_path, fixture)
     assert summary["hdf5_pair_audit"]["patch_count"] == 3
     assert summary["hdf5_pair_audit"]["observed_label_values"] == [0, 1]
+    assert summary["source"]["files"]["images"]["digest_algorithm"] == (
+        source_algorithm
+    )
+    assert summary["source"]["files"]["images"]["source_digest_verified"]
     assert summary["source"]["processed_metadata_binding"]["status"] == (
         "exact_unique_row_binding"
     )
     assert summary["content_overlap_audit"]["exact_content_match_patch_count"] == 0
     assert summary["content_overlap_audit"]["review_required_patch_count"] == 0
+    assert summary["content_overlap_audit"]["no_detected_overlap_patch_count"] == 3
+    _assert_overlap_partition(summary)
     assert summary["readiness"]["content_overlap_gate_passed"]
     assert summary["readiness"]["next_status"] == (
         "eligible_to_freeze_diagnostic_cross_material_stress_test_protocol"
@@ -150,10 +200,15 @@ def test_valid_pair_without_overlap_is_ready_for_protocol_freeze(tmp_path: Path)
     assert (tmp_path / "out" / "pilot_pair_audit_artifact_manifest.json").is_file()
 
 
-def test_exact_training_overlap_is_blocked(tmp_path: Path) -> None:
-    fixture = _fixture(tmp_path, exact_overlap=True)
+def test_exact_training_overlap_is_blocked_and_exclusively_counted(
+    tmp_path: Path,
+) -> None:
+    fixture = _fixture(tmp_path, exact_overlap=True, source_algorithm="sha256")
     summary = _run(tmp_path, fixture)
     assert summary["content_overlap_audit"]["exact_content_match_patch_count"] == 1
+    assert summary["content_overlap_audit"]["review_required_patch_count"] == 0
+    assert summary["content_overlap_audit"]["no_detected_overlap_patch_count"] == 2
+    _assert_overlap_partition(summary)
     assert not summary["readiness"]["content_overlap_gate_passed"]
     assert summary["readiness"]["next_status"] == (
         "blocked_by_possible_cross_dataset_content_overlap"
@@ -167,11 +222,12 @@ def test_nonbinary_label_fails_closed(tmp_path: Path) -> None:
 
 
 def test_checksum_mismatch_fails_closed(tmp_path: Path) -> None:
-    fixture = _fixture(tmp_path)
-    payload = json.loads(fixture["images_api"].read_text(encoding="utf-8"))
-    payload["digest"] = "md5:" + "0" * 32
-    fixture["images_api"].write_text(json.dumps(payload), encoding="utf-8")
-    with pytest.raises(ValueError, match="MD5 mismatch"):
+    fixture = _fixture(tmp_path, source_algorithm="sha256")
+    api_path = fixture["images_api"]
+    payload = json.loads(api_path.read_text(encoding="utf-8"))
+    payload["digest"] = "sha256:" + "0" * 64
+    api_path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="sha256 mismatch"):
         _run(tmp_path, fixture)
 
 
@@ -190,6 +246,21 @@ def test_dryad_metadata_requires_checksum() -> None:
                 "id": config.image_file.file_id,
                 "path": config.image_file.name,
                 "size": 123,
+            },
+            config.image_file,
+            "https://datadryad.org/downloads/file_stream/2451485",
+        )
+
+
+def test_unsupported_digest_algorithm_fails_closed() -> None:
+    config = load_config(CONFIG)
+    with pytest.raises(ValueError, match="unsupported Dryad digest algorithm"):
+        normalize_dryad_file_metadata(
+            {
+                "id": config.image_file.file_id,
+                "path": config.image_file.name,
+                "size": 123,
+                "digest": "sha1:" + "0" * 40,
             },
             config.image_file,
             "https://datadryad.org/downloads/file_stream/2451485",
