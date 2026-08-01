@@ -39,9 +39,9 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
         "metadata_resolution_candidate_count": 0,
         "annotation_pilot_candidate_count": 0,
         "rendered_representation_exclusion_count": 1,
-        "cross_phase_candidate_count": 2,
+        "cross_phase_candidate_count": 1,
         "diagnostic_cross_material_candidate_count": 1,
-        "excluded_control_count": 2,
+        "excluded_control_count": 3,
     }
     assert summary["readiness"]["recommended_candidate_id"] == (
         "mendeley_8w66synjmx_cop_co2p_co3o4"
@@ -212,3 +212,110 @@ def test_mutually_exclusive_candidate_status_counts_reconcile(
         )
     )
     assert bucket_total == counts["candidate_count"]
+
+
+
+def _ready_candidate_payload() -> dict:
+    payload = json.loads(CONFIG.read_text(encoding="utf-8"))
+    candidate = payload["candidates"][0].copy()
+    candidate.update(
+        {
+            "candidate_id": "independent_ready_candidate",
+            "repository": "Independent Repository",
+            "doi": "10.0000/independent-ready",
+            "record_url": "https://example.org/independent-ready",
+            "title": "Independent cobalt oxide HRTEM validation set",
+            "file_inventory_status": "exact",
+            "file_checksums_available": True,
+            "raw_or_lossless_tem_images_available": True,
+            "reported_tem_file_count": 8,
+            "independent_segmentation_labels_available": True,
+            "label_origin": "two blinded experts plus adjudicated consensus",
+            "labeler_count": 2,
+            "blinded_labeling_verified": True,
+            "adjudicated_consensus_available": True,
+            "immutable_sample_ids_available": True,
+            "immutable_acquisition_ids_available": True,
+            "verified_not_used_for_target_training_or_model_selection": True,
+            "target_creator_name_overlap": False,
+            "target_training_source": False,
+            "source_evidence": ["checksum-bound independent source"],
+            "next_validation_step": "Run the dedicated frozen candidate audit.",
+        }
+    )
+    payload["candidates"].append(candidate)
+    return payload
+
+
+def _load_payload(tmp_path: Path, payload: dict):
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return load_registry_config(path)
+
+
+def test_ready_candidate_requires_two_blinded_labelers_and_adjudication(
+    tmp_path: Path,
+) -> None:
+    payload = _ready_candidate_payload()
+    candidate = payload["candidates"][-1]
+    candidate["labeler_count"] = 1
+    candidate["blinded_labeling_verified"] = False
+    candidate["adjudicated_consensus_available"] = False
+    summary = run_candidate_registry(_load_payload(tmp_path, payload), tmp_path / "out")
+    assert summary["result_counts"]["in_domain_external_validation_ready_count"] == 0
+
+
+def test_ready_candidate_requires_resolved_file_inventory(tmp_path: Path) -> None:
+    payload = _ready_candidate_payload()
+    payload["candidates"][-1]["file_inventory_status"] = "unresolved"
+    summary = run_candidate_registry(_load_payload(tmp_path, payload), tmp_path / "out")
+    assert summary["result_counts"]["in_domain_external_validation_ready_count"] == 0
+    assert summary["result_counts"]["metadata_resolution_candidate_count"] == 1
+
+
+def test_ready_summary_is_derived_from_candidate_rows(tmp_path: Path) -> None:
+    summary = run_candidate_registry(
+        _load_payload(tmp_path, _ready_candidate_payload()), tmp_path / "out"
+    )
+    assert summary["result_counts"]["in_domain_external_validation_ready_count"] == 1
+    assert summary["readiness"]["independent_in_domain_external_validation_available"]
+    assert summary["readiness"]["public_search_supports_model_evaluation_now"]
+    assert summary["readiness"]["recommended_candidate_status"] == (
+        "in_domain_external_validation_ready"
+    )
+
+
+def test_stem_only_candidate_does_not_match_tem_token(tmp_path: Path) -> None:
+    payload = _ready_candidate_payload()
+    payload["candidates"][-1]["modalities"] = ["STEM"]
+    summary = run_candidate_registry(_load_payload(tmp_path, payload), tmp_path / "out")
+    assert summary["result_counts"]["in_domain_external_validation_ready_count"] == 0
+
+
+def test_registry_without_metadata_resolution_candidate_still_recommends(
+    tmp_path: Path,
+) -> None:
+    payload = json.loads(CONFIG.read_text(encoding="utf-8"))
+    assert all(
+        item["file_inventory_status"] in {"exact", "record_metadata_verified"}
+        for item in payload["candidates"]
+    )
+    summary = run_candidate_registry(_load_payload(tmp_path, payload), tmp_path / "out")
+    assert summary["readiness"]["recommended_candidate_id"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("task", "binary segmentation for gold SEM"),
+        ("material", "gold"),
+        ("modalities", ["SEM"]),
+    ],
+)
+def test_unsupported_target_contract_is_rejected(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    payload = json.loads(CONFIG.read_text(encoding="utf-8"))
+    payload["target_contract"][field] = value
+    with pytest.raises(CandidateContractError, match="unsupported target|target modalities"):
+        _load_payload(tmp_path, payload)

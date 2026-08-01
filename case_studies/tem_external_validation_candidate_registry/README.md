@@ -38,6 +38,8 @@ The registry was assembled on 2026-08-01 from official repository records:
 
 This is a time-bounded and non-exhaustive search snapshot. Repository or author separation alone does not prove sample/acquisition independence.
 
+Readiness requires an exact resolved file inventory, checksum coverage, exact TEM/HRTEM modality tokens, at least two independently blinded labelers, an adjudicated consensus, immutable sample/acquisition IDs, verified model-development non-use, a verified licence, and no target-source or creator overlap. The evaluator supports only the pinned cobalt-oxide binary TEM/HRTEM segmentation contract and rejects other declared targets.
+
 ## Current conclusion
 
 No assessed public candidate is ready for in-domain external validation. The highest-priority unresolved lead is the Mendeley CoP/Co2P/Co3O4 dataset because it reports target-containing raw TEM data, but its exact TEM file inventory, checksums, sample identity, acquisition lineage, and independent labels must be resolved before use.

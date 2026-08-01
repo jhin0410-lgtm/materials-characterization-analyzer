@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from mca.tem_candidate_registry_readiness import (
     build_tem_segmentation_readiness_with_registry,
 )
-from mca.tem_segmentation_readiness import NOT_READY
+from mca.tem_segmentation_readiness import EvidenceContractError, NOT_READY
 
 
 def _write(path: Path, payload: dict) -> Path:
@@ -57,6 +59,7 @@ def _registry() -> dict:
         "result_counts": {"in_domain_external_validation_ready_count": 0},
         "readiness": {
             "candidate_search_completed_for_snapshot": True,
+            "independent_in_domain_external_validation_available": False,
             "public_search_supports_model_evaluation_now": False,
             "recommended_candidate_id": "mendeley_8w66synjmx_cop_co2p_co3o4",
             "recommended_candidate_status": "excluded_rendered_figure_representation",
@@ -101,3 +104,21 @@ def test_registry_refines_next_action_without_granting_evaluation(
         record["role"] == "external_validation_candidate_registry"
         for record in manifest["inputs"]
     )
+
+
+
+def test_malformed_registry_fails_before_any_output_is_written(tmp_path: Path) -> None:
+    training = _write(tmp_path / "training.json", _training())
+    parent = _write(tmp_path / "parent.json", _parent())
+    malformed = _registry()
+    del malformed["readiness"]["recommended_next_action"]
+    registry = _write(tmp_path / "registry.json", malformed)
+    output = tmp_path / "out"
+    with pytest.raises(EvidenceContractError, match="recommended_next_action"):
+        build_tem_segmentation_readiness_with_registry(
+            training_summary_path=training,
+            parent_overlap_summary_path=parent,
+            candidate_registry_summary_path=registry,
+            output_dir=output,
+        )
+    assert not output.exists()

@@ -19,6 +19,10 @@ from . import __version__
 CASE_ID = "tem_external_validation_candidate_registry"
 SCHEMA_VERSION = "1.0"
 RESULT = "no_public_candidate_ready_for_in_domain_external_validation"
+READY_RESULT = "public_candidate_ready_for_dedicated_in_domain_validation_audit"
+SUPPORTED_TARGET_TASK = "binary nanoparticle segmentation for cobalt-oxide TEM or HRTEM images"
+SUPPORTED_TARGET_MATERIAL = "cobalt oxide"
+SUPPORTED_TARGET_MODALITIES = frozenset({"TEM", "HRTEM"})
 
 TARGET_SOURCE = "target_training_source"
 IN_DOMAIN_READY = "in_domain_external_validation_ready"
@@ -65,6 +69,8 @@ class Candidate:
     independent_segmentation_labels_available: bool
     label_origin: str
     labeler_count: int | None
+    blinded_labeling_verified: bool
+    adjudicated_consensus_available: bool
     immutable_sample_ids_available: bool
     immutable_acquisition_ids_available: bool
     verified_not_used_for_target_training_or_model_selection: bool
@@ -94,6 +100,8 @@ class Candidate:
             "independent_segmentation_labels_available",
             "label_origin",
             "labeler_count",
+            "blinded_labeling_verified",
+            "adjudicated_consensus_available",
             "immutable_sample_ids_available",
             "immutable_acquisition_ids_available",
             "verified_not_used_for_target_training_or_model_selection",
@@ -128,6 +136,12 @@ class Candidate:
             ),
             label_origin=_text(payload, "label_origin"),
             labeler_count=_optional_integer(payload.get("labeler_count"), "labeler_count"),
+            blinded_labeling_verified=_boolean(
+                payload, "blinded_labeling_verified"
+            ),
+            adjudicated_consensus_available=_boolean(
+                payload, "adjudicated_consensus_available"
+            ),
             immutable_sample_ids_available=_boolean(
                 payload, "immutable_sample_ids_available"
             ),
@@ -165,6 +179,22 @@ class Candidate:
         if self.independent_segmentation_labels_available and self.labeler_count is None:
             raise CandidateContractError(
                 f"{self.candidate_id} reports labels without labeler_count"
+            )
+        if not self.independent_segmentation_labels_available and (
+            self.labeler_count not in (None, 0)
+            or self.blinded_labeling_verified
+            or self.adjudicated_consensus_available
+        ):
+            raise CandidateContractError(
+                f"{self.candidate_id} reports annotation evidence without independent labels"
+            )
+        if self.blinded_labeling_verified and (self.labeler_count or 0) < 2:
+            raise CandidateContractError(
+                f"{self.candidate_id} cannot verify blinded labeling with fewer than two labelers"
+            )
+        if self.adjudicated_consensus_available and (self.labeler_count or 0) < 2:
+            raise CandidateContractError(
+                f"{self.candidate_id} cannot report adjudication with fewer than two labelers"
             )
         if self.target_training_source and not self.target_creator_name_overlap:
             raise CandidateContractError(
@@ -239,6 +269,19 @@ class RegistryConfig:
         ids = [candidate.candidate_id for candidate in self.candidates]
         if len(ids) != len(set(ids)):
             raise CandidateContractError("candidate_id values must be unique")
+        if self.target_task != SUPPORTED_TARGET_TASK:
+            raise CandidateContractError(
+                f"unsupported target task: {self.target_task!r}"
+            )
+        if self.target_material.casefold() != SUPPORTED_TARGET_MATERIAL:
+            raise CandidateContractError(
+                f"unsupported target material: {self.target_material!r}"
+            )
+        normalized_modalities = {_normalize_modality(value) for value in self.target_modalities}
+        if normalized_modalities != SUPPORTED_TARGET_MODALITIES:
+            raise CandidateContractError(
+                "target modalities must be exactly TEM and HRTEM"
+            )
         if not any(candidate.target_training_source for candidate in self.candidates):
             raise CandidateContractError("registry must contain the target-source control")
 
@@ -260,6 +303,9 @@ def run_candidate_registry(
         counts = _counts(rows)
         recommended = _recommendation(rows)
         protocol = _annotation_protocol()
+        ready_count = counts["in_domain_external_validation_ready_count"]
+        ready_candidate_available = ready_count > 0
+        result = READY_RESULT if ready_candidate_available else RESULT
         summary: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "case_id": CASE_ID,
@@ -279,11 +325,15 @@ def run_candidate_registry(
             },
             "result_counts": counts,
             "readiness": {
-                "status": RESULT,
+                "status": result,
                 "candidate_search_completed_for_snapshot": True,
                 "search_is_globally_exhaustive": False,
-                "independent_in_domain_external_validation_available": False,
-                "public_search_supports_model_evaluation_now": False,
+                "independent_in_domain_external_validation_available": (
+                    ready_candidate_available
+                ),
+                "public_search_supports_model_evaluation_now": (
+                    ready_candidate_available
+                ),
                 "recommended_candidate_id": recommended["candidate_id"],
                 "recommended_candidate_status": recommended["candidate_status"],
                 "recommended_next_action": recommended["next_validation_step"],
@@ -300,7 +350,7 @@ def run_candidate_registry(
             },
             "scientific_closeout": {
                 "status": "Supported",
-                "result": RESULT,
+                "result": result,
                 "strongest_evidence": (
                     "Six public records were assessed against explicit material, modality, "
                     "file, representation, lineage, label, non-use, and licence gates. The "
@@ -362,17 +412,27 @@ def _candidate_row(candidate: Candidate) -> dict[str, Any]:
         "exact_cobalt_oxide",
         "heterojunction_contains_cobalt_oxide",
     }
-    has_tem_modality = any("TEM" in value.upper() for value in candidate.modalities)
+    modality_tokens = {_normalize_modality(value) for value in candidate.modalities}
+    has_tem_modality = bool(modality_tokens & SUPPORTED_TARGET_MODALITIES)
     modality_available = candidate.raw_or_lossless_tem_images_available and has_tem_modality
     rendered_exclusion = (
         candidate.imaging_domain_relation == "rendered_mixed_heterojunction_figure_images"
+    )
+    annotation_contract_satisfied = all(
+        (
+            candidate.independent_segmentation_labels_available,
+            (candidate.labeler_count or 0) >= 2,
+            candidate.blinded_labeling_verified,
+            candidate.adjudicated_consensus_available,
+        )
     )
     ready = all(
         (
             exact_target,
             modality_available,
+            candidate.file_inventory_status in _RESOLVED_INVENTORIES,
             candidate.file_checksums_available,
-            candidate.independent_segmentation_labels_available,
+            annotation_contract_satisfied,
             candidate.immutable_sample_ids_available,
             candidate.immutable_acquisition_ids_available,
             candidate.verified_not_used_for_target_training_or_model_selection,
@@ -397,6 +457,12 @@ def _candidate_row(candidate: Candidate) -> dict[str, Any]:
         blockers.append("file_checksums_unavailable")
     if not candidate.independent_segmentation_labels_available:
         blockers.append("independent_segmentation_labels_unavailable")
+    if (candidate.labeler_count or 0) < 2:
+        blockers.append("minimum_two_independent_labelers_unavailable")
+    if not candidate.blinded_labeling_verified:
+        blockers.append("blinded_labeling_unverified")
+    if not candidate.adjudicated_consensus_available:
+        blockers.append("adjudicated_consensus_unavailable")
     if not candidate.immutable_sample_ids_available:
         blockers.append("immutable_sample_ids_unavailable")
     if not candidate.immutable_acquisition_ids_available:
@@ -446,6 +512,10 @@ def _candidate_row(candidate: Candidate) -> dict[str, Any]:
         ),
         "label_origin": candidate.label_origin,
         "labeler_count": candidate.labeler_count,
+        "blinded_labeling_verified": candidate.blinded_labeling_verified,
+        "adjudicated_consensus_available": (
+            candidate.adjudicated_consensus_available
+        ),
         "immutable_sample_ids_available": candidate.immutable_sample_ids_available,
         "immutable_acquisition_ids_available": (
             candidate.immutable_acquisition_ids_available
@@ -673,6 +743,10 @@ def _optional_integer(value: Any, key: str) -> int | None:
     return value
 
 
+def _normalize_modality(value: str) -> str:
+    return re.sub(r"[^A-Z0-9]+", "", value.upper())
+
+
 def _date(payload: Mapping[str, Any], key: str) -> str:
     value = _text(payload, key)
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
@@ -705,6 +779,8 @@ INVENTORY_COLUMNS = (
     "independent_segmentation_labels_available",
     "label_origin",
     "labeler_count",
+    "blinded_labeling_verified",
+    "adjudicated_consensus_available",
     "immutable_sample_ids_available",
     "immutable_acquisition_ids_available",
     "verified_not_used_for_target_training_or_model_selection",

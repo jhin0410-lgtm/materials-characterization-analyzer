@@ -37,8 +37,10 @@ def build_tem_segmentation_readiness_with_registry(
     """Build readiness and optionally attach a fail-closed candidate registry."""
     registry: Mapping[str, Any] | None = None
     registry_record: dict[str, Any] | None = None
+    registry_fields: dict[str, Any] | None = None
     if candidate_registry_summary_path is not None:
         registry, registry_record = _load_registry(candidate_registry_summary_path)
+        registry_fields = _validated_registry_fields(registry)
 
     summary = build_tem_segmentation_readiness(
         training_summary_path=training_summary_path,
@@ -48,21 +50,15 @@ def build_tem_segmentation_readiness_with_registry(
         pilot_summary_path=pilot_summary_path,
         output_dir=output_dir,
     )
-    if registry is None or registry_record is None:
+    if registry is None or registry_record is None or registry_fields is None:
         return summary
 
-    counts = _mapping(registry, "result_counts")
-    readiness = _mapping(registry, "readiness")
-    ready_count = _integer(counts, "in_domain_external_validation_ready_count")
-    search_completed = _boolean(
-        readiness, "candidate_search_completed_for_snapshot"
-    )
-    supports_evaluation = _boolean(
-        readiness, "public_search_supports_model_evaluation_now"
-    )
-    recommended_id = _text(readiness, "recommended_candidate_id")
-    recommended_status = _text(readiness, "recommended_candidate_status")
-    recommended_action = _text(readiness, "recommended_next_action")
+    ready_count = registry_fields["ready_count"]
+    search_completed = registry_fields["search_completed"]
+    supports_evaluation = registry_fields["supports_evaluation"]
+    recommended_id = registry_fields["recommended_id"]
+    recommended_status = registry_fields["recommended_status"]
+    recommended_action = registry_fields["recommended_action"]
 
     evidence = summary.get("evidence_inputs")
     gates = summary.get("evidence_gates")
@@ -112,6 +108,41 @@ def build_tem_segmentation_readiness_with_registry(
         ),
     )
     return summary
+
+
+def _validated_registry_fields(registry: Mapping[str, Any]) -> dict[str, Any]:
+    counts = _mapping(registry, "result_counts")
+    readiness = _mapping(registry, "readiness")
+    ready_count = _integer(counts, "in_domain_external_validation_ready_count")
+    if ready_count < 0:
+        raise EvidenceContractError(
+            "in_domain_external_validation_ready_count must be non-negative"
+        )
+    search_completed = _boolean(
+        readiness, "candidate_search_completed_for_snapshot"
+    )
+    supports_evaluation = _boolean(
+        readiness, "public_search_supports_model_evaluation_now"
+    )
+    independent_available = _boolean(
+        readiness, "independent_in_domain_external_validation_available"
+    )
+    if independent_available != (ready_count > 0):
+        raise EvidenceContractError(
+            "registry ready count contradicts independent availability"
+        )
+    if supports_evaluation != (ready_count > 0):
+        raise EvidenceContractError(
+            "registry ready count contradicts evaluation support"
+        )
+    return {
+        "ready_count": ready_count,
+        "search_completed": search_completed,
+        "supports_evaluation": supports_evaluation,
+        "recommended_id": _text(readiness, "recommended_candidate_id"),
+        "recommended_status": _text(readiness, "recommended_candidate_status"),
+        "recommended_action": _text(readiness, "recommended_next_action"),
+    }
 
 
 def _load_registry(
