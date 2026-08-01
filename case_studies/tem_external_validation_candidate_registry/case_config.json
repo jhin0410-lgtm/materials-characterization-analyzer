@@ -60,7 +60,9 @@
         "Record reports TEM images, deep-learning predicted segmentation, and hand-labeled images used for neural-network training.",
         "Files include TEM_images.zip, Segmented_images.zip, training_images.h5, and training_labels.h5 with repository MD5 values."
       ],
-      "next_validation_step": "Exclude from external validation; preserve only as the target training/source-overlap control."
+      "next_validation_step": "Exclude from external validation; preserve only as the target training/source-overlap control.",
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false
     },
     {
       "candidate_id": "dryad_d1sp93_human_labeled_hrtem",
@@ -96,7 +98,9 @@
         "Source metadata reports 407 raw HRTEM images and 13 processed image-label pairs across Au, Ag, and CdSe.",
         "The assessed metadata reports one human labeler and one creator name overlapping the target source."
       ],
-      "next_validation_step": "Use only for a predeclared cross-material diagnostic after authenticated file audit; never classify it as cobalt-oxide in-domain validation."
+      "next_validation_step": "Use only for a predeclared cross-material diagnostic after authenticated file audit; never classify it as cobalt-oxide in-domain validation.",
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false
     },
     {
       "candidate_id": "mendeley_8w66synjmx_cop_co2p_co3o4",
@@ -138,7 +142,9 @@
         "The verified archive contains 90 members, including two Ceta TIFF files and four HAADF or elemental-map BMP files under publication figure directories.",
         "Both TIFF files are uncompressed 1024 x 1024 RGB 8-bit images and the four BMP files are 512 x 512 RGB rendered images; no pixel calibration, immutable sample or acquisition IDs, Co3O4 region binding, or detector-intensity provenance is available."
       ],
-      "next_validation_step": "Exclude this public archive from independent segmentation validation. Acquire or obtain author-released raw cobalt-oxide TEM detector data with immutable sample/acquisition lineage before blinded annotation."
+      "next_validation_step": "Exclude this public archive from independent segmentation validation. Acquire or obtain author-released raw cobalt-oxide TEM detector data with immutable sample/acquisition lineage before blinded annotation.",
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false
     },
     {
       "candidate_id": "zenodo_14868077_cooh_cryo_tem",
@@ -173,7 +179,9 @@
         "Official record describes low-dose cryo-TEM images for cobalt-hydroxide/ionomer systems.",
         "Three TEM TIFF files and repository MD5 values are listed; the images are not cobalt-oxide HRTEM segmentation labels."
       ],
-      "next_validation_step": "Verify the record licence and image-level metadata, then consider only a cross-phase annotation-method pilot; do not use it for cobalt-oxide in-domain performance claims."
+      "next_validation_step": "Verify the record licence and image-level metadata, then consider only a cross-phase annotation-method pilot; do not use it for cobalt-oxide in-domain performance claims.",
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false
     },
     {
       "candidate_id": "zenodo_11161891_cobalt_tungstate_stem",
@@ -209,7 +217,9 @@
         "Official record lists DM3, DM4, EMD, TIFF, and PNG microscopy files with MD5 values under CC-BY-4.0.",
         "The microscopy target is cobalt tungstate; the file named Cobalt Oxide.ras is an XRD reference, not a labeled cobalt-oxide TEM set."
       ],
-      "next_validation_step": "Retain only as a cross-phase microscopy robustness source after file audit and independent annotation; it cannot establish cobalt-oxide in-domain generalization."
+      "next_validation_step": "Retain only as a cross-phase microscopy robustness source after file audit and independent annotation; it cannot establish cobalt-oxide in-domain generalization.",
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false
     },
     {
       "candidate_id": "zenodo_7941248_co3o4_sem_only",
@@ -245,7 +255,9 @@
         "Official record describes XPS, HAXPES, and SEM measurements for five Co3O4 nanoparticle treatment conditions.",
         "No TEM or HRTEM image set is reported."
       ],
-      "next_validation_step": "Exclude from TEM segmentation validation; it may be relevant only to a separate SEM workflow."
+      "next_validation_step": "Exclude from TEM segmentation validation; it may be relevant only to a separate SEM workflow.",
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false
     }
   ]
 }
