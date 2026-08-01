@@ -48,12 +48,14 @@ def run_pilot_pair_audit(
     try:
         with tempfile.TemporaryDirectory(prefix="mca-dryad-pilot-") as temp_name:
             temp = Path(temp_name)
+            source_version_cache: dict[str, Any] = {}
             image_meta, images_path = resolve_dryad_file(
                 config,
                 config.image_file,
                 local_path=image_path,
                 api_metadata_path=image_api_metadata_path,
                 temp=temp,
+                source_version_cache=source_version_cache,
             )
             label_meta, labels_path = resolve_dryad_file(
                 config,
@@ -61,6 +63,7 @@ def run_pilot_pair_audit(
                 local_path=label_path,
                 api_metadata_path=label_api_metadata_path,
                 temp=temp,
+                source_version_cache=source_version_cache,
             )
             metadata_meta, metadata_csv = resolve_dryad_file(
                 config,
@@ -68,6 +71,7 @@ def run_pilot_pair_audit(
                 local_path=processed_metadata_path,
                 api_metadata_path=processed_metadata_api_path,
                 temp=temp,
+                source_version_cache=source_version_cache,
             )
             training, training_mode = acquire_training(config, training_path, temp)
             training_hashes = verify_training(training, config)
@@ -101,11 +105,16 @@ def run_pilot_pair_audit(
         if len(exact) + len(review) + len(clear) != len(overlap_rows):
             raise AssertionError("overlap statuses must be mutually exhaustive.")
         overlap_clear = not exact and not review
-        next_status = (
-            "eligible_to_freeze_diagnostic_cross_material_stress_test_protocol"
-            if overlap_clear
-            else "blocked_by_possible_cross_dataset_content_overlap"
-        )
+        binding_authoritative = binding["status"] == "exact_unique_row_binding"
+        data_audit_complete = binding_authoritative
+        if not binding_authoritative:
+            next_status = "blocked_unresolved_processed_metadata_binding"
+        elif not overlap_clear:
+            next_status = "blocked_by_possible_cross_dataset_content_overlap"
+        else:
+            next_status = (
+                "eligible_to_freeze_diagnostic_cross_material_stress_test_protocol"
+            )
         summary: dict[str, Any] = {
             "schema_version": "1.0",
             "case_id": config.case_id,
@@ -182,7 +191,8 @@ def run_pilot_pair_audit(
             "readiness": {
                 "in_domain_cobalt_oxide_external_validation": False,
                 "diagnostic_cross_material_stress_test_model_evaluation_performed": False,
-                "data_audit_complete": True,
+                "data_audit_complete": data_audit_complete,
+                "processed_metadata_binding_authoritative": binding_authoritative,
                 "content_overlap_gate_passed": overlap_clear,
                 "next_status": next_status,
                 "authoritative_cross_dataset_acquisition_independence_proven": False,
@@ -212,8 +222,9 @@ def run_pilot_pair_audit(
                 ),
                 "primary_limitation": (
                     "The pilot material is Au rather than cobalt oxide, labels were produced "
-                    "by one human, one creator overlaps, and authoritative cross-dataset "
-                    "acquisition-lineage exclusion is unavailable."
+                    "by one human, one creator overlaps, authoritative cross-dataset "
+                    "acquisition-lineage exclusion is unavailable, and protocol readiness "
+                    "also requires exact processed-metadata row binding."
                 ),
                 "evidence_that_would_change_conclusion": (
                     "A predeclared cobalt-oxide set from independent acquisitions with expert "

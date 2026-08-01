@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 CASE_ID = "dryad_hrtem_pilot_pair_audit"
 SOURCE_DOI = "10.7941/D1SP93"
+SOURCE_VERSION_ID = 247105
 PILOT_PAIR_ID = "au_5nm_260kx_450e"
 _SUPPORTED_DIGEST_LENGTHS = {"md5": 32, "sha256": 64}
 
@@ -64,6 +65,7 @@ class PilotAuditConfig:
     published_date: str
     version_label: str
     license: str
+    source_version_id: int
     api_file_endpoint_template: str
     download_endpoint_template: str
     pair_id: str
@@ -118,6 +120,7 @@ class PilotAuditConfig:
             published_date=_text(source, "published_date"),
             version_label=_text(source, "version_label"),
             license=_text(source, "license"),
+            source_version_id=int(source["source_version_id"]),
             api_file_endpoint_template=_text(source, "api_file_endpoint_template"),
             download_endpoint_template=_text(source, "download_endpoint_template"),
             pair_id=_text(pair, "pair_id"),
@@ -203,6 +206,8 @@ class PilotAuditConfig:
         ):
             if template.count("{file_id}") != 1 or not template.startswith("https://"):
                 raise ValueError(f"invalid {label}.")
+        if self.source_version_id <= 0:
+            raise ValueError("source_version_id must be positive.")
         if self.labeler_count <= 0:
             raise ValueError("labeler_count must be positive.")
         if self.hdf5.patch_height <= 0 or self.hdf5.patch_width <= 0:
@@ -254,8 +259,19 @@ def validate_public_config(config: PilotAuditConfig) -> None:
         "published_date": "2023-07-31",
         "version_label": "2023-07-31",
         "license": "CC0-1.0",
+        "source_version_id": SOURCE_VERSION_ID,
+        "api_file_endpoint_template": "https://datadryad.org/api/v2/files/{file_id}",
+        "download_endpoint_template": "https://datadryad.org/api/v2/files/{file_id}/download",
         "pair_id": PILOT_PAIR_ID,
         "material": "Au",
+        "particle_diameter_nm": 5.0,
+        "magnification_kx": 260,
+        "electron_dose_e_per_a2": 450.0,
+        "substrate": "ultrathin C",
+        "microscope": "TEAM 0.5 aberration-corrected transmission electron microscope",
+        "camera": "OneView (Gatan)",
+        "labeler_count": 1,
+        "annotation_tool": "LabelBox",
         "image_file": RemoteFileSpec(
             2451485,
             "Au_5nm_260kx_450e_Std_UTC_FFCorr_Team05_Images.h5",
@@ -271,6 +287,40 @@ def validate_public_config(config: PilotAuditConfig) -> None:
         "processed_metadata_file": RemoteFileSpec(
             2451515, "Processed_datasets_metadata.csv", 2.10, "KB"
         ),
+        "hdf5": Hdf5Contract(
+            image_dataset_name="images",
+            label_dataset_name="labels",
+            patch_height=512,
+            patch_width=512,
+            image_mean_abs_tolerance=0.00001,
+            image_std_abs_tolerance=0.00001,
+            allowed_label_values=(0, 1),
+        ),
+        "training": TrainingReference(
+            repository="Zenodo",
+            record_id=14927582,
+            doi="10.5281/zenodo.14927582",
+            dataset_version="v1",
+            name="training_images.h5",
+            url="https://zenodo.org/records/14927582/files/training_images.h5?download=1",
+            md5="caac404a7ea2c65b2403aee5728a70eb",
+            sha256="e709b7f1fa383bd111bb0b7e8d4662452b46198f52e4e88b19bb3f3e222c0926",
+            dataset_name="images",
+            shape=(256, 512, 512),
+            candidate_parent_patch_count=64,
+            candidate_parent_count=4,
+        ),
+        "overlap": OverlapContract(
+            quantization_decimals=9,
+            signature_block_size=16,
+            review_ncc_threshold=0.995,
+            exact_match_rule="quantized_per_patch_standardized_sha256",
+        ),
+        "notebook_repository": "ScottLabUCB/NN_training",
+        "notebook_commit": "9f92235102a805abc76e3d60065d677ee2068c90",
+        "notebook": "model training for HRTEM.ipynb",
+        "notebook_blob_sha": "a21bf95fb41f63efb0c33b1563bc43a073afed58",
+        "verified_training_input_name": "training_images.h5",
         "dryad_pilot_pair_named_as_training_input": False,
         "authoritative_cross_dataset_acquisition_lineage_manifest_available": False,
     }

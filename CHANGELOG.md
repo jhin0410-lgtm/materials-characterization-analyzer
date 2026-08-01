@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- Dryad HRTEM pilot automatic acquisition now resolves the pinned file-linked source version and checksum inventory, authenticates binary downloads without exposing the token, preserves raw API responses separately from enriched evidence, and keeps readiness blocked unless processed metadata binding is exact and authoritative.
+- The public Dryad pilot contract now pins the HDF5, training, overlap, notebook, source-version, and endpoint configuration; workflow evidence distinguishes a configured credential from a successfully verified authenticated download.
 - TEM external-validation intake now keeps model inference blocked whenever any dataset or image gate fails, even if annotations and protocol fields are otherwise complete.
 - Canonical manifest SHA-256 binding now detects post-freeze cohort or protocol mutation, and duplicate JSON object keys fail closed.
 - Duplicate active-image detection ignores excluded archival copies, excluded-image annotations do not change active-cohort status, every active annotation must remain blinded and unused for model development, and annotation file paths must be unique.

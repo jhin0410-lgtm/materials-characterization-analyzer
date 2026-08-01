@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enrich Dryad file metadata using each file's directly linked version."""
+"""Enrich Dryad file metadata while preserving raw individual responses."""
 from __future__ import annotations
 
 import argparse
@@ -11,6 +11,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from mca.tem_external_validation_pilot_contract import SOURCE_DOI, SOURCE_VERSION_ID
+
 BASE_URL = "https://datadryad.org"
 
 
@@ -19,7 +21,7 @@ def _fetch(url: str, attempts: int = 5) -> Mapping[str, Any]:
     for attempt in range(attempts):
         request = urllib.request.Request(
             url,
-            headers={"User-Agent": "materials-characterization-analyzer/0.9"},
+            headers={"User-Agent": "materials-characterization-analyzer/0.10"},
         )
         try:
             with urllib.request.urlopen(request, timeout=120) as response:
@@ -43,8 +45,9 @@ def _link(payload: Mapping[str, Any], base_url: str, *names: str) -> str | None:
         href: Any = value.get("href") if isinstance(value, Mapping) else value
         if isinstance(href, str) and href.strip():
             resolved = urllib.parse.urljoin(base_url, href.strip())
-            if not resolved.startswith(f"{BASE_URL}/"):
-                raise ValueError(f"unexpected Dryad link host: {resolved}")
+            parsed = urllib.parse.urlsplit(resolved)
+            if parsed.scheme != "https" or parsed.netloc != "datadryad.org":
+                raise ValueError(f"unexpected Dryad link host or scheme: {resolved}")
             return resolved
     return None
 
@@ -65,7 +68,9 @@ def _records(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     raise ValueError("Dryad version files response does not contain a file list.")
 
 
-def _file_pages(start_url: str) -> tuple[list[tuple[str, Mapping[str, Any]]], list[Mapping[str, Any]]]:
+def _file_pages(
+    start_url: str,
+) -> tuple[list[tuple[str, Mapping[str, Any]]], list[Mapping[str, Any]]]:
     pages: list[tuple[str, Mapping[str, Any]]] = []
     records: list[Mapping[str, Any]] = []
     seen: set[str] = set()
@@ -111,25 +116,138 @@ def _digest(record: Mapping[str, Any]) -> Any:
     return None
 
 
+def _normalize_doi(value: str) -> str:
+    text = value.strip()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if text.lower().startswith(prefix):
+            text = text[len(prefix) :]
+            break
+    return text.upper()
+
+
+def _doi_from_dataset_url(url: str) -> str:
+    path_token = urllib.parse.unquote(
+        urllib.parse.urlsplit(url).path.rstrip("/").rsplit("/", 1)[-1]
+    )
+    normalized = _normalize_doi(path_token)
+    if not normalized.startswith("10.") or "/" not in normalized:
+        raise ValueError(f"Dryad dataset link does not encode a DOI: {url}")
+    return normalized
+
+
+def _explicit_dataset_doi(payload: Mapping[str, Any]) -> str | None:
+    """Return only a dataset's explicit canonical DOI field.
+
+    Dryad version payloads may contain unrelated article, repository, or internal
+    persistent identifiers. Recursively scanning every nested identifier can
+    therefore misclassify a related DOI as the dataset DOI. Dataset identity is
+    bound by the file-linked dataset URL and, when present, the dataset endpoint's
+    top-level canonical DOI field only.
+    """
+
+    for key in ("doi", "identifier"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            normalized = _normalize_doi(value)
+            if normalized.startswith("10.") and "/" in normalized:
+                return normalized
+    return None
+
+
+def _verify_dataset_identity(
+    version_payload: Mapping[str, Any],
+    version_url: str,
+    dataset_url: str,
+    doi: str,
+) -> Mapping[str, Any]:
+    expected = _normalize_doi(doi)
+    linked = _doi_from_dataset_url(dataset_url)
+    if linked != expected:
+        raise ValueError(f"Dryad dataset-link DOI mismatch: {linked!r} != {expected!r}")
+
+    version_dataset_url = _link(
+        version_payload,
+        version_url,
+        "stash:dataset",
+        "dataset",
+    )
+    if version_dataset_url is not None:
+        version_linked = _doi_from_dataset_url(version_dataset_url)
+        if version_linked != expected:
+            raise ValueError(
+                "Dryad source-version dataset-link DOI mismatch: "
+                f"{version_linked!r} != {expected!r}"
+            )
+        if version_dataset_url != dataset_url:
+            raise ValueError(
+                "Dryad file and source-version metadata resolve to different dataset URLs"
+            )
+
+    dataset_payload = _fetch(dataset_url)
+    dataset_observed = _explicit_dataset_doi(dataset_payload)
+    if dataset_observed is not None and dataset_observed != expected:
+        raise ValueError(
+            f"Dryad dataset API DOI mismatch: {dataset_observed!r} != {expected!r}"
+        )
+    dataset_self = _link(dataset_payload, dataset_url, "self")
+    if dataset_self is not None and _doi_from_dataset_url(dataset_self) != expected:
+        raise ValueError("Dryad dataset self link does not match the expected DOI")
+    return dataset_payload
+
+
 def resolve(
     doi: str,
+    expected_version_id: int,
     bindings: Iterable[tuple[int, Path]],
     output_dir: Path,
 ) -> None:
+    if _normalize_doi(doi) != _normalize_doi(SOURCE_DOI):
+        raise ValueError(f"unexpected Dryad DOI: {doi!r}")
+    if expected_version_id != SOURCE_VERSION_ID:
+        raise ValueError(
+            f"unexpected Dryad source version: {expected_version_id} != {SOURCE_VERSION_ID}"
+        )
     source_bindings = list(bindings)
-    payloads = [json.loads(path.read_text(encoding="utf-8")) for _, path in source_bindings]
+    payloads = [
+        json.loads(path.read_text(encoding="utf-8")) for _, path in source_bindings
+    ]
     if not all(isinstance(payload, Mapping) for payload in payloads):
         raise ValueError("all individual-file responses must be objects.")
 
     version_urls = {
-        _link(payload, f"{BASE_URL}/api/v2/files/{file_id}", "stash:version", "version")
+        _link(
+            payload,
+            f"{BASE_URL}/api/v2/files/{file_id}",
+            "stash:version",
+            "version",
+        )
         for (file_id, _), payload in zip(source_bindings, payloads)
     }
     if None in version_urls or len(version_urls) != 1:
         raise ValueError(f"pilot files do not resolve to one source version: {version_urls}")
+    dataset_urls = {
+        _link(
+            payload,
+            f"{BASE_URL}/api/v2/files/{file_id}",
+            "stash:dataset",
+            "dataset",
+        )
+        for (file_id, _), payload in zip(source_bindings, payloads)
+    }
+    if None in dataset_urls or len(dataset_urls) != 1:
+        raise ValueError(f"pilot files do not resolve to one dataset: {dataset_urls}")
     version_url = next(iter(version_urls))
+    dataset_url = next(iter(dataset_urls))
+    assert version_url is not None and dataset_url is not None
     version_id = int(version_url.rstrip("/").rsplit("/", 1)[-1])
+    if version_id != expected_version_id:
+        raise ValueError(
+            f"Dryad source-version mismatch: {version_id} != {expected_version_id}"
+        )
     version_payload = _fetch(version_url)
+    dataset_payload = _verify_dataset_identity(
+        version_payload, version_url, dataset_url, doi
+    )
     files_url = _link(version_payload, version_url, "stash:files", "files")
     if files_url is None:
         files_url = version_url.rstrip("/") + "/files"
@@ -140,17 +258,35 @@ def resolve(
         json.dumps(version_payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    (output_dir / "dryad-source-dataset-api.json").write_text(
+        json.dumps(dataset_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     for index, (url, payload) in enumerate(pages, start=1):
-        (output_dir / f"dryad-source-version-files-page-{index:03d}.json").write_text(
-            json.dumps({"request_url": url, "response": payload}, indent=2, sort_keys=True) + "\n",
+        (
+            output_dir / f"dryad-source-version-files-page-{index:03d}.json"
+        ).write_text(
+            json.dumps(
+                {"request_url": url, "response": payload},
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
             encoding="utf-8",
         )
     (output_dir / "dryad-source-version-files-inventory.json").write_text(
         json.dumps(
-            {"version_id": version_id, "page_count": len(pages), "file_record_count": len(records), "records": records},
+            {
+                "version_id": version_id,
+                "dataset_doi": doi,
+                "page_count": len(pages),
+                "file_record_count": len(records),
+                "records": records,
+            },
             indent=2,
             sort_keys=True,
-        ) + "\n",
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -161,7 +297,8 @@ def resolve(
         matches = [record for record in records if _name(record) == expected_name]
         if len(matches) != 1:
             raise ValueError(
-                f"expected one source-version record for {expected_name!r}; found {len(matches)}"
+                f"expected one source-version record for {expected_name!r}; "
+                f"found {len(matches)}"
             )
         digest = _digest(matches[0])
         if digest is None:
@@ -173,7 +310,9 @@ def resolve(
             "download",
         )
         if download_url is None:
-            raise ValueError(f"individual Dryad response lacks download link for {expected_name}.")
+            raise ValueError(
+                f"individual Dryad response lacks download link for {expected_name}."
+            )
         enriched = dict(payload)
         enriched.update(
             {
@@ -189,20 +328,33 @@ def resolve(
                 "dataset_doi": doi,
             }
         )
-        path.write_text(
+        destination = output_dir / f"dryad-file-{expected_id}-enriched.json"
+        destination.write_text(
             json.dumps(enriched, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        print(json.dumps({"file_id": expected_id, "name": expected_name, "source_version_id": version_id, "digest": digest, "download_url": download_url}))
+        print(
+            json.dumps(
+                {
+                    "file_id": expected_id,
+                    "name": expected_name,
+                    "source_version_id": version_id,
+                    "digest": digest,
+                    "download_url": download_url,
+                    "enriched_path": str(destination),
+                }
+            )
+        )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--doi", required=True)
+    parser.add_argument("--doi", default=SOURCE_DOI)
+    parser.add_argument("--expected-version-id", type=int, default=SOURCE_VERSION_ID)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("files", nargs="+", type=_parse_file_binding)
     args = parser.parse_args()
-    resolve(args.doi, args.files, args.output_dir)
+    resolve(args.doi, args.expected_version_id, args.files, args.output_dir)
     return 0
 
 
