@@ -1,0 +1,68 @@
+name: DataCORE SAED source audit
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit_datacore_saed_candidate.py"
+      - "tests/test_datacore_saed_candidate_audit.py"
+      - "case_studies/saed_external_validation_candidate_registry/**"
+      - ".github/workflows/datacore-saed-source-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: datacore-saed-source-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install package, tests, and microscopy readers
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" tifffile hyperspy
+
+      - name: Run focused source-audit tests
+        run: python -m pytest -q tests/test_datacore_saed_candidate_audit.py
+
+      - name: Audit public DataCORE DM4 and TIFF source
+        run: |
+          python scripts/audit_datacore_saed_candidate.py \
+            --source-url "https://datacore.iu.edu/downloads/37720f05n?locale=en" \
+            --output outputs/datacore-saed-source-audit
+
+      - name: Print audit decision
+        if: always()
+        run: |
+          if [ -f outputs/datacore-saed-source-audit/source_audit_summary.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("outputs/datacore-saed-source-audit/source_audit_summary.json")
+          summary = json.loads(path.read_text(encoding="utf-8"))
+          print(json.dumps(summary["counts"], indent=2, sort_keys=True))
+          print(json.dumps(summary["evidence_gates"], indent=2, sort_keys=True))
+          print(json.dumps(summary["decision"], indent=2, sort_keys=True))
+          PY
+          fi
+
+      - name: Upload checksum-bound metadata evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: datacore-saed-source-audit-evidence
+          path: outputs/datacore-saed-source-audit
+          if-no-files-found: warn
+          retention-days: 30
