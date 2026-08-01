@@ -7,13 +7,44 @@ on:
       - "scripts/audit_public_finds_saed_source.py"
       - "scripts/run_public_finds_saed_case.py"
       - "scripts/verify_public_finds_saed_case.py"
+      - "src/mca/saed.py"
+      - "src/mca/saed_features.py"
+      - "src/mca/contracts.py"
+      - "src/mca/feature_records.py"
+      - "src/mca/provenance.py"
+      - "src/mca/utils.py"
       - "tests/test_public_finds_saed_source_audit.py"
       - "tests/test_public_finds_saed_case.py"
+      - "pyproject.toml"
+      - "src/mca/__init__.py"
+      - ".github/workflows/public-finds-saed-source-audit.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "case_studies/public_finds_saed/**"
+      - "scripts/audit_public_finds_saed_source.py"
+      - "scripts/run_public_finds_saed_case.py"
+      - "scripts/verify_public_finds_saed_case.py"
+      - "src/mca/saed.py"
+      - "src/mca/saed_features.py"
+      - "src/mca/contracts.py"
+      - "src/mca/feature_records.py"
+      - "src/mca/provenance.py"
+      - "src/mca/utils.py"
+      - "tests/test_public_finds_saed_source_audit.py"
+      - "tests/test_public_finds_saed_case.py"
+      - "pyproject.toml"
+      - "src/mca/__init__.py"
       - ".github/workflows/public-finds-saed-source-audit.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: public-finds-saed-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   audit:
@@ -21,10 +52,10 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -56,7 +87,7 @@ jobs:
             --result outputs/public-finds-saed/result
 
       - name: Upload public SAED evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: public-finds-saed-diagnostic-evidence
           path: |
