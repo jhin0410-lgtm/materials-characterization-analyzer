@@ -16,6 +16,7 @@ from typing import Any, Mapping
 
 DATASET_IDS = ("8w66synjmx", "zhnbzhjrtr", "jz9dpgwwc3")
 BASE = "https://data.mendeley.com/public-api"
+ACCEPT_FILES = "application/vnd.mendeley-public-dataset.1+json, application/json"
 
 
 def _fetch(url: str, accept: str = "application/json") -> dict[str, Any]:
@@ -40,7 +41,12 @@ def _fetch(url: str, accept: str = "application/json") -> dict[str, Any]:
         }
 
 
-def _record(status: int, final_url: str, headers: Mapping[str, str], raw: bytes) -> dict[str, Any]:
+def _record(
+    status: int,
+    final_url: str,
+    headers: Mapping[str, str],
+    raw: bytes,
+) -> dict[str, Any]:
     content_type = headers.get("Content-Type", "")
     try:
         payload = json.loads(raw.decode("utf-8")) if raw else None
@@ -61,7 +67,10 @@ def _sanitize(value: Any) -> Any:
         result = {}
         for key, item in value.items():
             lowered = str(key).lower()
-            if any(token in lowered for token in ("download_url", "view_url", "expiry", "token")):
+            if any(
+                token in lowered
+                for token in ("download_url", "view_url", "expiry", "token")
+            ):
                 result[key] = "redacted"
             else:
                 result[key] = _sanitize(item)
@@ -73,22 +82,58 @@ def _sanitize(value: Any) -> Any:
     return value
 
 
+def _folder_ids(payload: Any) -> list[str]:
+    found: set[str] = set()
+
+    def visit(value: Any) -> None:
+        if isinstance(value, Mapping):
+            identifier = value.get("id")
+            if isinstance(identifier, str) and identifier.strip():
+                found.add(identifier.strip())
+            for key, item in value.items():
+                if key not in {"files", "content_details"}:
+                    visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+
+    visit(payload)
+    return sorted(found)
+
+
 def probe(output: Path) -> dict[str, Any]:
     datasets: list[dict[str, Any]] = []
     for dataset_id in DATASET_IDS:
         calls = {
             "snapshot": _fetch(f"{BASE}/datasets/{dataset_id}/snapshot/1"),
             "versions": _fetch(f"{BASE}/datasets/{dataset_id}/versions"),
+            "folders": _fetch(f"{BASE}/datasets/{dataset_id}/folders/1"),
             "files_omitted_folder": _fetch(
                 f"{BASE}/datasets/{dataset_id}/files?version=1",
-                "application/vnd.mendeley-public-dataset.1+json, application/json",
+                ACCEPT_FILES,
             ),
             "files_empty_folder": _fetch(
                 f"{BASE}/datasets/{dataset_id}/files?folder_id=&version=1",
-                "application/vnd.mendeley-public-dataset.1+json, application/json",
+                ACCEPT_FILES,
             ),
         }
-        datasets.append({"dataset_id": dataset_id, "calls": calls})
+        folder_ids = _folder_ids(calls["folders"].get("payload"))
+        folder_file_calls = {
+            folder_id: _fetch(
+                f"{BASE}/datasets/{dataset_id}/files?"
+                + urllib.parse.urlencode({"folder_id": folder_id, "version": "1"}),
+                ACCEPT_FILES,
+            )
+            for folder_id in folder_ids[:100]
+        }
+        datasets.append(
+            {
+                "dataset_id": dataset_id,
+                "calls": calls,
+                "folder_ids": folder_ids,
+                "folder_file_calls": folder_file_calls,
+            }
+        )
     result = {
         "schema_version": "1.0",
         "case_id": "mendeley_anonymous_public_api_probe",
@@ -96,7 +141,10 @@ def probe(output: Path) -> dict[str, Any]:
         "datasets": datasets,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return result
 
 
@@ -109,8 +157,15 @@ def main() -> int:
         json.dumps(
             {
                 dataset["dataset_id"]: {
-                    name: record["status"]
-                    for name, record in dataset["calls"].items()
+                    "base_calls": {
+                        name: record["status"]
+                        for name, record in dataset["calls"].items()
+                    },
+                    "folder_ids": dataset["folder_ids"],
+                    "folder_file_statuses": {
+                        folder_id: record["status"]
+                        for folder_id, record in dataset["folder_file_calls"].items()
+                    },
                 }
                 for dataset in result["datasets"]
             },
