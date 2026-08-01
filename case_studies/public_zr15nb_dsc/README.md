@@ -133,6 +133,13 @@ outputs/public-zr15nb-dsc/
 Each analysis directory contains the existing thermal processed table, candidate
 table, long-format features, diagnostic figure, and analysis manifest.
 
+## Regression hardening
+
+- The standalone source audit verifies both the repository MD5 and the pinned SHA-256 before reporting checksum success.
+- Invalid, blank, nonnumeric, or nonfinite temperature cells terminate monotonic runs and retain source-row offsets.
+- Candidate matching maximizes valid one-to-one matches before minimizing total temperature distance within each direction and sensitivity run.
+- Re-running the review replaces its delimited report section rather than appending duplicate human-readable evidence.
+
 ## Scientific closeout
 
 **Evidence level: Diagnostic**

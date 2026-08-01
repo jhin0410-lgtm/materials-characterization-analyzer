@@ -92,3 +92,46 @@ def test_longest_strict_run_does_not_sort_or_bridge_discontinuities() -> None:
     values = [20.0, 25.0, 30.0, 29.0, 31.0, 32.0]
     result = MODULE._longest_strict_run(values, increasing=True)
     assert result == {"start": 0, "end_exclusive": 3, "length": 3}
+
+
+
+def test_verify_bytes_rejects_pinned_sha256_drift() -> None:
+    payload = b"real source bytes"
+    configured = {
+        "filename": "data.csv",
+        "role": "source",
+        "expected_size_bytes": len(payload),
+        "checksum_algorithm": "md5",
+        "checksum": hashlib.md5(payload).hexdigest(),
+        "verified_sha256": "0" * 64,
+    }
+    repository = {
+        "size": len(payload),
+        "checksum": "md5:" + hashlib.md5(payload).hexdigest(),
+    }
+    with pytest.raises(MODULE.SourceAuditError, match="SHA-256 mismatch"):
+        MODULE._verify_bytes(
+            payload,
+            configured=configured,
+            repository_record=repository,
+        )
+
+
+def test_invalid_numeric_row_breaks_monotonic_run_and_preserves_offsets() -> None:
+    text = "\n".join(
+        [
+            "DSC,DSC",
+            "Temperature,Heat Flow",
+            "degC,mW/mg",
+            "20,0.1",
+            "25,0.2",
+            ",0.3",
+            "30,0.4",
+            "35,0.5",
+            "40,0.6",
+        ]
+    )
+    _, profiles = MODULE._profile_table(text)
+    run = profiles[0]["longest_strictly_increasing_run"]
+    assert run == {"start": 3, "end_exclusive": 6, "length": 3}
+    assert profiles[0]["numeric_value_count"] == 5
