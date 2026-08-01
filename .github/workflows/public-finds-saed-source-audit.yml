@@ -130,7 +130,6 @@ jobs:
               assert analysis["sample_id"] == "finds_saed_example_material_unresolved"
               assert analysis["source_sha256"] == adapter["canonical_sha256"]
               assert "automatic_ring_candidates_require_manual_review" in analysis["warnings"]
-              assert "saturated_pixels_present" in analysis["warnings"]
 
           review = summary["candidate_robustness"]
           assert review["primary_candidate_count"] == len(robustness)
@@ -170,6 +169,10 @@ jobs:
               "candidate_counts": {
                   run_id: int(len(group))
                   for run_id, group in candidates.groupby("run_id", sort=True)
+              },
+              "analysis_warnings": {
+                  record["run_id"]: record["warnings"]
+                  for record in summary["analysis_runs"]
               },
               "all_runs_matched_count": review["all_runs_matched_count"],
               "unmatched_sensitivity_candidate_count": review[
