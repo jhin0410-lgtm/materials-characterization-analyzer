@@ -21,14 +21,14 @@
     {
       "filename": "DSC_ElResistance_ThExpansion.csv",
       "role": "combined_dsc_electrical_resistance_thermal_expansion_table",
-      "expected_size_bytes": 1788024,
+      "expected_size_bytes": null,
       "checksum_algorithm": "md5",
       "checksum": "174931eb55f16ee3d27ce2fdb257e4f8"
     },
     {
       "filename": "ReadMe.txt",
       "role": "source_readme",
-      "expected_size_bytes": 1656,
+      "expected_size_bytes": null,
       "checksum_algorithm": "md5",
       "checksum": "c00c813ba71fdd320cb554b150111132"
     }
