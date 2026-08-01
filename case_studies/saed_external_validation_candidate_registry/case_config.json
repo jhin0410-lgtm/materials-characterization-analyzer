@@ -1,0 +1,100 @@
+{
+  "case_id": "saed_external_validation_candidate_registry",
+  "schema_version": "1.0",
+  "search_snapshot": {
+    "search_date": "2026-08-01",
+    "repositories_searched": [
+      "Indiana University DataCORE",
+      "Zenodo",
+      "Dryad",
+      "Figshare",
+      "EMPIAR"
+    ],
+    "search_terms": [
+      "raw calibrated SAED diffraction dataset DM4 EMD camera length open data",
+      "SAED raw data DM4 zone axis dataset",
+      "selected area electron diffraction raw dataset",
+      "TEM diffraction pattern DM4 open data"
+    ]
+  },
+  "target_contract": {
+    "task": "external validation of SAED ring or spot candidate detection and calibrated d-spacing output",
+    "required_representation": [
+      "raw_detector",
+      "demonstrably_lossless_export"
+    ],
+    "minimum_independent_patterns_or_acquisitions": 2,
+    "required_metadata": [
+      "stable source version and reuse authorization",
+      "material and sample identity",
+      "acquisition identity",
+      "accelerating voltage",
+      "camera length or traceable camera constant",
+      "detector metadata when relevant",
+      "source-supported or reproducibly calibrated pattern center"
+    ],
+    "reference_policy": "freeze source-author assignments or an independently curated indexing protocol before comparing phase, reflection, or zone-axis results"
+  },
+  "candidates": [
+    {
+      "candidate_id": "iu_datacore_4j03d088v_chromium_telluride_saed",
+      "repository": "Indiana University DataCORE",
+      "doi": "10.5967/ct7n-8275",
+      "record_url": "https://datacore.iu.edu/concern/data_sets/4j03d088v",
+      "title": "Data for \"Probing stress and magnetism at high pressures with two-dimensional quantum sensors\"",
+      "materials": [
+        "chromium telluride nanoplates"
+      ],
+      "modalities": [
+        "TEM",
+        "SAED"
+      ],
+      "reported_zone_axes": [
+        "[001]",
+        "[112]"
+      ],
+      "file_inventory_status": "landing_page_only",
+      "reported_archive_filename": "Diffraction_Pattern.zip",
+      "reported_dataset_file_count": 3,
+      "reported_dataset_size_bytes": null,
+      "raw_or_lossless_diffraction_files_reported": true,
+      "reported_file_formats": [
+        "DM4",
+        "TIFF"
+      ],
+      "archive_checksum_verified": false,
+      "member_checksums_verified": false,
+      "reuse_license": "CC-BY-4.0",
+      "reuse_license_verified": true,
+      "material_identity_available": true,
+      "sample_identity_available": false,
+      "acquisition_identity_available": false,
+      "accelerating_voltage_available": false,
+      "camera_length_or_constant_available": false,
+      "detector_metadata_available": false,
+      "pattern_center_available": false,
+      "independent_pattern_count_verified": false,
+      "source_author_assignments_available": "reported zone axes only; reflection inventory not yet audited",
+      "status": "promising_pending_raw_file_audit",
+      "source_evidence": [
+        "The official DataCORE landing page reports raw TEM diffraction data for chromium telluride nanoplates.",
+        "The methodology states that SAED patterns were recorded along [001] and [112] zone axes.",
+        "The description states that diffraction data are supplied as TIFF images and original Gatan DM4 files.",
+        "The record has DOI 10.5967/ct7n-8275 and a CC BY 4.0 license."
+      ],
+      "blocking_evidence": [
+        "The landing page does not expose an archive checksum or per-member checksums.",
+        "Accelerating voltage, camera length, detector metadata, pattern center, immutable sample IDs, and acquisition IDs are not established by the landing-page metadata.",
+        "The independence of the two stated zone-axis patterns has not been verified.",
+        "The DM4-to-TIFF relationship and preservation of original intensity values have not been audited."
+      ],
+      "next_validation_step": "Download Diffraction_Pattern.zip through the DataCORE file panel, bind the archive and every member by SHA-256, inspect DM4 metadata without modifying arrays, compare DM4 and TIFF representations, and verify at least two independent acquisitions before creating a real-data validation case."
+    }
+  ],
+  "registry_decision": {
+    "eligible_for_external_validation_now": false,
+    "best_current_candidate_id": "iu_datacore_4j03d088v_chromium_telluride_saed",
+    "next_action": "perform checksum-bound raw-file and metadata audit",
+    "scientific_boundary": "Do not tune center, smoothing, prominence, radius bounds, or candidate count against the reported zone axes. No phase, reflection, zone-axis, d-spacing accuracy, or engineering claim is allowed before the raw-file audit and protocol freeze."
+  }
+}
