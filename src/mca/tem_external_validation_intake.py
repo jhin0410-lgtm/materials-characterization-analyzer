@@ -291,6 +291,7 @@ class EvaluationProtocol:
     label_content_audit_status: str
     content_overlap_audit_status: str
     test_manifest_checksum_frozen: bool
+    frozen_manifest_sha256: str | None
     metrics_frozen: bool
     confidence_interval_method_frozen: bool
     exclusion_rules_frozen: bool
@@ -304,6 +305,7 @@ class EvaluationProtocol:
             "label_content_audit_status",
             "content_overlap_audit_status",
             "test_manifest_checksum_frozen",
+            "frozen_manifest_sha256",
             "metrics_frozen",
             "confidence_interval_method_frozen",
             "exclusion_rules_frozen",
@@ -326,6 +328,10 @@ class EvaluationProtocol:
             test_manifest_checksum_frozen=_boolean(
                 payload, "test_manifest_checksum_frozen"
             ),
+            frozen_manifest_sha256=_optional_sha256(
+                payload.get("frozen_manifest_sha256"),
+                "frozen_manifest_sha256",
+            ),
             metrics_frozen=_boolean(payload, "metrics_frozen"),
             confidence_interval_method_frozen=_boolean(
                 payload, "confidence_interval_method_frozen"
@@ -335,6 +341,14 @@ class EvaluationProtocol:
                 payload.get("frozen_protocol_id"), "frozen_protocol_id"
             ),
         )
+        if protocol.test_manifest_checksum_frozen and protocol.frozen_manifest_sha256 is None:
+            raise IntakeContractError(
+                "frozen_manifest_sha256 is required when test_manifest_checksum_frozen is true"
+            )
+        if not protocol.test_manifest_checksum_frozen and protocol.frozen_manifest_sha256 is not None:
+            raise IntakeContractError(
+                "frozen_manifest_sha256 must be null until test_manifest_checksum_frozen is true"
+            )
         if protocol.all_freeze_flags and protocol.frozen_protocol_id is None:
             raise IntakeContractError(
                 "frozen_protocol_id is required when all protocol fields are frozen"
@@ -372,6 +386,7 @@ class IntakeManifest:
     images: tuple[ImageRecord, ...]
     annotations: tuple[AnnotationRecord, ...]
     evaluation_protocol: EvaluationProtocol
+    computed_manifest_sha256: str
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any]) -> "IntakeManifest":
@@ -413,6 +428,7 @@ class IntakeManifest:
             evaluation_protocol=EvaluationProtocol.from_mapping(
                 _mapping(payload, "evaluation_protocol")
             ),
+            computed_manifest_sha256=compute_intake_manifest_sha256(payload),
         )
         manifest.validate()
         return manifest
@@ -424,6 +440,19 @@ class IntakeManifest:
             )
         _unique([image.image_id for image in self.images], "image_id")
         _unique([annotation.annotation_id for annotation in self.annotations], "annotation_id")
+        _unique(
+            [annotation.relative_path for annotation in self.annotations],
+            "annotation relative_path",
+        )
+        protocol = self.evaluation_protocol
+        if (
+            protocol.test_manifest_checksum_frozen
+            and protocol.frozen_manifest_sha256 != self.computed_manifest_sha256
+        ):
+            raise IntakeContractError(
+                "frozen_manifest_sha256 does not match the canonical manifest SHA-256: "
+                f"{protocol.frozen_manifest_sha256} != {self.computed_manifest_sha256}"
+            )
         image_ids = {image.image_id for image in self.images}
         unknown = sorted(
             {annotation.image_id for annotation in self.annotations} - image_ids
@@ -435,10 +464,38 @@ class IntakeManifest:
 
 
 def load_intake_manifest(path: str | Path) -> IntakeManifest:
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload = json.loads(
+        Path(path).read_text(encoding="utf-8"),
+        object_pairs_hook=_strict_json_object,
+    )
     if not isinstance(payload, Mapping):
         raise IntakeContractError("manifest must contain a JSON object")
     return IntakeManifest.from_mapping(payload)
+
+
+def compute_intake_manifest_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the canonical manifest digest used by the protocol-freeze gate.
+
+    The self-referential checksum field and its declaration boolean are normalized
+    before hashing. All dataset, image, annotation, audit, metric, exclusion, and
+    protocol-ID fields remain bound by the digest.
+    """
+
+    canonical = json.loads(json.dumps(payload, ensure_ascii=False))
+    if not isinstance(canonical, dict):
+        raise IntakeContractError("manifest must contain a JSON object")
+    protocol = canonical.get("evaluation_protocol")
+    if not isinstance(protocol, dict):
+        raise IntakeContractError("evaluation_protocol must be an object")
+    protocol["test_manifest_checksum_frozen"] = False
+    protocol["frozen_manifest_sha256"] = None
+    encoded = json.dumps(
+        canonical,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def run_external_validation_intake(
@@ -452,7 +509,6 @@ def run_external_validation_intake(
     output = _prepare_output(output_dir)
     try:
         file_rows: list[dict[str, Any]] = []
-        image_hashes: Counter[str] = Counter()
         for image in manifest.images:
             record = _verify_local_file(
                 root,
@@ -461,7 +517,6 @@ def run_external_validation_intake(
                 role="image",
                 record_id=image.image_id,
             )
-            image_hashes[record["sha256"]] += 1
             file_rows.append(
                 {
                     **record,
@@ -491,21 +546,22 @@ def run_external_validation_intake(
             )
 
         active_images = [image for image in manifest.images if not image.excluded]
+        active_image_ids = {image.image_id for image in active_images}
+        active_annotations = [
+            annotation
+            for annotation in manifest.annotations
+            if annotation.image_id in active_image_ids
+        ]
+        active_image_hashes = Counter(image.sha256 for image in active_images)
         duplicate_active_content = sum(
-            count - 1
-            for digest, count in image_hashes.items()
-            if count > 1
-            and any(
-                image.sha256 == digest and not image.excluded
-                for image in manifest.images
-            )
+            count - 1 for count in active_image_hashes.values() if count > 1
         )
         gates = _evaluate_gates(
             manifest,
             active_images=active_images,
             duplicate_active_content=duplicate_active_content,
         )
-        decision = _decision(gates, annotations_present=bool(manifest.annotations))
+        decision = _decision(gates, annotations_present=bool(active_annotations))
         summary: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "case_id": CASE_ID,
@@ -526,7 +582,14 @@ def run_external_validation_intake(
                     {image.acquisition_id for image in active_images}
                 ),
                 "annotation_count": len(manifest.annotations),
+                "active_annotation_count": len(active_annotations),
                 "duplicate_active_image_content_count": duplicate_active_content,
+            },
+            "manifest_identity": {
+                "computed_manifest_sha256": manifest.computed_manifest_sha256,
+                "frozen_manifest_sha256": (
+                    manifest.evaluation_protocol.frozen_manifest_sha256
+                ),
             },
             "evidence_gates": gates,
             "decision": decision,
@@ -647,12 +710,16 @@ def _evaluate_gates(
             and not record.used_for_model_development
         }
         versions = {record.label_definition_version for record in records}
+        all_records_clean = bool(records) and all(
+            record.blinded_to_model_predictions
+            and not record.used_for_model_development
+            for record in records
+        )
         complete = (
-            len(unique_blinded_labelers)
+            all_records_clean
+            and len(unique_blinded_labelers)
             >= dataset.minimum_independent_blinded_labelers
             and len(consensus) == 1
-            and consensus[0].blinded_to_model_predictions
-            and not consensus[0].used_for_model_development
             and len(versions) == 1
         )
         complete_images += int(complete)
@@ -663,17 +730,12 @@ def _evaluate_gates(
             ),
             "adjudicated_consensus_count": len(consensus),
             "label_definition_version_count": len(versions),
+            "all_annotations_blinded_and_model_development_nonuse": all_records_clean,
             "complete": complete,
         }
 
     annotations_complete = bool(active_images) and complete_images == len(active_images)
     protocol = manifest.evaluation_protocol
-    protocol_ready = (
-        annotations_complete
-        and protocol.all_audits_passed
-        and protocol.all_freeze_flags
-        and protocol.frozen_protocol_id is not None
-    )
     annotation_pilot_ready = all(
         (
             exact_material,
@@ -687,6 +749,18 @@ def _evaluate_gates(
             image_nonuse_gate,
             duplicate_gate,
         )
+    )
+    frozen_manifest_bound = (
+        protocol.test_manifest_checksum_frozen
+        and protocol.frozen_manifest_sha256 == manifest.computed_manifest_sha256
+    )
+    protocol_ready = (
+        annotation_pilot_ready
+        and annotations_complete
+        and protocol.all_audits_passed
+        and protocol.all_freeze_flags
+        and frozen_manifest_bound
+        and protocol.frozen_protocol_id is not None
     )
 
     unresolved: list[str] = []
@@ -715,7 +789,10 @@ def _evaluate_gates(
         "content_overlap_audit_passed": (
             protocol.content_overlap_audit_status == "passed"
         ),
-        "evaluation_protocol_frozen": protocol.all_freeze_flags,
+        "frozen_manifest_sha256_matches": frozen_manifest_bound,
+        "evaluation_protocol_frozen": (
+            protocol.all_freeze_flags and frozen_manifest_bound
+        ),
         "predeclared_external_evaluation_ready": protocol_ready,
     }
     unresolved.extend(key for key, passed in checks.items() if not passed)
@@ -968,6 +1045,26 @@ def _integer(payload: Mapping[str, Any], key: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise IntakeContractError(f"{key} must be an integer")
     return value
+
+
+def _optional_sha256(value: Any, key: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise IntakeContractError(f"{key} must be null or a SHA-256 string")
+    normalized = value.strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", normalized):
+        raise IntakeContractError(f"{key} must contain 64 lowercase hexadecimal characters")
+    return normalized
+
+
+def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise IntakeContractError(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
 
 
 def _optional_positive_float(value: Any, key: str) -> float | None:
