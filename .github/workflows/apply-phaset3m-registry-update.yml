@@ -1,0 +1,403 @@
+name: Apply PhaseT3M registry integration
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/apply-phaset3m-registry-update.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/audit-phaset3m-co3o4-candidate
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Integrate processed exact-material candidate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import textwrap
+
+          def replace_once(text: str, old: str, new: str, context: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{context}: expected one match, found {count}")
+              return text.replace(old, new)
+
+          engine_path = Path("src/mca/tem_external_validation_candidate_registry_engine.py")
+          engine = engine_path.read_text(encoding="utf-8")
+          engine = replace_once(
+              engine,
+              'ANNOTATION_PILOT = "annotation_pilot_candidate_not_validation_ready"\nCROSS_PHASE = "cross_phase_annotation_candidate_not_in_domain"\n',
+              'ANNOTATION_PILOT = "annotation_pilot_candidate_not_validation_ready"\nPROCESSED_IN_DOMAIN = "processed_in_domain_diagnostic_only"\nCROSS_PHASE = "cross_phase_annotation_candidate_not_in_domain"\n',
+              "status constant",
+          )
+          engine = replace_once(
+              engine,
+              '''    rendered_exclusion = (
+                  candidate.imaging_domain_relation == "rendered_mixed_heterojunction_figure_images"
+              )
+              annotation_contract_satisfied = all(
+          ''',
+              '''    rendered_exclusion = (
+                  candidate.imaging_domain_relation == "rendered_mixed_heterojunction_figure_images"
+              )
+              processed_in_domain = all(
+                  (
+                      exact_target,
+                      has_tem_modality,
+                      not candidate.raw_or_lossless_tem_images_available,
+                      candidate.file_inventory_status in _RESOLVED_INVENTORIES,
+                      not rendered_exclusion,
+                  )
+              )
+              annotation_contract_satisfied = all(
+          ''',
+              "processed candidate derivation",
+          )
+          engine = replace_once(
+              engine,
+              '''    elif rendered_exclusion:
+                  status, rank = EXCLUDED_REPRESENTATION, 15
+              elif candidate.file_inventory_status not in _RESOLVED_INVENTORIES:
+          ''',
+              '''    elif processed_in_domain:
+                  status, rank = PROCESSED_IN_DOMAIN, 12
+              elif rendered_exclusion:
+                  status, rank = EXCLUDED_REPRESENTATION, 15
+              elif candidate.file_inventory_status not in _RESOLVED_INVENTORIES:
+          ''',
+              "processed classification",
+          )
+          engine = replace_once(
+              engine,
+              '''        ANNOTATION_PILOT,
+                  EXCLUDED_REPRESENTATION,
+          ''',
+              '''        ANNOTATION_PILOT,
+                  PROCESSED_IN_DOMAIN,
+                  EXCLUDED_REPRESENTATION,
+          ''',
+              "recommendation preference",
+          )
+          engine = replace_once(
+              engine,
+              '''        "annotation_pilot_candidate_count": count(ANNOTATION_PILOT),
+                  "rendered_representation_exclusion_count": count(EXCLUDED_REPRESENTATION),
+          ''',
+              '''        "annotation_pilot_candidate_count": count(ANNOTATION_PILOT),
+                  "processed_in_domain_diagnostic_count": count(PROCESSED_IN_DOMAIN),
+                  "rendered_representation_exclusion_count": count(EXCLUDED_REPRESENTATION),
+          ''',
+              "processed count",
+          )
+          engine = replace_once(
+              engine,
+              '''                "strongest_evidence": (
+                              "Six public records were assessed against explicit material, modality, "
+                              "file, representation, lineage, label, non-use, and licence gates. The "
+                              "only Co3O4-containing lead resolves to rendered mixed-heterojunction "
+                              "figure images rather than an independent raw validation set."
+                          ),
+          ''',
+              '''                "strongest_evidence": (
+                              f"{len(rows)} public records were assessed against explicit material, "
+                              "modality, file, representation, lineage, label, non-use, and licence "
+                              "gates. Exact-material records remain blocked as target-source data, "
+                              "processed single-particle data, or representations without the "
+                              "lineage and labels required for independent validation."
+                          ),
+          ''',
+              "dynamic scientific closeout",
+          )
+          engine_path.write_text(engine, encoding="utf-8")
+
+          facade_path = Path("src/mca/tem_external_validation_candidate_registry.py")
+          facade = facade_path.read_text(encoding="utf-8")
+          facade = replace_once(
+              facade,
+              '    METADATA_RESOLUTION,\n    RESULT,\n',
+              '    METADATA_RESOLUTION,\n    PROCESSED_IN_DOMAIN,\n    RESULT,\n',
+              "facade import",
+          )
+          facade = replace_once(
+              facade,
+              '    "METADATA_RESOLUTION",\n    "RESULT",\n',
+              '    "METADATA_RESOLUTION",\n    "PROCESSED_IN_DOMAIN",\n    "RESULT",\n',
+              "facade export",
+          )
+          facade_path.write_text(facade, encoding="utf-8")
+
+          config_path = Path("case_studies/tem_external_validation_candidate_registry/case_config.json")
+          payload = json.loads(config_path.read_text(encoding="utf-8"))
+          payload["search_snapshot"]["search_date"] = "2026-08-02"
+          term = "Co3O4 electron tomography raw tilt series"
+          if term not in payload["search_snapshot"]["search_terms"]:
+              payload["search_snapshot"]["search_terms"].append(term)
+          candidate_id = "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
+          if any(item["candidate_id"] == candidate_id for item in payload["candidates"]):
+              raise SystemExit("PhaseT3M candidate already exists")
+          payload["candidates"].append(
+              {
+                  "candidate_id": candidate_id,
+                  "repository": "Zenodo",
+                  "doi": "10.5281/zenodo.17336678",
+                  "record_url": "https://zenodo.org/records/17336678",
+                  "title": "PhaseT3M: 3D Imaging at 1.6 Å Resolution via Electron Cryo-Tomography with Nonlinear Phase Retrieval",
+                  "materials": ["Co3O4 nanoparticle"],
+                  "modalities": ["TEM", "HRTEM", "electron tomography"],
+                  "file_inventory_status": "exact",
+                  "file_checksums_available": True,
+                  "raw_or_lossless_tem_images_available": False,
+                  "reported_tem_file_count": 1,
+                  "independent_segmentation_labels_available": False,
+                  "label_origin": "no independent segmentation labels reported",
+                  "labeler_count": None,
+                  "immutable_sample_ids_available": False,
+                  "immutable_acquisition_ids_available": False,
+                  "verified_not_used_for_target_training_or_model_selection": False,
+                  "target_creator_name_overlap": True,
+                  "target_material_relation": "exact_cobalt_oxide",
+                  "imaging_domain_relation": "material_or_acquisition_domain_shift",
+                  "reuse_license": "dataset record does not explicitly declare a data reuse licence; GPL-3.0 is stated for code only",
+                  "reuse_license_verified": False,
+                  "target_training_source": False,
+                  "source_evidence": [
+                      "Official Zenodo metadata describes an approximately 7 nm Co3O4 nanoparticle and a 501 MB raw_tilt_data.zip archive with MD5 efb1e487aedbafa7c0822e0d31968d05.",
+                      "The source states that released tilt series were motion-corrected and tilt-aligned, and names the relevant member Co3O4_denoised_tilt_series.h5.",
+                      "The checksum-bound audit inspects the unique HDF5 member but preserves the source declaration that the representation is denoised and processed rather than raw detector data.",
+                      "Min Gee Cho and Mary Scott overlap the target cobalt-oxide training-source creators, so repository separation does not establish model-development independence."
+                  ],
+                  "next_validation_step": "Use only for processed exact-material HDF5 and robustness diagnostics. Request raw detector frames, immutable sample/acquisition lineage, explicit data reuse terms, and an independent multi-sample source before blinded annotation or model evaluation.",
+                  "blinded_labeling_verified": False,
+                  "adjudicated_consensus_available": False
+              }
+          )
+          config_path.write_text(
+              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+
+          tests_path = Path("tests/test_tem_external_validation_candidate_registry.py")
+          tests = tests_path.read_text(encoding="utf-8")
+          tests = replace_once(
+              tests,
+              '    EXCLUDED_REPRESENTATION,\n    RESULT,\n',
+              '    EXCLUDED_REPRESENTATION,\n    PROCESSED_IN_DOMAIN,\n    RESULT,\n',
+              "test import",
+          )
+          tests = replace_once(
+              tests,
+              '''    assert summary["result_counts"] == {
+                  "candidate_count": 6,
+                  "in_domain_external_validation_ready_count": 0,
+                  "metadata_resolution_candidate_count": 0,
+                  "annotation_pilot_candidate_count": 0,
+                  "rendered_representation_exclusion_count": 1,
+                  "cross_phase_candidate_count": 1,
+                  "diagnostic_cross_material_candidate_count": 1,
+                  "excluded_control_count": 3,
+              }
+              assert summary["readiness"]["recommended_candidate_id"] == (
+                  "mendeley_8w66synjmx_cop_co2p_co3o4"
+              )
+              assert summary["readiness"]["recommended_candidate_status"] == (
+                  EXCLUDED_REPRESENTATION
+              )
+          ''',
+              '''    assert summary["result_counts"] == {
+                  "candidate_count": 7,
+                  "in_domain_external_validation_ready_count": 0,
+                  "metadata_resolution_candidate_count": 0,
+                  "annotation_pilot_candidate_count": 0,
+                  "processed_in_domain_diagnostic_count": 1,
+                  "rendered_representation_exclusion_count": 1,
+                  "cross_phase_candidate_count": 1,
+                  "diagnostic_cross_material_candidate_count": 1,
+                  "excluded_control_count": 3,
+              }
+              assert summary["readiness"]["recommended_candidate_id"] == (
+                  "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
+              )
+              assert summary["readiness"]["recommended_candidate_status"] == (
+                  PROCESSED_IN_DOMAIN
+              )
+          ''',
+              "pinned result expectations",
+          )
+          tests = replace_once(
+              tests,
+              '''    assert printed["candidate_count"] == 6
+              assert printed["in_domain_external_validation_ready_count"] == 0
+              assert printed["recommended_candidate_id"] == (
+                  "mendeley_8w66synjmx_cop_co2p_co3o4"
+              )
+          ''',
+              '''    assert printed["candidate_count"] == 7
+              assert printed["in_domain_external_validation_ready_count"] == 0
+              assert printed["recommended_candidate_id"] == (
+                  "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
+              )
+          ''',
+              "CLI expectations",
+          )
+          tests = replace_once(
+              tests,
+              '''            "annotation_pilot_candidate_count",
+                          "rendered_representation_exclusion_count",
+          ''',
+              '''            "annotation_pilot_candidate_count",
+                          "processed_in_domain_diagnostic_count",
+                          "rendered_representation_exclusion_count",
+          ''',
+              "count reconciliation",
+          )
+          marker = '''def test_training_source_is_explicitly_excluded(tmp_path: Path) -> None:
+          '''
+          addition = '''def test_phaset3m_processed_exact_material_is_diagnostic_only(
+              tmp_path: Path,
+          ) -> None:
+              output = tmp_path / "out"
+              run_candidate_registry(load_registry_config(CONFIG), output)
+              inventory = (output / "tem_external_validation_candidate_inventory.csv").read_text(
+                  encoding="utf-8"
+              )
+              row = next(
+                  line
+                  for line in inventory.splitlines()
+                  if line.startswith(
+                      "zenodo_17336678_phaset3m_co3o4_processed_tilt_series,"
+                  )
+              )
+              assert f",{PROCESSED_IN_DOMAIN}," in row
+              assert "raw_or_lossless_tem_images_unavailable" in row
+              assert "only" not in row.casefold() or "evaluation_ready,False" not in row
+
+
+          '''
+          if tests.count(marker) != 1:
+              raise SystemExit("test insertion marker mismatch")
+          tests = tests.replace(marker, addition + marker)
+          tests_path.write_text(tests, encoding="utf-8")
+
+          registry_readme = textwrap.dedent('''\
+          # TEM External-Validation Candidate Registry
+
+          This case study records a dated public-source search for an untouched cobalt-oxide TEM/HRTEM segmentation evaluation set.
+
+          It deliberately separates:
+
+          - exact target training/source data, which cannot be reused as external validation;
+          - exact-material but processed single-particle data, which support only ingestion and robustness diagnostics;
+          - target-containing rendered publication figures, which are not raw detector data;
+          - human-labeled HRTEM data from other materials, which can support only cross-material diagnostics;
+          - cobalt-phase or cobalt-oxide data from incompatible materials or microscopy modalities.
+
+          Run:
+
+          ```bash
+          mca tem-candidates \\
+            --config case_studies/tem_external_validation_candidate_registry/case_config.json \\
+            --output outputs/tem_external_validation_candidate_registry
+          ```
+
+          Outputs:
+
+          - `tem_external_validation_candidate_inventory.csv`
+          - `tem_external_validation_candidate_summary.json`
+          - `tem_external_validation_candidate_report.md`
+          - `tem_external_validation_annotation_protocol.json`
+          - `tem_external_validation_candidate_manifest.json`
+
+          ## Source snapshot
+
+          The registry was refreshed on 2026-08-02 from official repository records and checksum-bound audits:
+
+          - Zenodo `10.5281/zenodo.14927582`: target cobalt-oxide TEM source and training files; excluded as the target source.
+          - Zenodo `10.5281/zenodo.17336678`: one Co3O4 nanoparticle tilt series in `Co3O4_denoised_tilt_series.h5`; exact-material but motion-corrected, tilt-aligned, denoised, single-particle, creator-overlapping, and not independently labeled.
+          - Dryad `10.7941/D1SP93`: Au/Ag/CdSe HRTEM image-label pairs; single human labeler and cross-material only.
+          - Mendeley Data `10.17632/8w66synjmx.1`: resolved CoP/Co2P/Co3O4 archive containing rendered RGB publication figures rather than raw detector data.
+          - Zenodo `10.5281/zenodo.14868077`: low-dose cobalt-hydroxide/ionomer cryo-TEM TIFF files; no segmentation labels and not exact Co3O4.
+          - Zenodo `10.5281/zenodo.11161891`: cobalt-tungstate STEM/TEM files; cross-phase only.
+          - Zenodo `10.5281/zenodo.7941248`: Co3O4 SEM/XPS/HAXPES data; excluded for wrong modality.
+
+          This is a time-bounded and non-exhaustive search snapshot. Repository or author separation alone does not prove sample/acquisition independence.
+
+          Readiness requires an exact resolved file inventory, checksum coverage, raw or demonstrably lossless TEM/HRTEM representation, at least two independently blinded labelers, adjudicated consensus, immutable sample/acquisition IDs, verified model-development non-use, a verified licence, and no target-source or creator overlap.
+
+          ## Current conclusion
+
+          No assessed public candidate is ready for in-domain external validation. The PhaseT3M record is the best exact-material processed diagnostic source, not an evaluation set. It can test HDF5 ingestion and processed-representation robustness, but its single-particle, denoised state and creator overlap prevent annotation or performance claims.
+
+          The highest-priority evidence action remains acquisition of author-released or independently generated raw Co3O4 TEM/HRTEM data with at least two samples and acquisitions, immutable lineage, explicit reuse terms, verified target-model non-use, and independent blinded labels. The emitted annotation protocol is a template only and must not be frozen around the PhaseT3M source.
+
+          ## Readiness integration
+
+          After generating the registry, pass its summary to the consolidated readiness command:
+
+          ```bash
+          mca tem-readiness \\
+            --training-summary path/to/training_data_readiness_summary.json \\
+            --parent-overlap-summary path/to/parent_overlap_audit_summary.json \\
+            --candidate-registry-summary outputs/tem_external_validation_candidate_registry/tem_external_validation_candidate_summary.json \\
+            --output outputs/tem_segmentation_readiness_with_registry
+          ```
+
+          The registry refines the next action but cannot by itself grant scientific evaluation readiness.
+          ''')
+          Path("case_studies/tem_external_validation_candidate_registry/README.md").write_text(
+              registry_readme, encoding="utf-8"
+          )
+
+          root_readme_path = Path("README.md")
+          root_readme = root_readme_path.read_text(encoding="utf-8")
+          root_readme = replace_once(
+              root_readme,
+              '- `case_studies/public_finds_saed/`: calibrated FINDS SAED real-image diagnostic case.\n',
+              '- `case_studies/public_finds_saed/`: calibrated FINDS SAED real-image diagnostic case.\n- `case_studies/phaset3m_co3o4_candidate_audit/`: checksum-bound processed Co3O4 tilt-series diagnostic audit; not external segmentation validation.\n',
+              "root README case list",
+          )
+          root_readme_path.write_text(root_readme, encoding="utf-8")
+
+          changelog_path = Path("CHANGELOG.md")
+          changelog = changelog_path.read_text(encoding="utf-8")
+          changelog = replace_once(
+              changelog,
+              '## [Unreleased]\n\n### Fixed\n',
+              '## [Unreleased]\n\n### Added\n\n- A checksum-bound PhaseT3M Co3O4 tilt-series candidate audit that safely inventories the Zenodo ZIP, inspects the unique HDF5 member, records source processing, and excludes raw files from evidence artifacts.\n- A separate `processed_in_domain_diagnostic_only` registry state so exact-material denoised or otherwise processed microscopy cannot be mistaken for raw external-validation data.\n\n### Fixed\n',
+              "changelog unreleased",
+          )
+          changelog_path.write_text(changelog, encoding="utf-8")
+
+          Path(".github/workflows/apply-phaset3m-registry-update.yml").unlink()
+          PY
+
+      - name: Run focused and full validation
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m compileall -q src/mca scripts/audit_phaset3m_co3o4_candidate.py
+          pytest -q \
+            tests/test_phaset3m_co3o4_candidate_audit.py \
+            tests/test_tem_external_validation_candidate_registry.py
+          pytest -q
+          python -m build
+
+      - name: Commit and push integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Integrate PhaseT3M Co3O4 diagnostic candidate"
+          git push origin HEAD:agent/audit-phaset3m-co3o4-candidate
