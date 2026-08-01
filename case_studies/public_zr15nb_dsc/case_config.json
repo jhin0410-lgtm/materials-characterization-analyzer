@@ -85,6 +85,7 @@
     "smoothing_polyorder": 3,
     "prominence_fraction": 0.08,
     "minimum_candidate_separation_c": 10.0,
+    "robustness_temperature_tolerance_c": 10.0,
     "parameter_selection_status": "predeclared_diagnostic_not_fitted_to_article_intervals"
   },
   "unresolved_metadata": {
