@@ -41,6 +41,7 @@
     "label_content_audit_status": "not_run",
     "content_overlap_audit_status": "not_run",
     "test_manifest_checksum_frozen": false,
+    "frozen_manifest_sha256": null,
     "metrics_frozen": false,
     "confidence_interval_method_frozen": false,
     "exclusion_rules_frozen": false,
