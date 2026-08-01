@@ -6,6 +6,7 @@ on:
     paths:
       - "case_studies/tem_external_validation_candidate_registry/**"
       - "src/mca/tem_external_validation_candidate_registry.py"
+      - "src/mca/tem_external_validation_candidate_registry_engine.py"
       - "src/mca/tem_external_validation_candidate_registry_cli.py"
       - "src/mca/tem_candidate_registry_readiness.py"
       - "src/mca/tem_segmentation_readiness_cli.py"
@@ -63,9 +64,19 @@ jobs:
           assert summary["result_counts"][
               "in_domain_external_validation_ready_count"
           ] == 0
+          assert summary["result_counts"]["metadata_resolution_candidate_count"] == 0
+          assert summary["result_counts"][
+              "rendered_representation_exclusion_count"
+          ] == 1
           assert summary["readiness"]["recommended_candidate_id"] == (
               "mendeley_8w66synjmx_cop_co2p_co3o4"
           )
+          assert summary["readiness"]["recommended_candidate_status"] == (
+              "excluded_rendered_figure_representation"
+          )
+          assert "Acquire or obtain" in summary["readiness"][
+              "recommended_next_action"
+          ]
           manifest = json.loads(
               (output / "tem_external_validation_candidate_manifest.json").read_text(
                   encoding="utf-8"
