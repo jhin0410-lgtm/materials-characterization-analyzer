@@ -114,9 +114,12 @@ The primary run detected four automatic ring candidates:
 | 4 | `502.46939` | `0.116923` | `1.98866` |
 
 All four primary candidates matched one-to-one in all six sensitivity runs. No
-unmatched sensitivity candidate remained. This demonstrates parameter-level
-radius stability for this rendered example only; it does not validate the ring
-as a reflection or phase.
+unmatched sensitivity candidate remained. The workflow verifier pins the four
+primary radii and calibrated d-spacings with explicit absolute tolerances,
+requires exactly four candidates in every run, and fails if any primary loses a
+sensitivity match or any unmatched candidate appears. This demonstrates
+parameter-level radius stability for this rendered example only; it does not
+validate the ring as a reflection or phase.
 
 The first three in-range source d-values have nearby detected candidates after
 detection. The `1.011 Å` and `0.902 Å` references imply radii beyond the declared

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -18,6 +19,15 @@ EXPECTED_RUN_IDS = {
     "center_p0_m2",
     "center_p0_p2",
 }
+EXPECTED_PRIMARY_CANDIDATES = (
+    (1, 108.45621, 0.541693),
+    (2, 289.46752, 0.202959),
+    (3, 410.46660, 0.143130),
+    (4, 502.46939, 0.116923),
+)
+EXPECTED_PRIMARY_CANDIDATE_COUNT = len(EXPECTED_PRIMARY_CANDIDATES)
+PRIMARY_RADIUS_ABS_TOLERANCE_PX = 1e-4
+PRIMARY_D_SPACING_ABS_TOLERANCE_NM = 1e-6
 
 
 class VerificationError(AssertionError):
@@ -41,6 +51,38 @@ def _verify_manifest(base: Path, manifest: Mapping[str, Any]) -> None:
         _require(
             hashlib.sha256(payload).hexdigest() == record["sha256"],
             f"artifact SHA-256 drift: {path}",
+        )
+
+
+def _verify_pinned_primary_candidates(primary: pd.DataFrame) -> None:
+    _require(
+        len(primary) == EXPECTED_PRIMARY_CANDIDATE_COUNT,
+        "primary candidate count drift",
+    )
+    ordered = primary.sort_values("radius_px").reset_index(drop=True)
+    for observed, (ring_id, radius_px, d_spacing_nm) in zip(
+        ordered.to_dict(orient="records"),
+        EXPECTED_PRIMARY_CANDIDATES,
+        strict=True,
+    ):
+        _require(int(observed["ring_id"]) == ring_id, f"primary ring ID drift: {ring_id}")
+        _require(
+            math.isclose(
+                float(observed["radius_px"]),
+                radius_px,
+                rel_tol=0.0,
+                abs_tol=PRIMARY_RADIUS_ABS_TOLERANCE_PX,
+            ),
+            f"primary radius drift for ring {ring_id}",
+        )
+        _require(
+            math.isclose(
+                float(observed["d_spacing_nm"]),
+                d_spacing_nm,
+                rel_tol=0.0,
+                abs_tol=PRIMARY_D_SPACING_ABS_TOLERANCE_NM,
+            ),
+            f"primary d-spacing drift for ring {ring_id}",
         )
 
 
@@ -152,12 +194,21 @@ def verify(audit_output: Path, result_output: Path) -> dict[str, Any]:
         )
 
     review = summary["candidate_robustness"]
-    _require(review["primary_candidate_count"] == len(robustness), "primary robustness count")
-    _require(review["all_runs_matched_count"] <= review["primary_candidate_count"], "matched count")
     _require(
-        review["unmatched_sensitivity_candidate_count"] == len(unmatched),
-        "unmatched sensitivity count",
+        review["primary_candidate_count"] == EXPECTED_PRIMARY_CANDIDATE_COUNT,
+        "pinned primary robustness count",
     )
+    _require(len(robustness) == EXPECTED_PRIMARY_CANDIDATE_COUNT, "primary robustness rows")
+    _require(
+        review["all_runs_matched_count"] == EXPECTED_PRIMARY_CANDIDATE_COUNT,
+        "all-runs matched count drift",
+    )
+    _require(robustness["all_runs_matched"].all(), "primary candidate lost sensitivity match")
+    _require(
+        review["unmatched_sensitivity_candidate_count"] == 0,
+        "unmatched sensitivity candidate count drift",
+    )
+    _require(len(unmatched) == 0, "unmatched sensitivity candidate rows")
     _require(not review["raw_analyzer_candidate_tables_modified"], "candidate table modified")
     _require(not review["candidate_acceptance_or_rejection_performed"], "candidate accepted")
     source_context = summary["source_d_value_context"]
@@ -181,11 +232,17 @@ def verify(audit_output: Path, result_output: Path) -> dict[str, Any]:
     _require(not references["reference_used_for_detection_tuning"].any(), "reference tuning flag")
     _require(not references["material_or_phase_identity_assigned"].any(), "reference assignment flag")
     _require(set(candidates["run_id"]) == EXPECTED_RUN_IDS, "candidate run IDs")
+    candidate_counts = candidates.groupby("run_id").size().to_dict()
+    _require(
+        candidate_counts == {run_id: EXPECTED_PRIMARY_CANDIDATE_COUNT for run_id in EXPECTED_RUN_IDS},
+        "per-run candidate count drift",
+    )
+    primary = candidates[candidates["run_id"] == "primary"]
+    _verify_pinned_primary_candidates(primary)
 
     _verify_manifest(audit_output, audit_manifest)
     _verify_manifest(result_output, manifest)
 
-    primary = candidates[candidates["run_id"] == "primary"]
     return {
         "status": readiness["status"],
         "source_counts": counts,

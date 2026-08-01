@@ -14,6 +14,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 import run_public_finds_saed_case as case  # noqa: E402
+import verify_public_finds_saed_case as verifier  # noqa: E402
 
 
 def _config() -> dict:
@@ -182,3 +183,44 @@ def test_source_d_value_comparison_is_post_detection_context_only() -> None:
     assert comparison["nearest_detected_ring_id"].tolist() == [1, 2]
     assert not comparison["reference_used_for_detection_tuning"].any()
     assert not comparison["material_or_phase_identity_assigned"].any()
+
+
+
+def test_verifier_pins_primary_candidate_count_radii_and_d_spacings() -> None:
+    primary = pd.DataFrame(
+        [
+            {"ring_id": ring_id, "radius_px": radius_px, "d_spacing_nm": d_spacing_nm}
+            for ring_id, radius_px, d_spacing_nm in verifier.EXPECTED_PRIMARY_CANDIDATES
+        ]
+    )
+    verifier._verify_pinned_primary_candidates(primary)
+
+
+@pytest.mark.parametrize(
+    ("column", "delta", "message"),
+    [
+        ("radius_px", 0.01, "primary radius drift"),
+        ("d_spacing_nm", 0.001, "primary d-spacing drift"),
+    ],
+)
+def test_verifier_rejects_primary_candidate_numerical_drift(
+    column: str,
+    delta: float,
+    message: str,
+) -> None:
+    rows = [
+        {"ring_id": ring_id, "radius_px": radius_px, "d_spacing_nm": d_spacing_nm}
+        for ring_id, radius_px, d_spacing_nm in verifier.EXPECTED_PRIMARY_CANDIDATES
+    ]
+    rows[0][column] += delta
+    with pytest.raises(verifier.VerificationError, match=message):
+        verifier._verify_pinned_primary_candidates(pd.DataFrame(rows))
+
+
+def test_verifier_rejects_missing_primary_candidate() -> None:
+    rows = [
+        {"ring_id": ring_id, "radius_px": radius_px, "d_spacing_nm": d_spacing_nm}
+        for ring_id, radius_px, d_spacing_nm in verifier.EXPECTED_PRIMARY_CANDIDATES[:-1]
+    ]
+    with pytest.raises(verifier.VerificationError, match="primary candidate count drift"):
+        verifier._verify_pinned_primary_candidates(pd.DataFrame(rows))
