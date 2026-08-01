@@ -17,6 +17,7 @@ from typing import Any, Mapping
 DATASET_IDS = ("8w66synjmx", "zhnbzhjrtr", "jz9dpgwwc3")
 BASE = "https://data.mendeley.com/public-api"
 ACCEPT_FILES = "application/vnd.mendeley-public-dataset.1+json, application/json"
+ROOT_FOLDER_VARIANTS = ("null", "undefined", "root", "0")
 
 
 def _fetch(url: str, accept: str = "application/json") -> dict[str, Any]:
@@ -101,6 +102,14 @@ def _folder_ids(payload: Any) -> list[str]:
     return sorted(found)
 
 
+def _file_call(dataset_id: str, folder_id: str) -> dict[str, Any]:
+    return _fetch(
+        f"{BASE}/datasets/{dataset_id}/files?"
+        + urllib.parse.urlencode({"folder_id": folder_id, "version": "1"}),
+        ACCEPT_FILES,
+    )
+
+
 def probe(output: Path) -> dict[str, Any]:
     datasets: list[dict[str, Any]] = []
     for dataset_id in DATASET_IDS:
@@ -118,12 +127,12 @@ def probe(output: Path) -> dict[str, Any]:
             ),
         }
         folder_ids = _folder_ids(calls["folders"].get("payload"))
+        root_variant_calls = {
+            variant: _file_call(dataset_id, variant)
+            for variant in (*ROOT_FOLDER_VARIANTS, dataset_id)
+        }
         folder_file_calls = {
-            folder_id: _fetch(
-                f"{BASE}/datasets/{dataset_id}/files?"
-                + urllib.parse.urlencode({"folder_id": folder_id, "version": "1"}),
-                ACCEPT_FILES,
-            )
+            folder_id: _file_call(dataset_id, folder_id)
             for folder_id in folder_ids[:100]
         }
         datasets.append(
@@ -131,6 +140,7 @@ def probe(output: Path) -> dict[str, Any]:
                 "dataset_id": dataset_id,
                 "calls": calls,
                 "folder_ids": folder_ids,
+                "root_variant_calls": root_variant_calls,
                 "folder_file_calls": folder_file_calls,
             }
         )
@@ -162,6 +172,10 @@ def main() -> int:
                         for name, record in dataset["calls"].items()
                     },
                     "folder_ids": dataset["folder_ids"],
+                    "root_variant_statuses": {
+                        variant: record["status"]
+                        for variant, record in dataset["root_variant_calls"].items()
+                    },
                     "folder_file_statuses": {
                         folder_id: record["status"]
                         for folder_id, record in dataset["folder_file_calls"].items()
