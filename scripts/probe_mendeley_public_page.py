@@ -96,12 +96,21 @@ def _sanitize(value: Any) -> Any:
     return value
 
 
+def _sanitize_url(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    return urllib.parse.urlunsplit(
+        (parsed.scheme, parsed.netloc, parsed.path, "", "")
+    )
+
+
 def _clues(text: str, dataset_id: str) -> dict[str, Any]:
     uuids = sorted(set(UUID_PATTERN.findall(text)))
     urls = sorted(
-        url.rstrip(".,);]")
-        for url in set(URL_PATTERN.findall(text))
-        if dataset_id in url or "mendeley" in url.lower()
+        {
+            _sanitize_url(url.rstrip(".,);]"))
+            for url in URL_PATTERN.findall(text)
+            if dataset_id in url or "mendeley" in url.lower()
+        }
     )
     endpoint_snippets: list[str] = []
     lowered = text.lower()
@@ -142,12 +151,12 @@ def probe(output: Path) -> dict[str, Any]:
             {
                 "dataset_id": dataset_id,
                 "status": status,
-                "final_url": final_url,
+                "final_url": _sanitize_url(final_url),
                 "content_type": headers.get("Content-Type", ""),
                 "bytes": len(body),
                 "sha256": hashlib.sha256(body).hexdigest(),
                 "script_count": len(script_urls),
-                "script_urls": script_urls,
+                "script_urls": [_sanitize_url(item) for item in script_urls],
                 "json_blocks": parser.json_blocks,
                 "clues": _clues(text, dataset_id),
             }
@@ -159,15 +168,17 @@ def probe(output: Path) -> dict[str, Any]:
             try:
                 asset_status, asset_final, asset_headers, asset_body = _fetch(script_url)
             except Exception as exc:  # diagnostic evidence, not a fatal source audit
-                assets.append({"url": script_url, "error": type(exc).__name__})
+                assets.append(
+                    {"url": _sanitize_url(script_url), "error": type(exc).__name__}
+                )
                 continue
             asset_text = asset_body.decode("utf-8", errors="replace")
             clue = _clues(asset_text, dataset_id)
             if clue["uuid_count"] or clue["endpoint_snippets"] or clue["relevant_urls"]:
                 assets.append(
                     {
-                        "url": script_url,
-                        "final_url": asset_final,
+                        "url": _sanitize_url(script_url),
+                        "final_url": _sanitize_url(asset_final),
                         "status": asset_status,
                         "content_type": asset_headers.get("Content-Type", ""),
                         "bytes": len(asset_body),

@@ -41,7 +41,7 @@ mca tem-mendeley-audit \
   --output outputs/mendeley-cop-co2p-co3o4-tem-candidate
 ```
 
-This command resolves immutable dataset snapshots and root-file UUID, size, and SHA-256 metadata. It does not download the archive.
+This command resolves immutable dataset snapshots and root-file UUID, size, and SHA-256 metadata. It does not download the archive. A failed primary root-file request remains `blocked_public_api_metadata_access` even when control records respond. Duplicate-record identity is asserted only when both inventories provide valid SHA-256 values and positive byte sizes, and the configured API base is the endpoint actually queried and reported.
 
 ## Reproducible real-data audit
 
@@ -51,7 +51,9 @@ The dedicated GitHub Actions workflow additionally:
 2. inventories the RAR without extracting unrelated files;
 3. selectively extracts only six microscopy-like members into temporary storage;
 4. records image format, dimensions, mode, TIFF tags, and per-file SHA-256;
-5. deletes the source bytes and uploads metadata-only evidence.
+5. strips query strings and fragments from every persisted landing-page or asset URL;
+6. regenerates the metadata artifact manifest after both probe files exist, so all uploaded metadata evidence is checksum-bound;
+7. deletes the source bytes and uploads metadata-only evidence.
 
 ## Scientific boundary
 

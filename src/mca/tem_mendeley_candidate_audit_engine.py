@@ -34,6 +34,11 @@ TEM_PATTERN = re.compile(
     r"(?i)(?:^|[^a-z])(?:tem|hrtem|stem|transmission electron)(?:[^a-z]|$)"
 )
 NON_TEM_PATTERN = re.compile(r"(?i)(sem|xrd|xps|electro|cv|lsv|eis|raman|ftir)")
+PROBE_EVIDENCE_FILENAMES = (
+    "mendeley_public_page_probe.json",
+    "mendeley_anonymous_public_api_probe.json",
+)
+
 MICROSCOPY_EXTENSIONS = {
     ".tif",
     ".tiff",
@@ -147,9 +152,9 @@ def run_mendeley_candidate_audit(
         snapshots: list[dict[str, Any]] = []
         for spec in config.datasets:
             snapshot_url = (
-                f"{PUBLIC_API_BASE}/datasets/{spec.dataset_id}/snapshot/{spec.version}"
+                f"{config.api_base}/datasets/{spec.dataset_id}/snapshot/{spec.version}"
             )
-            files_url = f"{PUBLIC_API_BASE}/datasets/{spec.dataset_id}/files?" + (
+            files_url = f"{config.api_base}/datasets/{spec.dataset_id}/files?" + (
                 urllib.parse.urlencode(
                     {"folder_id": "root", "version": str(spec.version)}
                 )
@@ -181,7 +186,7 @@ def run_mendeley_candidate_audit(
                     "root_files_status": files_status,
                 }
             )
-            files = _normalize_files(files_payload)
+            files = _normalize_files(files_payload) if files_status == 200 else []
             for item in files:
                 file_rows.append(_normalize_file(spec, item))
             snapshots.extend(
@@ -209,16 +214,19 @@ def run_mendeley_candidate_audit(
         successful_file_sources = sum(
             int(row["root_files_status"] == 200) for row in dataset_rows
         )
+        primary_dataset_row = next(
+            row for row in dataset_rows if row["role"] == "primary_raw"
+        )
+        primary_root_files_request_succeeded = (
+            primary_dataset_row["root_files_status"] == 200
+        )
         tem_candidates = [
             row for row in primary_rows if row["tem_candidate_by_metadata"]
         ]
-        primary_checksums_complete = bool(primary_rows) and all(
-            bool(row["sha256"]) and int(row["size_bytes"]) > 0
-            for row in primary_rows
-        )
-        if successful_file_sources == 0:
+        primary_checksums_complete = _file_identity_complete(primary_rows)
+        if not primary_root_files_request_succeeded:
             status = STATUS_API_BLOCKED
-        elif not file_rows:
+        elif not primary_rows:
             status = STATUS_NO_FILES
         elif tem_candidates:
             status = STATUS_TEM_CANDIDATE_FOUND
@@ -228,9 +236,12 @@ def run_mendeley_candidate_audit(
         duplicate_rows = [
             row for row in file_rows if row["dataset_role"] == "duplicate_raw_record"
         ]
-        duplicate_identical = bool(primary_rows and duplicate_rows) and _file_signatures(
-            primary_rows
-        ) == _file_signatures(duplicate_rows)
+        duplicate_checksums_complete = _file_identity_complete(duplicate_rows)
+        duplicate_identical = (
+            primary_checksums_complete
+            and duplicate_checksums_complete
+            and _file_signatures(primary_rows) == _file_signatures(duplicate_rows)
+        )
 
         summary: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
@@ -238,7 +249,7 @@ def run_mendeley_candidate_audit(
             "software_version": __version__,
             "source": {
                 "repository": "Mendeley Data / Digital Commons Data",
-                "api_base": PUBLIC_API_BASE,
+                "api_base": config.api_base,
                 "primary_dataset_id": PRIMARY_DATASET_ID,
                 "primary_doi": PRIMARY_DOI,
                 "dataset_count": len(config.datasets),
@@ -256,8 +267,14 @@ def run_mendeley_candidate_audit(
             },
             "inventory_readiness": {
                 "status": status,
+                "primary_root_files_request_succeeded": (
+                    primary_root_files_request_succeeded
+                ),
                 "primary_file_inventory_resolved": bool(primary_rows),
                 "primary_checksums_and_sizes_complete": primary_checksums_complete,
+                "duplicate_raw_record_checksums_and_sizes_complete": (
+                    duplicate_checksums_complete
+                ),
                 "tem_candidates_resolved_by_filename_or_description": bool(
                     tem_candidates
                 ),
@@ -286,7 +303,9 @@ def run_mendeley_candidate_audit(
                 "segmentation_metrics_computed": False,
             },
             "scientific_closeout": {
-                "status": "Diagnostic" if file_rows else "Inconclusive",
+                "status": (
+                    "Inconclusive" if status == STATUS_API_BLOCKED else "Diagnostic"
+                ),
                 "result": status,
                 "strongest_evidence": (
                     "The anonymous public API returned immutable dataset snapshots and "
@@ -428,6 +447,16 @@ def _normalize_file(spec: DatasetSpec, item: Mapping[str, Any]) -> dict[str, Any
     }
 
 
+def _file_identity_complete(rows: Iterable[Mapping[str, Any]]) -> bool:
+    records = list(rows)
+    return bool(records) and all(
+        isinstance(row.get("sha256"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", str(row["sha256"]).lower())
+        and int(row.get("size_bytes", 0)) > 0
+        for row in records
+    )
+
+
 def _file_signatures(rows: Iterable[Mapping[str, Any]]) -> set[tuple[Any, ...]]:
     return {
         (row["filename"], row["size_bytes"], row["sha256"])
@@ -515,6 +544,31 @@ def _next_action(
             "extracting unrelated members; then inspect only microscopy-like members."
         )
     return "No usable public file metadata was resolved."
+
+
+def refresh_mendeley_candidate_audit_manifest(
+    output_dir: str | Path,
+) -> dict[str, Any]:
+    output = Path(output_dir)
+    if not output.is_dir() or output.is_symlink():
+        raise FileNotFoundError("candidate audit output directory is required")
+    required_names = (
+        "mendeley_dataset_inventory.csv",
+        "mendeley_file_inventory.csv",
+        "mendeley_candidate_audit_summary.json",
+        "mendeley_candidate_audit_report.md",
+        "mendeley_api_snapshots.json",
+        *PROBE_EVIDENCE_FILENAMES,
+    )
+    paths = [output / name for name in required_names]
+    missing = [path.name for path in paths if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(
+            "candidate audit evidence is incomplete: " + ", ".join(missing)
+        )
+    manifest = _manifest(output, paths)
+    _write_json(output / "mendeley_candidate_audit_manifest.json", manifest)
+    return manifest
 
 
 def _prepare_output(path: str | Path) -> Path:

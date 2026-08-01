@@ -14,6 +14,7 @@ from .tem_mendeley_candidate_audit_engine import (
     DatasetSpec,
     Transport,
     load_config,
+    refresh_mendeley_candidate_audit_manifest,
     run_mendeley_candidate_audit,
 )
 
@@ -34,5 +35,6 @@ __all__ = [
     "DatasetSpec",
     "Transport",
     "load_config",
+    "refresh_mendeley_candidate_audit_manifest",
     "run_mendeley_candidate_audit",
 ]
