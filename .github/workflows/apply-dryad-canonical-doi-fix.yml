@@ -1,0 +1,148 @@
+name: Apply Dryad canonical DOI fix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/apply-dryad-canonical-doi-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/fix-dryad-pilot-review-findings-v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Patch automatic acquisition DOI verification
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/mca/tem_external_validation_pilot_io.py")
+          text = path.read_text(encoding="utf-8")
+          old_function = '''def _find_doi(value: Any) -> str | None:
+              if isinstance(value, str):
+                  normalized = _normalize_doi(value)
+                  return value if normalized.startswith("10.") and "/" in normalized else None
+              if isinstance(value, Mapping):
+                  for key, item in value.items():
+                      if (
+                          str(key).lower() in {"doi", "identifier"}
+                          and isinstance(item, str)
+                          and _find_doi(item) is not None
+                      ):
+                          return item
+                  for item in value.values():
+                      found = _find_doi(item)
+                      if found is not None:
+                          return found
+              elif isinstance(value, list):
+                  for item in value:
+                      found = _find_doi(item)
+                      if found is not None:
+                          return found
+              return None
+          '''.replace("          ", "")
+          new_function = '''def _explicit_dataset_doi(payload: Mapping[str, Any]) -> str | None:
+              """Return only an explicit canonical DOI from a dataset endpoint."""
+              for key in ("doi", "identifier"):
+                  value = payload.get(key)
+                  if isinstance(value, str):
+                      normalized = _normalize_doi(value)
+                      if normalized.startswith("10.") and "/" in normalized:
+                          return normalized
+              return None
+          '''.replace("          ", "")
+          if old_function not in text:
+              raise SystemExit("expected recursive DOI helper was not found")
+          text = text.replace(old_function, new_function)
+
+          old_block = '''        version_payload = fetch_json(version_url)
+                  version_doi = _find_doi(version_payload)
+                  if version_doi is not None and _normalize_doi(version_doi) != expected_doi:
+                      raise ValueError(
+                          f"Dryad source-version DOI mismatch for source version {version_id}."
+                      )
+                  dataset_payload = fetch_json(dataset_url)
+                  dataset_doi = _find_doi(dataset_payload)
+                  if dataset_doi is not None and _normalize_doi(dataset_doi) != expected_doi:
+                      raise ValueError(
+                          f"Dryad dataset API DOI mismatch for source version {version_id}."
+                      )
+          '''.replace("          ", "")
+          new_block = '''        version_payload = fetch_json(version_url)
+                  version_dataset_url = _dryad_link(
+                      version_payload, version_url, "stash:dataset", "dataset"
+                  )
+                  if version_dataset_url is not None:
+                      version_linked_doi = _doi_from_dataset_url(version_dataset_url)
+                      if version_linked_doi != expected_doi:
+                          raise ValueError(
+                              "Dryad source-version dataset-link DOI mismatch for "
+                              f"source version {version_id}."
+                          )
+                      if version_dataset_url != dataset_url:
+                          raise ValueError(
+                              "Dryad file and source-version metadata resolve to different datasets."
+                          )
+                  dataset_payload = fetch_json(dataset_url)
+                  dataset_doi = _explicit_dataset_doi(dataset_payload)
+                  if dataset_doi is not None and dataset_doi != expected_doi:
+                      raise ValueError(
+                          f"Dryad dataset API DOI mismatch for source version {version_id}."
+                      )
+                  dataset_self = _dryad_link(dataset_payload, dataset_url, "self")
+                  if (
+                      dataset_self is not None
+                      and _doi_from_dataset_url(dataset_self) != expected_doi
+                  ):
+                      raise ValueError("Dryad dataset self link DOI mismatch.")
+          '''.replace("          ", "")
+          if old_block not in text:
+              raise SystemExit("expected source-version DOI block was not found")
+          path.write_text(text.replace(old_block, new_block), encoding="utf-8")
+
+          test_path = Path("tests/test_dryad_hrtem_pilot_pair_audit.py")
+          tests = test_path.read_text(encoding="utf-8")
+          old_fixture = '    version = {"_links": {"stash:files": {"href": files_url}}}\n'
+          new_fixture = '''    version = {
+              "identifier": "https://doi.org/10.18126/z4mr-xwk5",
+              "_links": {
+                  "stash:dataset": {"href": dataset_url},
+                  "stash:files": {"href": files_url},
+              },
+          }
+          '''.replace("          ", "")
+          if tests.count(old_fixture) != 1:
+              raise SystemExit("expected one automatic-resolution version fixture")
+          test_path.write_text(
+              tests.replace(old_fixture, new_fixture), encoding="utf-8"
+          )
+          PY
+
+          rm -f .github/workflows/apply-dryad-canonical-doi-fix.yml
+
+      - name: Run focused tests
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pytest -q \
+            tests/test_resolve_dryad_pilot_file_metadata.py \
+            tests/test_dryad_hrtem_pilot_pair_audit.py
+
+      - name: Commit and push fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix Dryad canonical DOI verification"
+          git push origin HEAD:agent/fix-dryad-pilot-review-findings-v2
