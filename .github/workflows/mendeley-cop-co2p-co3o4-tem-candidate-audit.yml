@@ -6,30 +6,60 @@ on:
       - "src/mca/tem_mendeley_candidate_audit.py"
       - "src/mca/tem_mendeley_candidate_audit_engine.py"
       - "src/mca/tem_mendeley_candidate_audit_cli.py"
+      - "src/mca/tem_external_validation_candidate_registry_engine.py"
       - "src/mca/cli_entry.py"
       - "scripts/probe_mendeley_public_page.py"
       - "scripts/probe_mendeley_public_api.py"
+      - "scripts/refresh_mendeley_candidate_audit_manifest.py"
       - "scripts/audit_mendeley_public_archive.py"
       - "scripts/inspect_mendeley_microscopy_members.py"
       - "tests/test_tem_mendeley_candidate_audit.py"
+      - "tests/test_probe_mendeley_public_page.py"
+      - "tests/test_tem_external_validation_candidate_registry.py"
+      - "tests/test_tem_candidate_registry_readiness_integration.py"
       - "tests/test_mendeley_microscopy_tag_compatibility.py"
       - "case_studies/mendeley_cop_co2p_co3o4_tem_candidate/**"
+      - "case_studies/tem_external_validation_candidate_registry/**"
+      - ".github/workflows/mendeley-cop-co2p-co3o4-tem-candidate-audit.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/mca/tem_mendeley_candidate_audit.py"
+      - "src/mca/tem_mendeley_candidate_audit_engine.py"
+      - "src/mca/tem_external_validation_candidate_registry_engine.py"
+      - "scripts/probe_mendeley_public_page.py"
+      - "scripts/probe_mendeley_public_api.py"
+      - "scripts/refresh_mendeley_candidate_audit_manifest.py"
+      - "scripts/audit_mendeley_public_archive.py"
+      - "scripts/inspect_mendeley_microscopy_members.py"
+      - "tests/test_tem_mendeley_candidate_audit.py"
+      - "tests/test_probe_mendeley_public_page.py"
+      - "tests/test_tem_external_validation_candidate_registry.py"
+      - "tests/test_tem_candidate_registry_readiness_integration.py"
+      - "tests/test_mendeley_microscopy_tag_compatibility.py"
+      - "case_studies/mendeley_cop_co2p_co3o4_tem_candidate/**"
+      - "case_studies/tem_external_validation_candidate_registry/**"
       - ".github/workflows/mendeley-cop-co2p-co3o4-tem-candidate-audit.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: mendeley-cop-co2p-co3o4-tem-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -43,6 +73,9 @@ jobs:
         run: |
           python -m pytest \
             tests/test_tem_mendeley_candidate_audit.py \
+            tests/test_probe_mendeley_public_page.py \
+            tests/test_tem_external_validation_candidate_registry.py \
+            tests/test_tem_candidate_registry_readiness_integration.py \
             tests/test_mendeley_microscopy_tag_compatibility.py \
             -q
 
@@ -62,6 +95,11 @@ jobs:
           python scripts/probe_mendeley_public_api.py \
             --output outputs/mendeley-cop-co2p-co3o4-tem-candidate/mendeley_anonymous_public_api_probe.json
 
+      - name: Refresh complete metadata evidence manifest
+        run: |
+          python scripts/refresh_mendeley_candidate_audit_manifest.py \
+            --output outputs/mendeley-cop-co2p-co3o4-tem-candidate
+
       - name: Verify and inventory public raw archive
         run: |
           python scripts/audit_mendeley_public_archive.py \
@@ -78,6 +116,7 @@ jobs:
           import hashlib
           import json
           from pathlib import Path
+          from urllib.parse import urlsplit
 
           metadata_output = Path("outputs/mendeley-cop-co2p-co3o4-tem-candidate")
           archive_output = Path("outputs/mendeley-public-archive-audit")
@@ -93,20 +132,46 @@ jobs:
 
           assert summary["case_id"] == "mendeley_cop_co2p_co3o4_tem_candidate_audit"
           assert summary["source"]["primary_dataset_id"] == "8w66synjmx"
+          assert summary["source"]["api_base"] == "https://data.mendeley.com/public-api"
           assert summary["inventory_readiness"]["status"] == (
               "file_inventory_resolved_annotation_not_ready"
           )
           assert summary["result_counts"]["file_count"] == 3
           assert summary["result_counts"]["primary_file_count"] == 1
+          assert summary["inventory_readiness"]["primary_root_files_request_succeeded"]
           assert summary["inventory_readiness"]["primary_checksums_and_sizes_complete"]
+          assert summary["inventory_readiness"][
+              "duplicate_raw_record_checksums_and_sizes_complete"
+          ]
           assert summary["inventory_readiness"]["duplicate_raw_record_content_identical"]
           assert not summary["lineage_and_annotation_gates"]["annotation_pilot_ready"]
           assert not summary["lineage_and_annotation_gates"]["external_model_evaluation_ready"]
-          assert manifest["artifact_count"] == 5
+
+          assert manifest["artifact_count"] == 7
+          manifest_paths = {record["path"] for record in manifest["artifacts"]}
+          assert "mendeley_public_page_probe.json" in manifest_paths
+          assert "mendeley_anonymous_public_api_probe.json" in manifest_paths
           assert page_probe["case_id"] == "mendeley_public_page_endpoint_probe"
           assert api_probe["case_id"] == "mendeley_anonymous_public_api_probe"
           assert len(page_probe["pages"]) == 3
           assert len(api_probe["datasets"]) == 3
+
+          def iter_url_fields(value):
+              if isinstance(value, dict):
+                  for key, item in value.items():
+                      if "url" in str(key).lower() and isinstance(item, str) and item.startswith("http"):
+                          yield item
+                      yield from iter_url_fields(item)
+              elif isinstance(value, list):
+                  for item in value:
+                      yield from iter_url_fields(item)
+
+          stored_urls = list(iter_url_fields(page_probe))
+          assert stored_urls
+          for stored_url in stored_urls:
+              parsed = urlsplit(stored_url)
+              assert not parsed.query, stored_url
+              assert not parsed.fragment, stored_url
 
           assert archive["source"]["duplicate_raw_record_content_identical"]
           assert archive["readiness"]["archive_checksum_and_size_verified"]
@@ -139,6 +204,8 @@ jobs:
 
           print(json.dumps({
               "metadata_status": summary["inventory_readiness"]["status"],
+              "metadata_manifest_artifact_count": manifest["artifact_count"],
+              "stored_url_count": len(stored_urls),
               "archive_sha256": archive["source"]["primary_archive"]["sha256"],
               "duplicate_raw_record_content_identical": archive["source"]["duplicate_raw_record_content_identical"],
               "archive_member_count": archive["archive_inventory"]["member_count"],
@@ -151,7 +218,7 @@ jobs:
           PY
 
       - name: Upload Mendeley audit evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mendeley-cop-co2p-co3o4-tem-candidate-evidence
           path: |
