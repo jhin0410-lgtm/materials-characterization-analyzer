@@ -73,6 +73,24 @@ the median source temperature step. Candidate parameters were predeclared from
 the source sampling contract and were not fitted to the publication's reported
 event intervals.
 
+## Candidate sensitivity review
+
+The case-level review does not edit the three analyzer candidate tables. Each
+primary candidate is matched one-to-one to the nearest same-direction candidate
+from each sensitivity run within the configured `10 °C` tolerance.
+
+The review records separately:
+
+- whether a candidate is present in all three runs;
+- maximum temperature spread across the runs;
+- whether the diagnostic within-FWHM area has the sign expected from the
+  candidate direction;
+- unmatched sensitivity candidates.
+
+A stable temperature is not a phase or reaction assignment. A directionally
+inconsistent diagnostic area is retained as a review flag rather than silently
+removed, relabelled, or corrected.
+
 ## Run
 
 ```bash
@@ -83,6 +101,10 @@ python scripts/audit_public_zr15nb_dsc_source.py \
 python scripts/run_public_zr15nb_dsc_case.py \
   --config case_studies/public_zr15nb_dsc/case_config.json \
   --output outputs/public-zr15nb-dsc/result
+
+python scripts/review_public_zr15nb_dsc_candidates.py \
+  --config case_studies/public_zr15nb_dsc/case_config.json \
+  --result outputs/public-zr15nb-dsc/result
 ```
 
 ## Outputs
@@ -101,6 +123,8 @@ outputs/public-zr15nb-dsc/
     │   ├── sensitivity_1c/
     │   └── sensitivity_5c/
     ├── dsc_sensitivity_candidates.csv
+    ├── dsc_candidate_robustness.csv
+    ├── dsc_unmatched_sensitivity_candidates.csv
     ├── case_summary.json
     ├── case_validation_report.md
     └── case_artifact_manifest.json
@@ -115,11 +139,13 @@ table, long-format features, diagnostic figure, and analysis manifest.
 
 - Supported: the source identity, checksums, exact table structure, units,
   complete monotonic heating segment, canonical conversion, analyzer execution,
-  and sensitivity-run provenance.
-- Diagnostic only: automatic endothermic and exothermic candidates and their
-  sensitivity to the three predeclared smoothing spans.
+  sensitivity-run provenance, and deterministic candidate matching.
+- Diagnostic only: automatic endothermic and exothermic candidates, temperature
+  stability across the three smoothing spans, and within-FWHM area-direction
+  consistency.
 - Unresolved: exact replicate identity, sample mass, crucible, purge flow,
-  calibration reference, event onset protocol, and independent event review.
+  calibration reference, baseline validity, event onset protocol, and independent
+  event review.
 - Unsupported: phase confirmation, reaction or mechanism assignment, validated
   onset temperatures, quantitative enthalpy claims, causal interpretation, or
   engineering-release decisions.
