@@ -1,11 +1,13 @@
-name: Public FINDS SAED source audit
+name: Public FINDS SAED diagnostic case
 
 on:
   pull_request:
     paths:
       - "case_studies/public_finds_saed/**"
       - "scripts/audit_public_finds_saed_source.py"
+      - "scripts/run_public_finds_saed_case.py"
       - "tests/test_public_finds_saed_source_audit.py"
+      - "tests/test_public_finds_saed_case.py"
       - ".github/workflows/public-finds-saed-source-audit.yml"
   workflow_dispatch:
 
@@ -15,7 +17,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -29,7 +31,10 @@ jobs:
         run: python -m pip install -e ".[dev]"
 
       - name: Run focused regression tests
-        run: python -m pytest tests/test_public_finds_saed_source_audit.py -q
+        run: >-
+          python -m pytest -q
+          tests/test_public_finds_saed_source_audit.py
+          tests/test_public_finds_saed_case.py
 
       - name: Audit checksum-bound FINDS SAED source
         run: |
@@ -37,43 +42,149 @@ jobs:
             --config case_studies/public_finds_saed/case_config.json \
             --output outputs/public-finds-saed/source-audit
 
-      - name: Verify source evidence and artifact hashes
+      - name: Execute calibrated diagnostic SAED case
+        run: |
+          python scripts/run_public_finds_saed_case.py \
+            --config case_studies/public_finds_saed/case_config.json \
+            --output outputs/public-finds-saed/result
+
+      - name: Verify real-image evidence and artifact hashes
         run: |
           python - <<'PY'
           import hashlib
           import json
           from pathlib import Path
 
-          output = Path("outputs/public-finds-saed/source-audit")
-          summary = json.loads((output / "source_audit_summary.json").read_text())
-          manifest = json.loads((output / "source_audit_manifest.json").read_text())
-          assert summary["case_id"] == "public_finds_saed_source_audit"
-          assert summary["source"]["record_id"] == 13748483
-          assert summary["source"]["doi"] == "10.5281/zenodo.13748483"
-          assert summary["readiness"]["archive_checksum_verified"]
-          assert not summary["readiness"]["source_images_persisted"]
-          assert not summary["readiness"]["saed_analyzer_executed"]
+          import pandas as pd
+
+          audit_output = Path("outputs/public-finds-saed/source-audit")
+          result_output = Path("outputs/public-finds-saed/result")
+          audit = json.loads((audit_output / "source_audit_summary.json").read_text())
+          audit_manifest = json.loads((audit_output / "source_audit_manifest.json").read_text())
+          summary = json.loads((result_output / "case_summary.json").read_text())
+          manifest = json.loads((result_output / "case_artifact_manifest.json").read_text())
+          candidates = pd.read_csv(result_output / "saed_sensitivity_candidates.csv")
+          robustness = pd.read_csv(result_output / "saed_candidate_robustness.csv")
+          unmatched = pd.read_csv(result_output / "saed_unmatched_sensitivity_candidates.csv")
+          references = pd.read_csv(result_output / "source_d_value_comparison.csv")
+
+          assert audit["case_id"] == "public_finds_saed_source_audit"
+          assert audit["source"]["record_id"] == 13748483
+          assert audit["source"]["doi"] == "10.5281/zenodo.13748483"
+          assert audit["source"]["license"] == "gpl-3.0-or-later"
+          assert audit["source"]["archive"]["bytes"] == 425297
+          assert audit["source"]["archive"]["downloaded_sha256"] == (
+              "3bd91d96469dbedd9f780292fc248fa6ce94e391f63d6d7a12c4e75738d1a7d6"
+          )
+          assert audit["readiness"]["archive_checksum_verified"]
+          assert audit["readiness"]["project_camera_constant_resolved"]
+          assert audit["readiness"]["project_center_resolved"]
+          assert not audit["readiness"]["source_images_persisted"]
+          assert not audit["readiness"]["saed_analyzer_executed"]
+          assert not audit["readiness"]["material_identity_resolved"]
+          assert not audit["readiness"]["phase_or_zone_axis_assignment_performed"]
+          assert audit["result_counts"]["resolved_project_image_count"] == 1
+          assert audit["result_counts"]["analyzable_project_image_count"] == 1
+          assert audit_manifest["artifact_count"] == 3
+
+          assert summary["case_id"] == "public_finds_saed_diagnostic_case"
+          assert summary["readiness"]["status"] == "diagnostic_calibrated_saed_case_completed"
+          assert summary["readiness"]["archive_and_member_checksums_verified"]
+          assert summary["readiness"]["project_center_and_camera_constant_verified"]
+          assert summary["readiness"]["decoded_jpeg_to_png_pixel_roundtrip_verified"]
+          assert summary["readiness"]["saed_analyzer_executed"]
+          assert summary["readiness"]["center_and_smoothing_sensitivity_completed"]
           assert not summary["readiness"]["material_identity_resolved"]
-          assert not summary["readiness"]["phase_or_zone_axis_assignment_performed"]
-          assert summary["result_counts"]["archive_member_count"] > 0
-          assert manifest["artifact_count"] == 3
-          for record in manifest["artifacts"]:
-              path = output / record["path"]
-              assert path.stat().st_size == record["bytes"]
-              assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+          assert not summary["readiness"]["raw_detector_provenance_resolved"]
+          assert not summary["readiness"]["phase_reflection_or_zone_axis_assignment_performed"]
+          assert not summary["readiness"]["engineering_release_ready"]
+
+          source = summary["source"]
+          assert source["source_image_representation"] == "lossy_jpeg_rendered_image"
+          assert not source["source_images_persisted"]
+          assert source["project"]["center_x_px"] == 586.0
+          assert source["project"]["center_y_px"] == 575.0
+          assert source["project"]["camera_constant_angstrom_pixel"] == 587.5
+          assert source["project"]["camera_constant_nm_pixel"] == 58.75
+          adapter = summary["canonical_adapter"]
+          assert adapter["decoded_shape"] == [1152, 1170]
+          assert adapter["decoded_dtype"] == "uint8"
+          assert adapter["png_roundtrip_pixel_equal"]
+          assert not adapter["normalization_applied"]
+          assert not adapter["contrast_adjustment_applied"]
+          assert not adapter["cropping_applied"]
+          assert not adapter["resizing_applied"]
+          assert not adapter["denoising_applied"]
+
+          assert len(summary["analysis_runs"]) == 7
+          assert {record["run_id"] for record in summary["analysis_runs"]} == {
+              "primary", "smoothing_5", "smoothing_11",
+              "center_m2_0", "center_p2_0", "center_0_m2", "center_0_p2"
+          }
+          for record in summary["analysis_runs"]:
+              analysis_manifest = json.loads(
+                  (result_output / record["analysis_manifest"]).read_text()
+              )
+              analysis = analysis_manifest["analyses"][0]
+              assert analysis["instrument"] == "saed"
+              assert analysis["sample_id"] == "finds_saed_example_material_unresolved"
+              assert analysis["source_sha256"] == adapter["canonical_sha256"]
+              assert "automatic_ring_candidates_require_manual_review" in analysis["warnings"]
+              assert "saturated_pixels_present" in analysis["warnings"]
+
+          review = summary["candidate_robustness"]
+          assert review["primary_candidate_count"] == len(robustness)
+          assert review["all_runs_matched_count"] <= review["primary_candidate_count"]
+          assert review["unmatched_sensitivity_candidate_count"] == len(unmatched)
+          assert not review["raw_analyzer_candidate_tables_modified"]
+          assert not review["candidate_acceptance_or_rejection_performed"]
+          assert summary["source_d_value_context"]["used_for_detection_tuning"] is False
+          assert summary["source_d_value_context"]["used_for_phase_or_material_assignment"] is False
+          assert len(references) == 4
+          assert not references["reference_used_for_detection_tuning"].any()
+          assert not references["material_or_phase_identity_assigned"].any()
+          assert set(candidates["run_id"]) == {
+              "primary", "smoothing_5", "smoothing_11",
+              "center_m2_0", "center_p2_0", "center_0_m2", "center_0_p2"
+          }
+
+          for base, current_manifest in (
+              (audit_output, audit_manifest),
+              (result_output, manifest),
+          ):
+              for record in current_manifest["artifacts"]:
+                  path = base / record["path"]
+                  assert path.stat().st_size == record["bytes"]
+                  assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+
+          primary = candidates[candidates["run_id"] == "primary"]
           print(json.dumps({
               "status": summary["readiness"]["status"],
-              "license": summary["source"]["license"],
-              "counts": summary["result_counts"],
-              "projects": summary["projects"],
-              "images": summary["images"],
+              "primary_candidate_count": len(primary),
+              "primary_candidate_radii_px": [
+                  round(value, 5) for value in primary["radius_px"].tolist()
+              ],
+              "primary_candidate_d_nm": [
+                  round(value, 7) for value in primary["d_spacing_nm"].tolist()
+              ],
+              "candidate_counts": {
+                  run_id: int(len(group))
+                  for run_id, group in candidates.groupby("run_id", sort=True)
+              },
+              "all_runs_matched_count": review["all_runs_matched_count"],
+              "unmatched_sensitivity_candidate_count": review[
+                  "unmatched_sensitivity_candidate_count"
+              ],
+              "source_reference_comparison": references.to_dict(orient="records"),
           }, indent=2, sort_keys=True))
           PY
 
-      - name: Upload source audit evidence
+      - name: Upload public SAED evidence
         uses: actions/upload-artifact@v4
         with:
-          name: public-finds-saed-source-audit-evidence
-          path: outputs/public-finds-saed/source-audit
+          name: public-finds-saed-diagnostic-evidence
+          path: |
+            outputs/public-finds-saed/source-audit
+            outputs/public-finds-saed/result
           if-no-files-found: error
           retention-days: 30
