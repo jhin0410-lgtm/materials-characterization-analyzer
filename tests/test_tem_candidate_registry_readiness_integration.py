@@ -21,6 +21,7 @@ def _training() -> dict:
         "schema_version": "1.0",
         "case_id": "public_cobalt_oxide_tem_training_data_audit",
         "software_version": "0.9.3",
+        "source": {"training_images": {"sha256": "a" * 64}},
         "value_contract": {
             "all_images_finite": True,
             "all_labels_finite": True,
@@ -38,6 +39,7 @@ def _parent() -> dict:
         "schema_version": "1.0",
         "case_id": "public_cobalt_oxide_tem_parent_overlap_audit",
         "software_version": "0.9.3",
+        "source": {"training_images": {"sha256": "a" * 64}},
         "external_validation_readiness": {
             "source_masks_are_independent_ground_truth": False,
             "parent_disjointness_proven_for_nonmatching_frames": False,
