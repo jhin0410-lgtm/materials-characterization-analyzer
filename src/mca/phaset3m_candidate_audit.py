@@ -340,8 +340,15 @@ def audit_phaset3m_candidate(
         )
         return summary
     except Exception:
-        if created_output and output.exists() and not any(output.iterdir()):
-            output.rmdir()
+        if output.exists() and output.is_dir() and not output.is_symlink():
+            if created_output:
+                shutil.rmtree(output, ignore_errors=True)
+            else:
+                for child in output.iterdir():
+                    if child.is_dir() and not child.is_symlink():
+                        shutil.rmtree(child)
+                    else:
+                        child.unlink(missing_ok=True)
         raise
 
 

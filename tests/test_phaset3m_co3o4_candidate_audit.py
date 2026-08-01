@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 import pytest
 
+import mca.phaset3m_candidate_audit as phaset3m_audit
 from mca.phaset3m_candidate_audit import (
     CASE_ID,
     RESULT,
@@ -142,6 +143,42 @@ def test_unknown_config_key_fails_closed(tmp_path: Path) -> None:
     config_path.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(PhaseT3MContractError, match="unknown source keys"):
         load_config(config_path)
+
+
+def test_late_failure_removes_partial_created_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive = _archive(tmp_path)
+    output = tmp_path / "created-output"
+
+    def fail_after_inventory(*args, **kwargs):
+        raise RuntimeError("late evidence write failure")
+
+    monkeypatch.setattr(phaset3m_audit, "_write_json", fail_after_inventory)
+    with pytest.raises(RuntimeError, match="late evidence write failure"):
+        audit_phaset3m_candidate(
+            load_config(_config(tmp_path, archive)), archive, output
+        )
+    assert not output.exists()
+
+
+def test_late_failure_cleans_but_preserves_caller_output_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive = _archive(tmp_path)
+    output = tmp_path / "caller-output"
+    output.mkdir()
+
+    def fail_after_inventory(*args, **kwargs):
+        raise RuntimeError("late evidence write failure")
+
+    monkeypatch.setattr(phaset3m_audit, "_write_json", fail_after_inventory)
+    with pytest.raises(RuntimeError, match="late evidence write failure"):
+        audit_phaset3m_candidate(
+            load_config(_config(tmp_path, archive)), archive, output
+        )
+    assert output.is_dir()
+    assert not any(output.iterdir())
 
 
 def test_nonempty_output_is_not_overwritten(tmp_path: Path) -> None:
