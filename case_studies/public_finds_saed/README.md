@@ -57,17 +57,19 @@ into raw detector data.
 
 ## Analysis and sensitivity contract
 
-Seven runs are predeclared:
+Seven runs are predeclared. In run IDs, `m` means a negative offset, `p` means a
+positive offset, and `p0` explicitly records a zero offset formatted by the
+runner.
 
 | Run | Center offset | Smoothing window |
 |---|---:|---:|
 | `primary` | `(0, 0) px` | `7` |
 | `smoothing_5` | `(0, 0) px` | `5` |
 | `smoothing_11` | `(0, 0) px` | `11` |
-| `center_m2_0` | `(-2, 0) px` | `7` |
-| `center_p2_0` | `(+2, 0) px` | `7` |
-| `center_0_m2` | `(0, -2) px` | `7` |
-| `center_0_p2` | `(0, +2) px` | `7` |
+| `center_m2_p0` | `(-2, 0) px` | `7` |
+| `center_p2_p0` | `(+2, 0) px` | `7` |
+| `center_p0_m2` | `(0, -2) px` | `7` |
+| `center_p0_p2` | `(0, +2) px` | `7` |
 
 All runs use:
 
@@ -109,6 +111,10 @@ python scripts/audit_public_finds_saed_source.py \
 python scripts/run_public_finds_saed_case.py \
   --config case_studies/public_finds_saed/case_config.json \
   --output outputs/public-finds-saed/result
+
+python scripts/verify_public_finds_saed_case.py \
+  --audit outputs/public-finds-saed/source-audit \
+  --result outputs/public-finds-saed/result
 ```
 
 ## Outputs
