@@ -120,6 +120,13 @@ def _verify_bytes(
     configured_size = configured.get("expected_size_bytes")
     if configured_size is not None and configured_size != len(payload):
         raise SourceAuditError(f"configured byte size mismatch for {configured['filename']}")
+    downloaded_sha256 = hashlib.sha256(payload).hexdigest()
+    expected_sha256 = configured.get("verified_sha256")
+    if expected_sha256 is not None:
+        if not isinstance(expected_sha256, str) or len(expected_sha256) != 64:
+            raise SourceAuditError("configured verified_sha256 is invalid")
+        if downloaded_sha256 != expected_sha256.lower():
+            raise SourceAuditError(f"SHA-256 mismatch for {configured['filename']}")
     return {
         "filename": configured["filename"],
         "role": configured["role"],
@@ -127,7 +134,9 @@ def _verify_bytes(
         "source_checksum_algorithm": configured_algorithm,
         "source_checksum": configured_digest,
         "source_checksum_verified": True,
-        "downloaded_sha256": hashlib.sha256(payload).hexdigest(),
+        "downloaded_sha256": downloaded_sha256,
+        "verified_sha256": expected_sha256.lower() if isinstance(expected_sha256, str) else None,
+        "verified_sha256_matched": expected_sha256 is None or downloaded_sha256 == expected_sha256.lower(),
     }
 
 
@@ -169,18 +178,34 @@ def _parse_number(value: str, *, delimiter: str) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def _longest_strict_run(values: Sequence[float], *, increasing: bool) -> dict[str, int]:
-    if not values:
-        return {"start": 0, "end_exclusive": 0, "length": 0}
-    best_start = current_start = 0
-    best_end = 1
-    for index in range(1, len(values)):
-        valid = values[index] > values[index - 1] if increasing else values[index] < values[index - 1]
-        if not valid:
+def _longest_strict_run(
+    values: Sequence[float | None], *, increasing: bool
+) -> dict[str, int]:
+    best_start = 0
+    best_end = 0
+    current_start: int | None = None
+    previous: float | None = None
+    for index, value in enumerate(values):
+        if value is None:
+            current_start = None
+            previous = None
+            continue
+        if current_start is None:
             current_start = index
-        if index + 1 - current_start > best_end - best_start:
+        elif previous is None:
+            current_start = index
+        else:
+            valid = value > previous if increasing else value < previous
+            if not valid:
+                current_start = index
+        previous = value
+        if current_start is not None and index + 1 - current_start > best_end - best_start:
             best_start, best_end = current_start, index + 1
-    return {"start": best_start, "end_exclusive": best_end, "length": best_end - best_start}
+    return {
+        "start": best_start,
+        "end_exclusive": best_end,
+        "length": best_end - best_start,
+    }
 
 
 def _profile_table(text: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -194,16 +219,16 @@ def _profile_table(text: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     data_rows = normalized[3:]
     profiles: list[dict[str, Any]] = []
     for column_index in range(width):
-        values = [
-            number
+        parsed_values = [
+            _parse_number(row[column_index], delimiter=delimiter)
             for row in data_rows
-            if (number := _parse_number(row[column_index], delimiter=delimiter)) is not None
         ]
+        values = [number for number in parsed_values if number is not None]
         descriptor_parts = [headers[row_index][column_index].strip() for row_index in range(3)]
         descriptor = " | ".join(part for part in descriptor_parts if part)
         descriptor_folded = descriptor.casefold()
-        increasing = _longest_strict_run(values, increasing=True)
-        decreasing = _longest_strict_run(values, increasing=False)
+        increasing = _longest_strict_run(parsed_values, increasing=True)
+        decreasing = _longest_strict_run(parsed_values, increasing=False)
         profiles.append(
             {
                 "column_index": column_index,

@@ -99,3 +99,38 @@ def test_review_rejects_missing_run_or_invalid_tolerance() -> None:
     )
     with pytest.raises(review.ReviewError, match="tolerance must be positive"):
         review.review_candidates(complete, tolerance_c=0.0)
+
+
+
+def test_global_assignment_maximizes_matches_before_distance() -> None:
+    table = pd.DataFrame(
+        [
+            _row("primary", 1, "exothermic", 0.0, -1.0),
+            _row("primary", 2, "exothermic", 10.0, -1.0),
+            _row("sensitivity_1c", 1, "exothermic", -6.1, -1.0),
+            _row("sensitivity_1c", 2, "exothermic", 4.0, -1.0),
+            _row("sensitivity_5c", 1, "exothermic", -6.1, -1.0),
+            _row("sensitivity_5c", 2, "exothermic", 4.0, -1.0),
+        ]
+    )
+    reviewed, unmatched = review.review_candidates(table, tolerance_c=10.0)
+    assert unmatched.empty
+    assert reviewed["all_runs_matched"].all()
+    first = reviewed.sort_values("primary_temperature_c").iloc[0]
+    second = reviewed.sort_values("primary_temperature_c").iloc[1]
+    assert first["sensitivity_1c_temperature_c"] == pytest.approx(-6.1)
+    assert second["sensitivity_1c_temperature_c"] == pytest.approx(4.0)
+
+
+def test_existing_review_section_is_replaced_idempotently() -> None:
+    base = "# Report\n\nOriginal evidence"
+    reviewed = (
+        base
+        + "\n\n"
+        + review.REVIEW_SECTION_START
+        + "\n## Candidate smoothing-sensitivity review\nold\n"
+        + review.REVIEW_SECTION_END
+    )
+    assert review._strip_existing_review(reviewed) == base
+    legacy = base + "\n\n## Candidate smoothing-sensitivity review\nold"
+    assert review._strip_existing_review(legacy) == base
