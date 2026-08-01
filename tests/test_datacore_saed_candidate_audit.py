@@ -70,10 +70,13 @@ def test_array_comparison_distinguishes_exact_and_shape_mismatch() -> None:
     assert not mismatch["exact_value_equal"]
 
 
-def test_non_zip_response_is_recorded_without_persisting_payload(
+def test_non_zip_response_is_recorded_without_persisting_payload_or_text(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    payload = b"<!doctype html><html><title>Download</title></html>"
+    payload = (
+        b'<!doctype html><html><head><meta name="csrf-token" '
+        b'content="do-not-persist-this-token"></head></html>'
+    )
     monkeypatch.setattr(
         audit,
         "_request_bytes",
@@ -91,9 +94,19 @@ def test_non_zip_response_is_recorded_without_persisting_payload(
     assert summary["decision"]["status"] == "blocked_source_download_not_zip"
     assert not summary["decision"]["raw_file_audit_completed"]
     assert not summary["decision"]["eligible_for_calibrated_saed_validation_now"]
-    assert (output / "source_download_diagnostic.json").exists()
+    assert not summary["evidence_gates"]["archive_downloaded"]
+    diagnostic_path = output / "source_download_diagnostic.json"
+    assert diagnostic_path.exists()
     assert (output / "source_audit_manifest.json").exists()
     assert not (output / "source.zip").exists()
+
+    diagnostic_text = diagnostic_path.read_text(encoding="utf-8")
+    diagnostic = __import__("json").loads(diagnostic_text)
+    assert "do-not-persist-this-token" not in diagnostic_text
+    assert "sanitized_text_prefix" not in diagnostic
+    assert diagnostic["response_prefix_kind"] == "html"
+    assert diagnostic["response_text_persisted"] is False
+    assert diagnostic["raw_payload_persisted"] is False
 
 
 def test_run_records_raw_evidence_without_authorizing_validation(
