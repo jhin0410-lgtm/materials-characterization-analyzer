@@ -33,8 +33,13 @@
       "doi": "10.5281/zenodo.14927582",
       "record_url": "https://zenodo.org/records/14927582",
       "title": "Transmission electron microscopy images and deep Learning-predicted segmentation for statistical analysis of cobalt oxide nanoparticles",
-      "materials": ["cobalt oxide nanoparticles"],
-      "modalities": ["TEM", "HRTEM"],
+      "materials": [
+        "cobalt oxide nanoparticles"
+      ],
+      "modalities": [
+        "TEM",
+        "HRTEM"
+      ],
       "file_inventory_status": "exact",
       "file_checksums_available": true,
       "raw_or_lossless_tem_images_available": true,
@@ -63,8 +68,14 @@
       "doi": "10.7941/D1SP93",
       "record_url": "https://datadryad.org/dataset/doi:10.7941/D1SP93",
       "title": "Atomic segmentation of high-resolution transmission electron microscopy images using deep learning",
-      "materials": ["Au", "Ag", "CdSe"],
-      "modalities": ["HRTEM"],
+      "materials": [
+        "Au",
+        "Ag",
+        "CdSe"
+      ],
+      "modalities": [
+        "HRTEM"
+      ],
       "file_inventory_status": "exact",
       "file_checksums_available": true,
       "raw_or_lossless_tem_images_available": true,
@@ -93,12 +104,22 @@
       "doi": "10.17632/8w66synjmx.1",
       "record_url": "https://data.mendeley.com/datasets/8w66synjmx/1",
       "title": "Raw data-Three-dimensional nano-framework CoP/Co2P/Co3O4 heterojunction as trifunctional electrocatalyst for metal-air battery and water splitting",
-      "materials": ["CoP", "Co2P", "Co3O4 heterojunction"],
-      "modalities": ["TEM", "SEM", "XRD"],
-      "file_inventory_status": "metadata_page_does_not_expose_files",
-      "file_checksums_available": false,
-      "raw_or_lossless_tem_images_available": true,
-      "reported_tem_file_count": null,
+      "materials": [
+        "CoP",
+        "Co2P",
+        "Co3O4 heterojunction"
+      ],
+      "modalities": [
+        "TEM",
+        "HAADF",
+        "EDS map",
+        "SEM",
+        "XRD"
+      ],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": false,
+      "reported_tem_file_count": 2,
       "independent_segmentation_labels_available": false,
       "label_origin": "no segmentation labels reported",
       "labeler_count": null,
@@ -107,15 +128,17 @@
       "verified_not_used_for_target_training_or_model_selection": false,
       "target_creator_name_overlap": false,
       "target_material_relation": "heterojunction_contains_cobalt_oxide",
-      "imaging_domain_relation": "unknown_until_file_audit",
+      "imaging_domain_relation": "rendered_mixed_heterojunction_figure_images",
       "reuse_license": "CC0-1.0",
       "reuse_license_verified": true,
       "target_training_source": false,
       "source_evidence": [
-        "Official dataset description states that raw XRD, SEM, TEM, and electrochemical data are included.",
-        "The public landing page confirms DOI, contributor, institution, and CC0 but does not expose a parseable file inventory in the assessed snapshot."
+        "The anonymous Mendeley public API exposes database.rar at 3472702 bytes with SHA-256 db3204100545fe3a152c0a545d29ab7f27f85c86594de3e3484bb76020ad7edf.",
+        "The separate raw-data DOI 10.17632/zhnbzhjrtr.1 exposes a byte-identical archive, so the two records are not independent datasets.",
+        "The verified archive contains 90 members, including two Ceta TIFF files and four HAADF or elemental-map BMP files under publication figure directories.",
+        "Both TIFF files are uncompressed 1024 x 1024 RGB 8-bit images and the four BMP files are 512 x 512 RGB rendered images; no pixel calibration, immutable sample or acquisition IDs, Co3O4 region binding, or detector-intensity provenance is available."
       ],
-      "next_validation_step": "Resolve the exact file inventory and checksums, identify which files contain Co3O4-bearing TEM frames, and reject the source unless sample/acquisition lineage can be bound before any annotation."
+      "next_validation_step": "Exclude this public archive from independent segmentation validation. Acquire or obtain author-released raw cobalt-oxide TEM detector data with immutable sample/acquisition lineage before blinded annotation."
     },
     {
       "candidate_id": "zenodo_14868077_cooh_cryo_tem",
@@ -123,8 +146,13 @@
       "doi": "10.5281/zenodo.14868077",
       "record_url": "https://zenodo.org/records/14868077",
       "title": "Dataset of Durable, pure-water-fed, anion-exchange-membrane electrolyzers through interphase engineering",
-      "materials": ["electrochemically derived cobalt hydroxide", "ionomer"],
-      "modalities": ["cryo-TEM"],
+      "materials": [
+        "electrochemically derived cobalt hydroxide",
+        "ionomer"
+      ],
+      "modalities": [
+        "cryo-TEM"
+      ],
       "file_inventory_status": "exact",
       "file_checksums_available": true,
       "raw_or_lossless_tem_images_available": true,
@@ -153,8 +181,14 @@
       "doi": "10.5281/zenodo.11161891",
       "record_url": "https://zenodo.org/records/11161891",
       "title": "STEM and XRD files of Water and Hydroxide Trapping in Cobalt Tungstate for Proton Exchange Membrane Water Electrolysis",
-      "materials": ["cobalt tungstate", "cobalt oxide XRD reference"],
-      "modalities": ["STEM", "TEM"],
+      "materials": [
+        "cobalt tungstate",
+        "cobalt oxide XRD reference"
+      ],
+      "modalities": [
+        "STEM",
+        "TEM"
+      ],
       "file_inventory_status": "exact",
       "file_checksums_available": true,
       "raw_or_lossless_tem_images_available": true,
@@ -183,8 +217,14 @@
       "doi": "10.5281/zenodo.7941248",
       "record_url": "https://zenodo.org/records/7941248",
       "title": "Physico-chemical characterization of sterilized Co3O4 nanoparticles by XPS / HAXPES / SEM",
-      "materials": ["Co3O4 nanoparticles"],
-      "modalities": ["SEM", "XPS", "HAXPES"],
+      "materials": [
+        "Co3O4 nanoparticles"
+      ],
+      "modalities": [
+        "SEM",
+        "XPS",
+        "HAXPES"
+      ],
       "file_inventory_status": "record_metadata_verified",
       "file_checksums_available": false,
       "raw_or_lossless_tem_images_available": false,

@@ -8,7 +8,7 @@ import pytest
 
 from mca.cli_entry import main as cli_main
 from mca.tem_external_validation_candidate_registry import (
-    METADATA_RESOLUTION,
+    EXCLUDED_REPRESENTATION,
     RESULT,
     CandidateContractError,
     load_registry_config,
@@ -35,17 +35,38 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
     assert summary["result_counts"] == {
         "candidate_count": 6,
         "in_domain_external_validation_ready_count": 0,
-        "metadata_resolution_candidate_count": 1,
+        "metadata_resolution_candidate_count": 0,
         "annotation_pilot_candidate_count": 0,
+        "rendered_representation_exclusion_count": 1,
         "cross_phase_candidate_count": 2,
         "diagnostic_cross_material_candidate_count": 1,
-        "excluded_control_count": 2,
+        "excluded_control_count": 3,
     }
     assert summary["readiness"]["recommended_candidate_id"] == (
         "mendeley_8w66synjmx_cop_co2p_co3o4"
     )
-    assert summary["readiness"]["recommended_candidate_status"] == METADATA_RESOLUTION
-    assert "file inventory" in summary["readiness"]["recommended_next_action"]
+    assert summary["readiness"]["recommended_candidate_status"] == (
+        EXCLUDED_REPRESENTATION
+    )
+    assert "Acquire or obtain" in summary["readiness"]["recommended_next_action"]
+
+
+def test_resolved_mendeley_rendered_files_are_explicitly_excluded(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out"
+    run_candidate_registry(load_registry_config(CONFIG), output)
+    inventory = (output / "tem_external_validation_candidate_inventory.csv").read_text(
+        encoding="utf-8"
+    )
+    row = next(
+        line
+        for line in inventory.splitlines()
+        if line.startswith("mendeley_8w66synjmx_cop_co2p_co3o4,")
+    )
+    assert f",{EXCLUDED_REPRESENTATION}," in row
+    assert "rendered_figure_representation_not_raw_validation_data" in row
+    assert "db3204100545fe3a152c0a545d29ab7f" in row
 
 
 def test_training_source_is_explicitly_excluded(tmp_path: Path) -> None:
@@ -79,6 +100,10 @@ def test_annotation_protocol_prevents_test_set_contamination(tmp_path: Path) -> 
     ]
     assert any(
         "model predictions" in item for item in protocol["prohibited_shortcuts"]
+    )
+    assert any(
+        "rendered publication figures" in item
+        for item in protocol["prohibited_shortcuts"]
     )
 
 
@@ -132,4 +157,7 @@ def test_cli_writes_registry_outputs(
     assert printed["status"] == RESULT
     assert printed["candidate_count"] == 6
     assert printed["in_domain_external_validation_ready_count"] == 0
+    assert printed["recommended_candidate_id"] == (
+        "mendeley_8w66synjmx_cop_co2p_co3o4"
+    )
     assert (output / "tem_external_validation_candidate_report.md").is_file()

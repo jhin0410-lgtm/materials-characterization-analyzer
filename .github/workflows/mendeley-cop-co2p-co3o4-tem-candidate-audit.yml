@@ -1,0 +1,162 @@
+name: Mendeley CoP-Co2P-Co3O4 TEM candidate audit
+
+on:
+  pull_request:
+    paths:
+      - "src/mca/tem_mendeley_candidate_audit.py"
+      - "src/mca/tem_mendeley_candidate_audit_engine.py"
+      - "src/mca/tem_mendeley_candidate_audit_cli.py"
+      - "src/mca/cli_entry.py"
+      - "scripts/probe_mendeley_public_page.py"
+      - "scripts/probe_mendeley_public_api.py"
+      - "scripts/audit_mendeley_public_archive.py"
+      - "scripts/inspect_mendeley_microscopy_members.py"
+      - "tests/test_tem_mendeley_candidate_audit.py"
+      - "tests/test_mendeley_microscopy_tag_compatibility.py"
+      - "case_studies/mendeley_cop_co2p_co3o4_tem_candidate/**"
+      - ".github/workflows/mendeley-cop-co2p-co3o4-tem-candidate-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package, image metadata, and RAR inventory tools
+        run: |
+          python -m pip install -e ".[dev]" pillow
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full
+
+      - name: Run focused regression tests
+        run: |
+          python -m pytest \
+            tests/test_tem_mendeley_candidate_audit.py \
+            tests/test_mendeley_microscopy_tag_compatibility.py \
+            -q
+
+      - name: Resolve anonymous public API metadata
+        run: |
+          mca tem-mendeley-audit \
+            --config case_studies/mendeley_cop_co2p_co3o4_tem_candidate/case_config.json \
+            --output outputs/mendeley-cop-co2p-co3o4-tem-candidate
+
+      - name: Probe public landing-page metadata paths
+        run: |
+          python scripts/probe_mendeley_public_page.py \
+            --output outputs/mendeley-cop-co2p-co3o4-tem-candidate/mendeley_public_page_probe.json
+
+      - name: Probe anonymous public API used by landing pages
+        run: |
+          python scripts/probe_mendeley_public_api.py \
+            --output outputs/mendeley-cop-co2p-co3o4-tem-candidate/mendeley_anonymous_public_api_probe.json
+
+      - name: Verify and inventory public raw archive
+        run: |
+          python scripts/audit_mendeley_public_archive.py \
+            --output outputs/mendeley-public-archive-audit
+
+      - name: Inspect selected microscopy members
+        run: |
+          python scripts/inspect_mendeley_microscopy_members.py \
+            --output outputs/mendeley-microscopy-member-inspection
+
+      - name: Verify fail-closed results and artifact hashes
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          metadata_output = Path("outputs/mendeley-cop-co2p-co3o4-tem-candidate")
+          archive_output = Path("outputs/mendeley-public-archive-audit")
+          image_output = Path("outputs/mendeley-microscopy-member-inspection")
+          summary = json.loads((metadata_output / "mendeley_candidate_audit_summary.json").read_text())
+          manifest = json.loads((metadata_output / "mendeley_candidate_audit_manifest.json").read_text())
+          page_probe = json.loads((metadata_output / "mendeley_public_page_probe.json").read_text())
+          api_probe = json.loads((metadata_output / "mendeley_anonymous_public_api_probe.json").read_text())
+          archive = json.loads((archive_output / "mendeley_public_archive_audit_summary.json").read_text())
+          archive_manifest = json.loads((archive_output / "mendeley_public_archive_audit_manifest.json").read_text())
+          images = json.loads((image_output / "mendeley_microscopy_member_inspection_summary.json").read_text())
+          image_manifest = json.loads((image_output / "mendeley_microscopy_member_inspection_manifest.json").read_text())
+
+          assert summary["case_id"] == "mendeley_cop_co2p_co3o4_tem_candidate_audit"
+          assert summary["source"]["primary_dataset_id"] == "8w66synjmx"
+          assert summary["inventory_readiness"]["status"] == (
+              "file_inventory_resolved_annotation_not_ready"
+          )
+          assert summary["result_counts"]["file_count"] == 3
+          assert summary["result_counts"]["primary_file_count"] == 1
+          assert summary["inventory_readiness"]["primary_checksums_and_sizes_complete"]
+          assert summary["inventory_readiness"]["duplicate_raw_record_content_identical"]
+          assert not summary["lineage_and_annotation_gates"]["annotation_pilot_ready"]
+          assert not summary["lineage_and_annotation_gates"]["external_model_evaluation_ready"]
+          assert manifest["artifact_count"] == 5
+          assert page_probe["case_id"] == "mendeley_public_page_endpoint_probe"
+          assert api_probe["case_id"] == "mendeley_anonymous_public_api_probe"
+          assert len(page_probe["pages"]) == 3
+          assert len(api_probe["datasets"]) == 3
+
+          assert archive["source"]["duplicate_raw_record_content_identical"]
+          assert archive["readiness"]["archive_checksum_and_size_verified"]
+          assert archive["readiness"]["member_inventory_resolved"]
+          assert archive["archive_inventory"]["tem_candidate_member_count"] == 6
+          assert not archive["readiness"]["annotation_pilot_ready"]
+          assert not archive["readiness"]["external_model_evaluation_ready"]
+          assert archive_manifest["artifact_count"] == 3
+
+          assert images["result_counts"]["inspected_member_count"] == 6
+          assert images["result_counts"]["tiff_member_count"] == 2
+          assert images["result_counts"]["haadf_or_element_map_member_count"] == 4
+          assert images["result_counts"]["rendered_multichannel_member_count"] == 6
+          assert images["representation"]["all_members_rendered_multichannel"]
+          assert not images["representation"]["pixel_calibration_available"]
+          assert not images["representation"]["co3o4_region_binding_available"]
+          assert not images["readiness"]["annotation_pilot_ready"]
+          assert not images["readiness"]["external_model_evaluation_ready"]
+          assert image_manifest["artifact_count"] == 3
+
+          for base, current_manifest in (
+              (metadata_output, manifest),
+              (archive_output, archive_manifest),
+              (image_output, image_manifest),
+          ):
+              for record in current_manifest["artifacts"]:
+                  path = base / record["path"]
+                  assert path.stat().st_size == record["bytes"]
+                  assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+
+          print(json.dumps({
+              "metadata_status": summary["inventory_readiness"]["status"],
+              "archive_sha256": archive["source"]["primary_archive"]["sha256"],
+              "duplicate_raw_record_content_identical": archive["source"]["duplicate_raw_record_content_identical"],
+              "archive_member_count": archive["archive_inventory"]["member_count"],
+              "archive_tem_candidate_member_paths": archive["archive_inventory"]["tem_candidate_member_paths"],
+              "image_modes": {member["member_path"]: member["mode"] for member in images["members"]},
+              "image_shapes": {member["member_path"]: [member["height_px"], member["width_px"]] for member in images["members"]},
+              "all_members_rendered_multichannel": images["representation"]["all_members_rendered_multichannel"],
+              "annotation_pilot_ready": images["readiness"]["annotation_pilot_ready"],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload Mendeley audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: mendeley-cop-co2p-co3o4-tem-candidate-evidence
+          path: |
+            outputs/mendeley-cop-co2p-co3o4-tem-candidate
+            outputs/mendeley-public-archive-audit
+            outputs/mendeley-microscopy-member-inspection
+          if-no-files-found: error
+          retention-days: 30

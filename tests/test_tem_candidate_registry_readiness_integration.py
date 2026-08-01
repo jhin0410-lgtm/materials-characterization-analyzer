@@ -46,9 +46,9 @@ def _parent() -> dict:
 
 def _registry() -> dict:
     action = (
-        "Resolve the exact file inventory and checksums, identify which files contain "
-        "Co3O4-bearing TEM frames, and reject the source unless sample/acquisition "
-        "lineage can be bound before any annotation."
+        "Exclude this public archive from independent segmentation validation. "
+        "Acquire or obtain author-released raw cobalt-oxide TEM detector data with "
+        "immutable sample/acquisition lineage before blinded annotation."
     )
     return {
         "schema_version": "1.0",
@@ -59,9 +59,7 @@ def _registry() -> dict:
             "candidate_search_completed_for_snapshot": True,
             "public_search_supports_model_evaluation_now": False,
             "recommended_candidate_id": "mendeley_8w66synjmx_cop_co2p_co3o4",
-            "recommended_candidate_status": (
-                "metadata_resolution_required_before_image_audit"
-            ),
+            "recommended_candidate_status": "excluded_rendered_figure_representation",
             "recommended_next_action": action,
         },
     }
@@ -89,7 +87,7 @@ def test_registry_refines_next_action_without_granting_evaluation(
     assert gates["candidate_registry_search_completed_for_snapshot"]
     assert gates["candidate_registry_in_domain_ready_count"] == 0
     assert not gates["candidate_registry_supports_model_evaluation_now"]
-    assert "file inventory" in decision["next_action"]
+    assert "Acquire or obtain" in decision["next_action"]
     assert "public_candidate_registry_has_no_evaluation_ready_set" in gates[
         "unresolved_evidence"
     ]
