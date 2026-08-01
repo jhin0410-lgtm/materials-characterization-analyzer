@@ -24,7 +24,7 @@ PILOT_CASE_ID = "dryad_hrtem_pilot_pair_audit"
 NOT_READY = "not_ready_for_scientific_model_performance_evaluation"
 TRAINING_BLOCKED = "blocked_training_data_integrity"
 CROSS_MATERIAL_READY = (
-    "diagnostic_cross_material_stress_test_ready_not_in_domain_validation"
+    "ready_to_freeze_diagnostic_cross_material_stress_test_protocol"
 )
 IN_DOMAIN_PROTOCOL_READY = "ready_to_freeze_predeclared_in_domain_evaluation_protocol"
 
@@ -50,7 +50,7 @@ def build_tem_segmentation_readiness(
     evidence remains unresolved; it never becomes a passed gate.
     """
 
-    output = _prepare_output(output_dir)
+    output, output_created_by_call = _prepare_output(output_dir)
     try:
         training, training_record = _load_evidence(
             training_summary_path,
@@ -107,6 +107,9 @@ def build_tem_segmentation_readiness(
             if record is not None
         )
 
+        training_patch_count = _integer(
+            _mapping(training, "result_counts"), "patch_pair_count"
+        )
         summary: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "case_id": CASE_ID,
@@ -123,39 +126,11 @@ def build_tem_segmentation_readiness(
                 "segmentation_metrics_computed": False,
                 "physical_conversion_performed": False,
             },
-            "scientific_closeout": {
-                "status": "Supported",
-                "result": decision["status"],
-                "strongest_evidence": (
-                    "The checksum-bound training audit validates 256 paired patches but "
-                    "shows that every source-notebook validation fold contains all four "
-                    "reconstructed candidate parents in both training and validation. The "
-                    "parent-overlap audit reports no independent labeled in-domain external "
-                    "validation candidate."
-                ),
-                "primary_limitation": (
-                    "No immutable authoritative training patch-to-parent map and no "
-                    "predeclared parent-disjoint cobalt-oxide validation set with independent "
-                    "labels are available."
-                ),
-                "evidence_that_would_change_conclusion": (
-                    "A checksum-bound cobalt-oxide validation set with immutable sample and "
-                    "acquisition lineage, independent expert labels, documented non-use in "
-                    "training or model selection, and a frozen evaluation protocol."
-                ),
-                "suitable_for": [
-                    "deciding whether software-only training experiments may proceed",
-                    "blocking unsupported segmentation performance claims",
-                    "prioritizing the next evidence acquisition step",
-                ],
-                "not_suitable_for": [
-                    "estimating segmentation accuracy",
-                    "selecting a production model",
-                    "nanometre-scale physical measurement",
-                    "causal or mechanistic interpretation",
-                    "engineering release",
-                ],
-            },
+            "scientific_closeout": _scientific_closeout(
+                decision=decision,
+                gates=gates,
+                training_patch_count=training_patch_count,
+            ),
         }
 
         summary_path = output / "tem_segmentation_readiness_summary.json"
@@ -171,7 +146,7 @@ def build_tem_segmentation_readiness(
         _write_json(manifest_path, manifest)
         return summary
     except Exception:
-        if output.exists() and not any(output.iterdir()):
+        if output_created_by_call and output.exists() and not any(output.iterdir()):
             output.rmdir()
         raise
 
@@ -184,6 +159,17 @@ def _evaluate_gates(
     pilot_readiness: Mapping[str, Any] | None,
     pilot_summary: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
+    training_sha256 = _training_images_sha256(
+        training, role="training_data_audit"
+    )
+    parent_training_sha256 = _training_images_sha256(
+        parent, role="training_parent_overlap_audit"
+    )
+    if training_sha256 != parent_training_sha256:
+        raise EvidenceContractError(
+            "training and parent-overlap summaries reference different training images"
+        )
+
     values = _mapping(training, "value_contract")
     split = _mapping(training, "notebook_split_audit")
     grouping = _mapping(training, "candidate_parent_grouping")
@@ -295,8 +281,9 @@ def _evaluate_gates(
             and candidate_model_eval_allowed
         )
     )
-    cross_material_ready = (
-        pilot_summary is not None
+    cross_material_protocol_freeze_ready = (
+        training_integrity
+        and pilot_summary is not None
         and pilot_hdf5_complete
         and pilot_overlap_complete
         and pilot_overlap_gate_passed
@@ -323,6 +310,8 @@ def _evaluate_gates(
 
     return {
         "training_pair_integrity_validated": training_integrity,
+        "training_artifact_identity_bound_across_audits": True,
+        "training_images_sha256": training_sha256,
         "authoritative_training_parent_ids_available": authoritative_parent_ids,
         "parent_disjoint_internal_validation_available": internal_parent_disjoint,
         "parent_or_acquisition_disjointness_proven": parent_level_independence,
@@ -336,34 +325,39 @@ def _evaluate_gates(
         "external_pilot_content_overlap_audit_complete": pilot_overlap_complete,
         "external_pilot_content_overlap_gate_passed": pilot_overlap_gate_passed,
         "external_pilot_status": pilot_status,
-        "diagnostic_cross_material_stress_test_ready": cross_material_ready,
-        "scientific_in_domain_evaluation_ready": scientific_evaluation_ready,
+        "diagnostic_cross_material_protocol_freeze_ready": (
+            cross_material_protocol_freeze_ready
+        ),
+        "diagnostic_cross_material_stress_test_ready": False,
+        "in_domain_protocol_freeze_ready": scientific_evaluation_ready,
+        "scientific_in_domain_evaluation_ready": False,
         "unresolved_evidence": unresolved,
     }
 
 
 def _make_decision(gates: Mapping[str, Any]) -> dict[str, Any]:
     training_integrity = bool(gates["training_pair_integrity_validated"])
-    in_domain_ready = bool(gates["scientific_in_domain_evaluation_ready"])
-    cross_material_ready = bool(
-        gates["diagnostic_cross_material_stress_test_ready"]
+    in_domain_protocol_ready = bool(gates["in_domain_protocol_freeze_ready"])
+    cross_material_protocol_ready = bool(
+        gates["diagnostic_cross_material_protocol_freeze_ready"]
     )
     if not training_integrity:
         status = TRAINING_BLOCKED
         next_action = (
             "Resolve training image-label integrity failures before any model training."
         )
-    elif in_domain_ready:
+    elif in_domain_protocol_ready:
         status = IN_DOMAIN_PROTOCOL_READY
         next_action = (
             "Freeze metrics, exclusions, confidence intervals, and the untouched "
             "evaluation manifest before running model inference once."
         )
-    elif cross_material_ready:
+    elif cross_material_protocol_ready:
         status = CROSS_MATERIAL_READY
         next_action = (
-            "Run only the predeclared cross-material diagnostic stress test while "
-            "continuing to seek an independent in-domain cobalt-oxide validation set."
+            "Freeze the diagnostic cross-material metrics, exclusions, uncertainty "
+            "method, model version, and untouched evaluation manifest before any "
+            "pilot inference, while continuing to seek an independent in-domain set."
         )
     else:
         status = NOT_READY
@@ -375,9 +369,15 @@ def _make_decision(gates: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "status": status,
         "software_experiment_training_allowed": training_integrity,
-        "scientific_in_domain_performance_evaluation_ready": in_domain_ready,
-        "independent_performance_claim_ready": in_domain_ready,
-        "diagnostic_cross_material_stress_test_ready": cross_material_ready,
+        "predeclared_in_domain_protocol_freeze_ready": (
+            in_domain_protocol_ready
+        ),
+        "scientific_in_domain_performance_evaluation_ready": False,
+        "independent_performance_claim_ready": False,
+        "diagnostic_cross_material_protocol_freeze_ready": (
+            cross_material_protocol_ready
+        ),
+        "diagnostic_cross_material_stress_test_ready": False,
         "engineering_release_ready": False,
         "model_retraining_is_current_priority": False,
         "next_action": next_action,
@@ -387,6 +387,90 @@ def _make_decision(gates: Mapping[str, Any]) -> dict[str, Any]:
             "software/model versions."
         ),
     }
+
+
+def _scientific_closeout(
+    *,
+    decision: Mapping[str, Any],
+    gates: Mapping[str, Any],
+    training_patch_count: int,
+) -> dict[str, Any]:
+    if not bool(gates["training_pair_integrity_validated"]):
+        status = "Unsupported"
+        strongest = (
+            f"The supplied training audit covers {training_patch_count} paired patches, "
+            "but one or more required finite/binary/complementary-label integrity gates fail."
+        )
+        limitation = (
+            "Training image-label integrity is unresolved, so neither training nor any "
+            "downstream in-domain or cross-material model test is supportable."
+        )
+    elif bool(gates["in_domain_protocol_freeze_ready"]):
+        status = "Supported"
+        strongest = (
+            f"Training integrity is validated for {training_patch_count} paired patches, "
+            "the parent/acquisition independence gate passes, and an independent in-domain "
+            "candidate satisfies the supplied lineage and non-use gates."
+        )
+        limitation = (
+            "The evaluation protocol has not yet been frozen or executed; no inference, "
+            "segmentation metrics, uncertainty interval, or performance claim exists."
+        )
+    elif bool(gates["diagnostic_cross_material_protocol_freeze_ready"]):
+        status = "Diagnostic"
+        strongest = (
+            f"Training integrity is validated for {training_patch_count} paired patches and "
+            "the cross-material pilot HDF5/content-overlap gate passes."
+        )
+        limitation = (
+            "The pilot is cross-material and its diagnostic protocol has not yet been frozen; "
+            "it cannot establish cobalt-oxide in-domain performance."
+        )
+    else:
+        status = "Supported"
+        strongest = (
+            f"The checksum-bound training audit validates integrity for {training_patch_count} "
+            "paired patches, while the supplied evidence does not establish a usable "
+            "independent in-domain external-validation set."
+        )
+        limitation = (
+            "No immutable authoritative training patch-to-parent map and no predeclared "
+            "parent-disjoint cobalt-oxide validation set with independent labels are available."
+        )
+    return {
+        "status": status,
+        "result": decision["status"],
+        "strongest_evidence": strongest,
+        "primary_limitation": limitation,
+        "evidence_that_would_change_conclusion": (
+            "A checksum-bound cobalt-oxide validation set with immutable sample/acquisition "
+            "lineage, independent blinded expert labels and adjudication, documented non-use "
+            "in model development, a frozen protocol, and the later one-time metric results."
+        ),
+        "suitable_for": [
+            "deciding whether software-only training experiments may proceed",
+            "blocking unsupported segmentation performance claims",
+            "prioritizing the next evidence acquisition or protocol-freeze step",
+        ],
+        "not_suitable_for": [
+            "estimating segmentation accuracy before evaluation results exist",
+            "selecting a production model",
+            "nanometre-scale physical measurement",
+            "causal or mechanistic interpretation",
+            "engineering release",
+        ],
+    }
+
+
+def _training_images_sha256(
+    payload: Mapping[str, Any], *, role: str
+) -> str:
+    source = _mapping(payload, "source")
+    training_images = _mapping(source, "training_images")
+    digest = _text(training_images, "sha256").lower()
+    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+        raise EvidenceContractError(f"{role} training_images.sha256 is invalid")
+    return digest
 
 
 def _load_evidence(
@@ -429,14 +513,16 @@ def _load_evidence(
     }
 
 
-def _prepare_output(path: str | Path) -> Path:
+def _prepare_output(path: str | Path) -> tuple[Path, bool]:
     output = Path(path)
+    created_by_call = False
     if output.exists():
         if output.is_symlink() or not output.is_dir() or any(output.iterdir()):
             raise FileExistsError("output directory must be absent or empty.")
     else:
         output.mkdir(parents=True)
-    return output
+        created_by_call = True
+    return output, created_by_call
 
 
 def _build_manifest(

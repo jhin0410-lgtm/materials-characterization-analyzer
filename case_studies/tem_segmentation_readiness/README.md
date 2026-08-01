@@ -70,3 +70,5 @@ The existing 256 image-label patches can support software experiments, but the s
 **Conclusion level: Supported — for readiness only.**
 
 The supported conclusion is that the current evidence is insufficient for an independent segmentation-performance claim. This is not a conclusion about the U-Net's true accuracy. Evidence that would change the readiness conclusion is a checksum-bound, predeclared, parent-disjoint cobalt-oxide validation set with immutable acquisition lineage, independent expert labels, and documented non-use in training, tuning, threshold selection, or model selection.
+
+The training audit and parent-overlap audit must reference the same `source.training_images.sha256`. Passing an in-domain candidate or cross-material pilot gate permits only the next protocol-freeze step. Model inference, metric reporting, and independent performance claims remain false until a later frozen evaluation executes and records the predefined results and uncertainty.

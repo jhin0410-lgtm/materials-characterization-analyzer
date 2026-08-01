@@ -26,6 +26,7 @@ def _training(*, integrity: bool = True) -> dict:
         "schema_version": "1.0",
         "case_id": "public_cobalt_oxide_tem_training_data_audit",
         "software_version": "0.9.3",
+        "source": {"training_images": {"sha256": "a" * 64}},
         "value_contract": {
             "all_images_finite": integrity,
             "all_labels_finite": True,
@@ -52,6 +53,7 @@ def _parent_overlap() -> dict:
         "schema_version": "1.0",
         "case_id": "public_cobalt_oxide_tem_parent_overlap_audit",
         "software_version": "0.9.3",
+        "source": {"training_images": {"sha256": "a" * 64}},
         "external_validation_readiness": {
             "source_masks_are_independent_ground_truth": False,
             "parent_disjointness_proven_for_nonmatching_frames": False,
@@ -192,7 +194,9 @@ def test_cross_material_pilot_never_becomes_in_domain_validation(tmp_path: Path)
         output_dir=tmp_path / "out",
     )
     assert summary["decision"]["status"] == CROSS_MATERIAL_READY
-    assert summary["decision"]["diagnostic_cross_material_stress_test_ready"]
+    assert summary["decision"]["diagnostic_cross_material_protocol_freeze_ready"]
+    assert not summary["decision"]["diagnostic_cross_material_stress_test_ready"]
+    assert "Freeze the diagnostic cross-material metrics" in summary["decision"]["next_action"]
     assert not summary["decision"][
         "scientific_in_domain_performance_evaluation_ready"
     ]
@@ -274,3 +278,102 @@ def test_cli_dispatch_writes_report(tmp_path: Path, capsys: pytest.CaptureFixtur
     printed = json.loads(capsys.readouterr().out)
     assert printed["status"] == NOT_READY
     assert (output / "tem_segmentation_readiness_report.md").is_file()
+
+
+
+def test_cross_material_protocol_is_blocked_by_training_integrity_failure(
+    tmp_path: Path,
+) -> None:
+    paths = _paths(tmp_path, integrity=False)
+    pilot_summary = _write(tmp_path / "pilot-summary.json", _pilot_summary())
+    summary = build_tem_segmentation_readiness(
+        training_summary_path=paths["training"],
+        parent_overlap_summary_path=paths["parent"],
+        pilot_summary_path=pilot_summary,
+        output_dir=tmp_path / "out",
+    )
+    assert summary["decision"]["status"] == TRAINING_BLOCKED
+    assert not summary["decision"][
+        "diagnostic_cross_material_protocol_freeze_ready"
+    ]
+    assert not summary["decision"]["diagnostic_cross_material_stress_test_ready"]
+
+
+def test_training_artifact_mismatch_fails_closed(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    parent = json.loads(paths["parent"].read_text(encoding="utf-8"))
+    parent["source"]["training_images"]["sha256"] = "b" * 64
+    _write(paths["parent"], parent)
+    with pytest.raises(EvidenceContractError, match="different training images"):
+        build_tem_segmentation_readiness(
+            training_summary_path=paths["training"],
+            parent_overlap_summary_path=paths["parent"],
+            output_dir=tmp_path / "out",
+        )
+
+
+def test_existing_empty_output_directory_is_preserved_on_failure(
+    tmp_path: Path,
+) -> None:
+    paths = _paths(tmp_path)
+    parent = json.loads(paths["parent"].read_text(encoding="utf-8"))
+    parent["source"]["training_images"]["sha256"] = "b" * 64
+    _write(paths["parent"], parent)
+    output = tmp_path / "caller-owned-empty"
+    output.mkdir()
+    with pytest.raises(EvidenceContractError):
+        build_tem_segmentation_readiness(
+            training_summary_path=paths["training"],
+            parent_overlap_summary_path=paths["parent"],
+            output_dir=output,
+        )
+    assert output.is_dir()
+    assert not list(output.iterdir())
+
+
+def test_protocol_ready_never_authorizes_performance_claim(tmp_path: Path) -> None:
+    training = _training()
+    training["candidate_parent_grouping"]["authoritative_parent_ids_available"] = True
+    training["notebook_split_audit"]["independent_parent_image_validation"] = True
+    parent = _parent_overlap()
+    candidate = _external_candidate()
+    candidate["result_counts"][
+        "independent_in_domain_external_validation_pair_count"
+    ] = 2
+    gates = candidate["target_comparison"]["gates"]
+    gates["target_material_match"] = True
+    gates["immutable_cross_dataset_lineage_manifest_available"] = True
+    gates["verified_not_used_for_target_model_training"] = True
+    gates["creator_overlap_with_target_dataset"] = False
+    gates["multi_labeler_or_adjudication_evidence_available"] = True
+    candidate["readiness"]["model_evaluation_allowed_now"] = True
+    summary = build_tem_segmentation_readiness(
+        training_summary_path=_write(tmp_path / "training.json", training),
+        parent_overlap_summary_path=_write(tmp_path / "parent.json", parent),
+        external_candidate_summary_path=_write(tmp_path / "candidate.json", candidate),
+        output_dir=tmp_path / "out",
+    )
+    decision = summary["decision"]
+    assert decision["status"] == (
+        "ready_to_freeze_predeclared_in_domain_evaluation_protocol"
+    )
+    assert decision["predeclared_in_domain_protocol_freeze_ready"]
+    assert not decision["scientific_in_domain_performance_evaluation_ready"]
+    assert not decision["independent_performance_claim_ready"]
+    assert "not yet been frozen or executed" in summary["scientific_closeout"][
+        "primary_limitation"
+    ]
+
+
+def test_training_failure_closeout_does_not_claim_validated_pairs(
+    tmp_path: Path,
+) -> None:
+    paths = _paths(tmp_path, integrity=False)
+    summary = build_tem_segmentation_readiness(
+        training_summary_path=paths["training"],
+        parent_overlap_summary_path=paths["parent"],
+        output_dir=tmp_path / "out",
+    )
+    closeout = summary["scientific_closeout"]
+    assert closeout["status"] == "Unsupported"
+    assert "integrity gates fail" in closeout["strongest_evidence"]
