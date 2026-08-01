@@ -1,0 +1,52 @@
+name: Apply 0.10.0 to TEM evidence workflows
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/apply-tem-workflow-version-bump.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.pull_request.head.sha, '0000000000000000000000000000000000000000') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/0.10.0-real-data-cases
+          fetch-depth: 0
+
+      - name: Update pinned release version in TEM workflows
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              Path('.github/workflows/public-cobalt-oxide-tem-masks.yml'),
+              Path('.github/workflows/public-cobalt-oxide-tem-source-image-mask-pairing.yml'),
+              Path('.github/workflows/public-cobalt-oxide-tem-training-data-audit.yml'),
+              Path('.github/workflows/public-cobalt-oxide-tem-parent-overlap-audit.yml'),
+          ]
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              count = text.count('0.9.3')
+              if count == 0:
+                  raise SystemExit(f'{path}: expected at least one 0.9.3 pin')
+              updated = text.replace('0.9.3', '0.10.0')
+              if '0.9.3' in updated:
+                  raise SystemExit(f'{path}: stale version remains')
+              path.write_text(updated, encoding='utf-8')
+              print(f'{path}: replaced {count} occurrence(s)')
+          PY
+
+      - name: Remove one-shot workflow and commit
+        run: |
+          git rm .github/workflows/apply-tem-workflow-version-bump.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/public-cobalt-oxide-tem-*.yml
+          git commit -m "Update TEM evidence workflows for 0.10.0 [tem-version-pins-applied]"
+          git push origin HEAD:release/0.10.0-real-data-cases
