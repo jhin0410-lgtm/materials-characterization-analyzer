@@ -15,6 +15,7 @@ import io
 import json
 import math
 import re
+import stat
 import urllib.error
 import urllib.request
 import zipfile
@@ -24,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-USER_AGENT = "materials-characterization-analyzer-datacore-saed-audit/1.1"
+USER_AGENT = "materials-characterization-analyzer-datacore-saed-audit/1.2"
 MAX_MEMBER_BYTES = 512 * 1024 * 1024
 MAX_TOTAL_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024
 METADATA_KEYWORDS = (
@@ -71,10 +72,13 @@ def _request_bytes(
             }
             final_url = response.geturl()
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:300]
-        raise SourceAuditError(f"HTTP {exc.code} while downloading source: {detail}") from exc
+        raise SourceAuditError(
+            f"HTTP {exc.code} while downloading the declared source"
+        ) from exc
     except urllib.error.URLError as exc:
-        raise SourceAuditError(f"Could not reach source repository: {exc.reason}") from exc
+        raise SourceAuditError(
+            f"Could not reach source repository: {exc.reason}"
+        ) from exc
     if not payload:
         raise SourceAuditError("source repository returned an empty response")
     return payload, final_url, response_metadata
@@ -93,6 +97,8 @@ def _safe_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
     seen: set[str] = set()
     total = 0
     for info in members:
+        if "\\" in info.filename:
+            raise SourceAuditError(f"unsafe ZIP member path: {info.filename}")
         path = PurePosixPath(info.filename)
         if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
             raise SourceAuditError(f"unsafe ZIP member path: {info.filename}")
@@ -102,6 +108,9 @@ def _safe_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
         seen.add(normalized)
         if info.flag_bits & 0x1:
             raise SourceAuditError(f"encrypted ZIP member is unsupported: {info.filename}")
+        unix_mode = info.external_attr >> 16
+        if unix_mode and stat.S_ISLNK(unix_mode):
+            raise SourceAuditError(f"symbolic-link ZIP member is unsupported: {info.filename}")
         if info.file_size > MAX_MEMBER_BYTES:
             raise SourceAuditError(f"ZIP member exceeds size limit: {info.filename}")
         total += info.file_size
@@ -227,7 +236,7 @@ def _inspect_dm4(path: Path) -> tuple[dict[str, Any], list[np.ndarray]]:
                         "size": int(axis.size),
                         "scale": float(axis.scale),
                         "offset": float(axis.offset),
-                        "units": axis.units,
+                        "units": None if axis.units is None else str(axis.units),
                     }
                     for axis in signal.axes_manager
                 ],
@@ -317,9 +326,13 @@ def _response_diagnostic(
     response_metadata: Mapping[str, Any],
     payload: bytes,
 ) -> dict[str, Any]:
-    prefix = payload[:256]
-    text_prefix = prefix.decode("utf-8", errors="replace")
-    sanitized_text = re.sub(r"\s+", " ", text_prefix).strip()[:200]
+    stripped = payload.lstrip()
+    lowered_prefix = stripped[:32].lower()
+    response_prefix_kind = (
+        "html"
+        if lowered_prefix.startswith((b"<!doctype html", b"<html"))
+        else "binary_or_unknown"
+    )
     return {
         "schema_version": "1.0",
         "case_id": "datacore_chromium_telluride_saed_download_diagnostic",
@@ -328,10 +341,11 @@ def _response_diagnostic(
         "response": dict(response_metadata),
         "bytes": len(payload),
         "sha256": _sha256(payload),
-        "first_32_bytes_hex": payload[:32].hex(),
-        "sanitized_text_prefix": sanitized_text,
+        "first_16_bytes_hex": payload[:16].hex(),
+        "response_prefix_kind": response_prefix_kind,
         "is_zip": zipfile.is_zipfile(io.BytesIO(payload)),
         "raw_payload_persisted": False,
+        "response_text_persisted": False,
     }
 
 
@@ -345,6 +359,66 @@ def _cleanup_raw(output: Path) -> None:
             elif item.is_dir():
                 item.rmdir()
         extracted.rmdir()
+
+
+def _metadata_keys(inspected: Mapping[str, Mapping[str, Any]]) -> str:
+    return "\n".join(
+        str(row.get("key", "")).casefold()
+        for record in inspected.values()
+        if record.get("extension") == ".dm4"
+        for signal in record.get("signals", [])
+        for row in signal.get("selected_original_metadata", [])
+    )
+
+
+def _nonzip_summary(
+    *, source_url: str, final_url: str, payload: bytes
+) -> dict[str, Any]:
+    return {
+        "schema_version": "1.0",
+        "case_id": "datacore_chromium_telluride_saed_source_audit",
+        "source": {
+            "repository": "Indiana University DataCORE",
+            "doi": "10.5967/ct7n-8275",
+            "source_url": _safe_url(source_url),
+            "resolved_url": _safe_url(final_url),
+            "response_sha256": _sha256(payload),
+            "response_bytes": len(payload),
+        },
+        "counts": {
+            "archive_member_count": 0,
+            "dm4_file_count": 0,
+            "tiff_file_count": 0,
+            "dm4_tiff_pair_count": 0,
+        },
+        "evidence_gates": {
+            "response_received": True,
+            "archive_downloaded": False,
+            "archive_is_valid_zip": False,
+            "raw_file_audit_completed": False,
+        },
+        "decision": {
+            "status": "blocked_source_download_not_zip",
+            "raw_file_audit_completed": False,
+            "ready_for_manual_metadata_review": False,
+            "eligible_for_calibrated_saed_validation_now": False,
+            "independent_acquisition_count_verified": False,
+            "phase_or_zone_axis_claim_allowed": False,
+            "d_spacing_accuracy_claim_allowed": False,
+            "next_action": (
+                "Wait for the official DataCORE archive-retrieval request to complete, "
+                "then rerun the checksum-bound source audit."
+            ),
+        },
+        "scientific_boundary": {
+            "source_arrays_modified": False,
+            "analyzer_parameters_tuned": False,
+            "saed_analysis_run": False,
+            "reflection_indexing_performed": False,
+            "phase_assignment_performed": False,
+            "reported_zone_axes_used_as_ground_truth": False,
+        },
+    }
 
 
 def run(*, source_url: str, output: Path) -> dict[str, Any]:
@@ -364,50 +438,11 @@ def run(*, source_url: str, output: Path) -> dict[str, Any]:
         diagnostic_path = output / "source_download_diagnostic.json"
         _write_json(diagnostic_path, diagnostic)
         _write_manifest(output, [diagnostic_path])
-        return {
-            "schema_version": "1.0",
-            "case_id": "datacore_chromium_telluride_saed_source_audit",
-            "source": {
-                "repository": "Indiana University DataCORE",
-                "doi": "10.5967/ct7n-8275",
-                "source_url": _safe_url(source_url),
-                "resolved_url": _safe_url(final_url),
-                "response_sha256": _sha256(payload),
-                "response_bytes": len(payload),
-            },
-            "counts": {
-                "archive_member_count": 0,
-                "dm4_file_count": 0,
-                "tiff_file_count": 0,
-                "dm4_tiff_pair_count": 0,
-            },
-            "evidence_gates": {
-                "archive_downloaded": True,
-                "archive_is_valid_zip": False,
-                "raw_file_audit_completed": False,
-            },
-            "decision": {
-                "status": "blocked_source_download_not_zip",
-                "raw_file_audit_completed": False,
-                "ready_for_manual_metadata_review": False,
-                "eligible_for_calibrated_saed_validation_now": False,
-                "independent_acquisition_count_verified": False,
-                "phase_or_zone_axis_claim_allowed": False,
-                "d_spacing_accuracy_claim_allowed": False,
-                "next_action": (
-                    "Resolve the official DataCORE file-delivery endpoint or access "
-                    "requirement without weakening the source contract."
-                ),
-            },
-            "scientific_boundary": {
-                "source_arrays_modified": False,
-                "analyzer_parameters_tuned": False,
-                "saed_analysis_run": False,
-                "reflection_indexing_performed": False,
-                "phase_assignment_performed": False,
-                "reported_zone_axes_used_as_ground_truth": False,
-            },
-        }
+        return _nonzip_summary(
+            source_url=source_url,
+            final_url=final_url,
+            payload=payload,
+        )
 
     archive_path = output / "source.zip"
     archive_path.write_bytes(payload)
@@ -417,12 +452,12 @@ def run(*, source_url: str, output: Path) -> dict[str, Any]:
     try:
         with zipfile.ZipFile(archive_path) as archive:
             for info in _safe_members(archive):
-                path = PurePosixPath(info.filename).as_posix()
+                member_path = PurePosixPath(info.filename).as_posix()
                 member_payload = b"" if info.is_dir() else archive.read(info)
-                suffix = PurePosixPath(path).suffix.casefold()
+                suffix = PurePosixPath(member_path).suffix.casefold()
                 inventory_rows.append(
                     {
-                        "path": path,
+                        "path": member_path,
                         "bytes": info.file_size,
                         "compressed_bytes": info.compress_size,
                         "crc32": f"{info.CRC:08x}",
@@ -433,31 +468,29 @@ def run(*, source_url: str, output: Path) -> dict[str, Any]:
                 )
                 if info.is_dir() or suffix not in {".dm4", ".tif", ".tiff"}:
                     continue
-                extracted_path = output / "extracted" / path
+                extracted_path = output / "extracted" / member_path
                 extracted_path.parent.mkdir(parents=True, exist_ok=True)
                 extracted_path.write_bytes(member_payload)
                 if suffix == ".dm4":
                     record, arrays = _inspect_dm4(extracted_path)
                 else:
                     record, arrays = _inspect_tiff(extracted_path)
-                inspected[path] = {
-                    "path": path,
+                inspected[member_path] = {
+                    "path": member_path,
                     "bytes": len(member_payload),
                     "sha256": _sha256(member_payload),
                     "extension": suffix,
                     **record,
                 }
-                arrays_by_path[path] = arrays
+                arrays_by_path[member_path] = arrays
 
         dm4_paths = sorted(
-            path
-            for path in inspected
-            if PurePosixPath(path).suffix.casefold() == ".dm4"
+            path for path, record in inspected.items() if record["extension"] == ".dm4"
         )
         tiff_paths = sorted(
             path
-            for path in inspected
-            if PurePosixPath(path).suffix.casefold() in {".tif", ".tiff"}
+            for path, record in inspected.items()
+            if record["extension"] in {".tif", ".tiff"}
         )
         tiffs_by_stem = {_normalized_stem(path): path for path in tiff_paths}
         comparisons: list[dict[str, Any]] = []
@@ -482,15 +515,7 @@ def run(*, source_url: str, output: Path) -> dict[str, Any]:
                 }
             )
 
-        selected_metadata = [
-            row
-            for path in dm4_paths
-            for signal in inspected[path].get("signals", [])
-            for row in signal.get("selected_original_metadata", [])
-        ]
-        keys = "\n".join(
-            str(row.get("key", "")).casefold() for row in selected_metadata
-        )
+        keys = _metadata_keys(inspected)
         gates = {
             "archive_downloaded": True,
             "archive_is_valid_zip": True,
@@ -498,7 +523,11 @@ def run(*, source_url: str, output: Path) -> dict[str, Any]:
             "tiff_file_count_at_least_two": len(tiff_paths) >= 2,
             "dm4_tiff_pair_count_at_least_two": len(comparisons) >= 2,
             "accelerating_voltage_metadata_found": "voltage" in keys,
-            "camera_length_or_constant_metadata_found": "camera" in keys,
+            "camera_length_or_constant_metadata_found": (
+                "camera length" in keys
+                or "camera_length" in keys
+                or "camera constant" in keys
+            ),
             "detector_metadata_found": "detector" in keys,
             "acquisition_metadata_found": any(
                 token in keys for token in ("acquisition", "date", "time")
@@ -556,7 +585,7 @@ def run(*, source_url: str, output: Path) -> dict[str, Any]:
                 "d_spacing_accuracy_claim_allowed": False,
                 "next_action": (
                     "Establish immutable sample/acquisition identity and traceable "
-                    "calibration, then freeze the evaluation protocol before any SAED analysis."
+                    "calibration, then freeze the evaluation protocol before SAED analysis."
                 ),
             },
             "scientific_boundary": {
