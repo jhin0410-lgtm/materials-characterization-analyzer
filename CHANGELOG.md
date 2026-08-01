@@ -6,7 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-No unreleased changes are currently recorded.
+### Fixed
+
+- TEM external-validation intake now keeps model inference blocked whenever any dataset or image gate fails, even if annotations and protocol fields are otherwise complete.
+- Canonical manifest SHA-256 binding now detects post-freeze cohort or protocol mutation, and duplicate JSON object keys fail closed.
+- Duplicate active-image detection ignores excluded archival copies, excluded-image annotations do not change active-cohort status, every active annotation must remain blinded and unused for model development, and annotation file paths must be unique.
 
 ## [0.10.0] - 2026-08-01
 

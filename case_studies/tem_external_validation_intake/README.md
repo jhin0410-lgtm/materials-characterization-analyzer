@@ -49,11 +49,13 @@ Model inference remains blocked until all of the following are recorded as passe
 - image-content audit;
 - label-content audit;
 - target-training content-overlap audit;
-- checksum-bound test manifest;
+- checksum-bound test manifest with a canonical SHA-256 stored in `frozen_manifest_sha256`;
 - metrics;
 - confidence-interval method;
 - exclusion rules;
 - stable frozen protocol ID.
+
+The canonical digest normalizes only the self-referential `test_manifest_checksum_frozen` and `frozen_manifest_sha256` fields. Dataset identity, active/excluded images, annotations, audit states, metric/uncertainty/exclusion freeze fields, and the protocol ID remain checksum-bound. Run the intake before final freeze, copy `manifest_identity.computed_manifest_sha256` into `frozen_manifest_sha256`, then set `test_manifest_checksum_frozen` to `true` without changing any other field.
 
 Even then, the intake reports only `ready_for_predeclared_external_evaluation`. An independent performance claim requires the later frozen inference run and its validated results.
 
