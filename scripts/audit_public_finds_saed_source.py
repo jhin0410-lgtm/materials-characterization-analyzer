@@ -1,8 +1,8 @@
 """Audit the public FINDS SAED example archive without persisting source images.
 
 The audit verifies the pinned Zenodo archive, safely inventories ZIP members,
-parses FINDS project files, resolves referenced images and optional d-spacing
-files, and records image shape, stored representation, center bounds, and camera
+parses only valid FINDS project files, resolves referenced images and optional
+d-spacing files, and records image representation, center bounds, and camera
 constant conversion. It does not run SAED analysis or assign material, phase,
 reflection, or zone-axis identity.
 """
@@ -11,9 +11,9 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import io
 import json
 import math
-import tempfile
 import urllib.error
 import urllib.request
 import zipfile
@@ -63,16 +63,21 @@ def _record_files(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
         iterable = ((None, item) for item in files)
     else:
         raise SourceAuditError("Zenodo metadata did not expose a supported file inventory")
-    records = []
+    records: list[dict[str, Any]] = []
     for fallback_name, value in iterable:
         if not isinstance(value, Mapping):
             continue
         links = value.get("links") if isinstance(value.get("links"), Mapping) else {}
+        checksum = value.get("checksum")
+        if isinstance(checksum, Mapping):
+            algorithm = checksum.get("algorithm") or checksum.get("type")
+            digest = checksum.get("value") or checksum.get("checksum")
+            checksum = f"{algorithm}:{digest}" if algorithm and digest else None
         records.append(
             {
                 "filename": str(value.get("key") or value.get("filename") or fallback_name or ""),
                 "size": value.get("size"),
-                "checksum": value.get("checksum"),
+                "checksum": checksum,
                 "content_url": links.get("content") or links.get("self") or value.get("download"),
                 "file_id": value.get("id"),
             }
@@ -103,28 +108,35 @@ def _license_identifier(metadata: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _verify_archive(payload: bytes, configured: Mapping[str, Any], record: Mapping[str, Any]) -> dict[str, Any]:
-    expected_algorithm = str(configured["checksum_algorithm"]).lower()
-    expected_digest = str(configured["checksum"]).lower()
+def _verify_archive(
+    payload: bytes,
+    configured: Mapping[str, Any],
+    record: Mapping[str, Any],
+) -> dict[str, Any]:
+    algorithm = str(configured["checksum_algorithm"]).lower()
+    expected = str(configured["checksum"]).lower()
     repository_checksum = record.get("checksum")
     if isinstance(repository_checksum, str) and ":" in repository_checksum:
-        algorithm, digest = repository_checksum.split(":", 1)
-        if algorithm.lower() != expected_algorithm or digest.lower() != expected_digest:
+        repository_algorithm, repository_digest = repository_checksum.split(":", 1)
+        if repository_algorithm.lower() != algorithm or repository_digest.lower() != expected:
             raise SourceAuditError("repository checksum differs from pinned archive contract")
-    observed = hashlib.new(expected_algorithm, payload).hexdigest().lower()
-    if observed != expected_digest:
+    try:
+        observed = hashlib.new(algorithm, payload).hexdigest().lower()
+    except ValueError as exc:
+        raise SourceAuditError(f"unsupported checksum algorithm: {algorithm}") from exc
+    if observed != expected:
         raise SourceAuditError("downloaded archive checksum mismatch")
     repository_size = record.get("size")
     if isinstance(repository_size, int) and repository_size != len(payload):
         raise SourceAuditError("downloaded archive byte size differs from repository metadata")
     configured_size = configured.get("expected_size_bytes")
-    if configured_size is not None and configured_size != len(payload):
+    if configured_size is not None and int(configured_size) != len(payload):
         raise SourceAuditError("downloaded archive byte size differs from pinned contract")
     return {
         "filename": configured["filename"],
         "bytes": len(payload),
-        "source_checksum_algorithm": expected_algorithm,
-        "source_checksum": expected_digest,
+        "source_checksum_algorithm": algorithm,
+        "source_checksum": expected,
         "source_checksum_verified": True,
         "downloaded_sha256": hashlib.sha256(payload).hexdigest(),
     }
@@ -146,6 +158,24 @@ def _safe_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
     return members
 
 
+def _is_platform_metadata(path: str) -> bool:
+    pure = PurePosixPath(path)
+    return "__MACOSX" in pure.parts or pure.name.startswith("._")
+
+
+def _member_class(path: str, *, is_directory: bool) -> str:
+    if is_directory:
+        return "directory"
+    if _is_platform_metadata(path):
+        return "platform_metadata"
+    suffix = PurePosixPath(path).suffix.lower()
+    if suffix in IMAGE_EXTENSIONS:
+        return "image"
+    if suffix in TEXT_EXTENSIONS:
+        return "text"
+    return "other"
+
+
 def _decode_text(payload: bytes) -> tuple[str, str]:
     for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
         try:
@@ -163,17 +193,23 @@ def _parse_float(value: str) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def _resolve_member_path(project_path: str, reference: str, inventory: Mapping[str, str]) -> str | None:
+def _resolve_member_path(
+    project_path: str,
+    reference: str,
+    inventory: Mapping[str, str],
+) -> str | None:
     reference_path = PurePosixPath(reference.replace("\\", "/"))
-    candidates = [reference_path]
-    parent = PurePosixPath(project_path).parent
-    candidates.append(parent / reference_path)
-    basename = reference_path.name.casefold()
+    candidates = [reference_path, PurePosixPath(project_path).parent / reference_path]
     for candidate in candidates:
         match = inventory.get(candidate.as_posix().casefold())
         if match:
             return match
-    basename_matches = [path for key, path in inventory.items() if PurePosixPath(path).name.casefold() == basename]
+    basename = reference_path.name.casefold()
+    basename_matches = [
+        path
+        for path in inventory.values()
+        if PurePosixPath(path).name.casefold() == basename
+    ]
     return basename_matches[0] if len(basename_matches) == 1 else None
 
 
@@ -186,12 +222,15 @@ def _project_candidate(
     lines = [line.strip() for line in text.splitlines()]
     if len(lines) < 4:
         return None
+    image_reference = lines[0].replace("\\", "/")
+    if PurePosixPath(image_reference).suffix.lower() not in IMAGE_EXTENSIONS:
+        return None
     camera_constant = _parse_float(lines[1])
     center_x = _parse_float(lines[2])
     center_y = _parse_float(lines[3])
     if camera_constant is None or camera_constant <= 0 or center_x is None or center_y is None:
         return None
-    image_path = _resolve_member_path(path, lines[0], inventory)
+    image_path = _resolve_member_path(path, image_reference, inventory)
     d_values_reference = lines[4] if len(lines) >= 5 and lines[4] else None
     d_values_path = (
         _resolve_member_path(path, d_values_reference, inventory)
@@ -213,22 +252,24 @@ def _project_candidate(
     }
 
 
-def _inspect_image(payload: bytes, path: str, project: Mapping[str, Any]) -> dict[str, Any]:
-    array = np.frombuffer(payload, dtype=np.uint8)
-    image = cv2.imdecode(array, cv2.IMREAD_UNCHANGED)
+def _inspect_image(
+    payload: bytes,
+    path: str,
+    project: Mapping[str, Any],
+) -> dict[str, Any]:
+    image = cv2.imdecode(np.frombuffer(payload, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
     if image is None:
         raise SourceAuditError(f"referenced image could not be decoded: {path}")
     original_shape = list(image.shape)
     channel_count = 1 if image.ndim == 2 else int(image.shape[2])
-    if image.ndim == 3:
-        if channel_count == 4:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
-        elif channel_count == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            raise SourceAuditError(f"unsupported image channel count: {channel_count}")
-    else:
+    if image.ndim == 3 and channel_count == 4:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+    elif image.ndim == 3 and channel_count == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    elif image.ndim == 2:
         gray = image
+    else:
+        raise SourceAuditError(f"unsupported image channel count: {channel_count}")
     height, width = gray.shape
     center_x = float(project["center_x_px"])
     center_y = float(project["center_y_px"])
@@ -241,7 +282,9 @@ def _inspect_image(payload: bytes, path: str, project: Mapping[str, Any]) -> dic
         "sha256": hashlib.sha256(payload).hexdigest(),
         "source_extension": suffix,
         "source_representation": (
-            "lossy_jpeg_rendered_image" if suffix in {".jpg", ".jpeg"} else "lossless_or_unresolved_image_container"
+            "lossy_jpeg_rendered_image"
+            if suffix in {".jpg", ".jpeg"}
+            else "lossless_or_unresolved_image_container"
         ),
         "dtype": str(gray.dtype),
         "original_shape": original_shape,
@@ -256,7 +299,8 @@ def _inspect_image(payload: bytes, path: str, project: Mapping[str, Any]) -> dic
         "camera_constant_angstrom_pixel": project["camera_constant_angstrom_pixel"],
         "camera_constant_nm_pixel": project["camera_constant_nm_pixel"],
         "reciprocal_nm_inv_per_pixel": project["reciprocal_nm_inv_per_pixel"],
-        "saed_analyzer_extension_supported_directly": suffix in {".png", ".tif", ".tiff", ".bmp"},
+        "saed_analyzer_extension_supported_directly": suffix
+        in {".png", ".tif", ".tiff", ".bmp"},
     }
 
 
@@ -267,95 +311,125 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         for row in rows:
-            writer.writerow({key: json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else value for key, value in row.items()})
+            writer.writerow(
+                {
+                    key: json.dumps(value, sort_keys=True)
+                    if isinstance(value, (dict, list))
+                    else value
+                    for key, value in row.items()
+                }
+            )
 
 
 def _write_manifest(output: Path, paths: Sequence[Path]) -> None:
     records = []
     for path in paths:
         payload = path.read_bytes()
-        records.append({
-            "path": path.name,
-            "bytes": len(payload),
-            "sha256": hashlib.sha256(payload).hexdigest(),
-        })
+        records.append(
+            {
+                "path": path.name,
+                "bytes": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            }
+        )
     (output / "source_audit_manifest.json").write_text(
-        json.dumps({
-            "schema_version": "1.0",
-            "case_id": "public_finds_saed_source_audit",
-            "artifact_count": len(records),
-            "artifacts": records,
-        }, indent=2, sort_keys=True) + "\n",
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "case_id": "public_finds_saed_source_audit",
+                "artifact_count": len(records),
+                "artifacts": records,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
         encoding="utf-8",
     )
 
 
 def run(config_path: Path, output: Path) -> dict[str, Any]:
-    if output.exists() and (output.is_symlink() or not output.is_dir() or any(output.iterdir())):
+    if output.exists() and (
+        output.is_symlink() or not output.is_dir() or any(output.iterdir())
+    ):
         raise FileExistsError("output directory must be absent or empty")
     output.mkdir(parents=True, exist_ok=True)
     config = _load_config(config_path)
-    metadata_payload = _request_bytes(API_URL.format(record_id=config["dataset"]["record_id"]))
+    metadata_payload = _request_bytes(
+        API_URL.format(record_id=config["dataset"]["record_id"])
+    )
     metadata = json.loads(metadata_payload.decode("utf-8"))
-    records = _record_files(metadata)
-    record = next((item for item in records if item["filename"] == config["archive"]["filename"]), None)
-    if record is None:
+    repository_files = _record_files(metadata)
+    repository_record = next(
+        (
+            item
+            for item in repository_files
+            if item["filename"] == config["archive"]["filename"]
+        ),
+        None,
+    )
+    if repository_record is None:
         raise SourceAuditError("pinned FINDS archive is missing")
-    content_url = record.get("content_url")
+    content_url = repository_record.get("content_url")
     if not isinstance(content_url, str) or not content_url.startswith("https://"):
         raise SourceAuditError("pinned FINDS archive has no HTTPS content URL")
     archive_payload = _request_bytes(content_url)
-    archive_record = _verify_archive(archive_payload, config["archive"], record)
+    archive_record = _verify_archive(
+        archive_payload,
+        config["archive"],
+        repository_record,
+    )
 
     inventory_rows: list[dict[str, Any]] = []
     projects: list[dict[str, Any]] = []
     image_records: list[dict[str, Any]] = []
-    with tempfile.TemporaryDirectory(prefix="mca-finds-saed-"):
-        with zipfile.ZipFile(Path(tempfile.gettempdir()) / "unused", mode="w") if False else zipfile.ZipFile(
-            __import__("io").BytesIO(archive_payload)
-        ) as archive:
-            members = _safe_members(archive)
-            path_lookup = {PurePosixPath(info.filename).as_posix().casefold(): PurePosixPath(info.filename).as_posix() for info in members}
-            payload_by_path: dict[str, bytes] = {}
-            for info in members:
-                path = PurePosixPath(info.filename).as_posix()
-                if info.is_dir():
-                    payload = b""
-                else:
-                    payload = archive.read(info)
-                    payload_by_path[path] = payload
-                suffix = PurePosixPath(path).suffix.lower()
-                inventory_rows.append({
+    with zipfile.ZipFile(io.BytesIO(archive_payload)) as archive:
+        members = _safe_members(archive)
+        payload_by_path: dict[str, bytes] = {}
+        path_lookup: dict[str, str] = {}
+        for info in members:
+            path = PurePosixPath(info.filename).as_posix()
+            member_class = _member_class(path, is_directory=info.is_dir())
+            payload = b"" if info.is_dir() else archive.read(info)
+            if not info.is_dir():
+                payload_by_path[path] = payload
+            if member_class != "platform_metadata":
+                path_lookup[path.casefold()] = path
+            inventory_rows.append(
+                {
                     "path": path,
                     "is_directory": info.is_dir(),
                     "uncompressed_bytes": info.file_size,
                     "compressed_bytes": info.compress_size,
                     "crc32": f"{info.CRC:08x}",
-                    "sha256": hashlib.sha256(payload).hexdigest() if not info.is_dir() else None,
-                    "suffix": suffix,
-                    "member_class": (
-                        "image" if suffix in IMAGE_EXTENSIONS else "text" if suffix in TEXT_EXTENSIONS else "other"
-                    ),
-                })
-            for path, payload in payload_by_path.items():
-                if PurePosixPath(path).suffix.lower() != ".txt" or len(payload) > 100_000:
-                    continue
-                candidate = _project_candidate(path, payload, path_lookup)
-                if candidate is not None:
-                    projects.append(candidate)
-            for project in projects:
-                image_path = project.get("image_path")
-                if not isinstance(image_path, str):
-                    continue
-                image_payload = payload_by_path.get(image_path)
-                if image_payload is None:
-                    continue
+                    "sha256": hashlib.sha256(payload).hexdigest()
+                    if not info.is_dir()
+                    else None,
+                    "suffix": PurePosixPath(path).suffix.lower(),
+                    "member_class": member_class,
+                }
+            )
+        for path, payload in payload_by_path.items():
+            if _member_class(path, is_directory=False) != "text":
+                continue
+            if PurePosixPath(path).suffix.lower() != ".txt" or len(payload) > 100_000:
+                continue
+            candidate = _project_candidate(path, payload, path_lookup)
+            if candidate is not None:
+                projects.append(candidate)
+        for project in projects:
+            image_path = project.get("image_path")
+            if not isinstance(image_path, str):
+                continue
+            image_payload = payload_by_path.get(image_path)
+            if image_payload is not None:
                 image_records.append(_inspect_image(image_payload, image_path, project))
 
     license_id = _license_identifier(metadata)
     resolved = [project for project in projects if project.get("image_path")]
     analyzable = [
-        image for image in image_records
+        image
+        for image in image_records
         if image["center_in_bounds"]
         and image["maximum_complete_annulus_radius_px"] >= 16
         and image["dtype"] in {"uint8", "uint16"}
@@ -380,7 +454,12 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
         },
         "result_counts": {
             "archive_member_count": len(inventory_rows),
-            "image_member_count": sum(row["member_class"] == "image" for row in inventory_rows),
+            "platform_metadata_member_count": sum(
+                row["member_class"] == "platform_metadata" for row in inventory_rows
+            ),
+            "image_member_count": sum(
+                row["member_class"] == "image" for row in inventory_rows
+            ),
             "project_candidate_count": len(projects),
             "resolved_project_image_count": len(resolved),
             "analyzable_project_image_count": len(analyzable),
@@ -391,8 +470,13 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
             "status": status,
             "archive_checksum_verified": True,
             "license_resolved": license_id is not None,
-            "project_camera_constant_resolved": any(project["camera_constant_angstrom_pixel"] > 0 for project in projects),
-            "project_center_resolved": any(project["center_x_px"] >= 0 and project["center_y_px"] >= 0 for project in projects),
+            "project_camera_constant_resolved": any(
+                project["camera_constant_angstrom_pixel"] > 0 for project in projects
+            ),
+            "project_center_resolved": any(
+                project["center_x_px"] >= 0 and project["center_y_px"] >= 0
+                for project in projects
+            ),
             "source_images_persisted": False,
             "saed_analyzer_executed": False,
             "material_identity_resolved": False,
@@ -402,10 +486,10 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
             "status": "Diagnostic" if analyzable else "Inconclusive",
             "result": status,
             "strongest_evidence": (
-                "The pinned Zenodo archive and each ZIP member were checksum-bound, and FINDS project files were parsed into explicit image, camera-constant, and center records."
+                "The pinned Zenodo archive and each ZIP member were checksum-bound, and one valid FINDS project file was parsed into explicit image, camera-constant, and center records."
             ),
             "primary_limitation": (
-                "The software-example archive does not by itself establish raw detector provenance, material identity, acquisition metadata, or crystallographic ground truth."
+                "The software-example archive does not establish raw detector provenance, material identity, acquisition metadata, or crystallographic ground truth."
             ),
         },
     }
@@ -413,26 +497,32 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
     summary_path = output / "source_audit_summary.json"
     report_path = output / "source_audit_report.md"
     _write_csv(inventory_path, inventory_rows)
-    summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     report_path.write_text(
-        "\n".join([
-            "# Public FINDS SAED Source Audit",
-            "",
-            f"**Evidence level:** {summary['scientific_closeout']['status']}",
-            "",
-            f"**Result:** `{status}`",
-            "",
-            f"- Archive members: `{len(inventory_rows)}`",
-            f"- Image members: `{summary['result_counts']['image_member_count']}`",
-            f"- FINDS project candidates: `{len(projects)}`",
-            f"- Resolved project images: `{len(resolved)}`",
-            f"- License: `{license_id or 'unresolved'}`",
-            "- Source images persisted: `false`",
-            "- SAED analyzer executed: `false`",
-            "",
-            "This audit does not assign material, phase, reflection, or zone-axis identity.",
-            "",
-        ]),
+        "\n".join(
+            [
+                "# Public FINDS SAED Source Audit",
+                "",
+                f"**Evidence level:** {summary['scientific_closeout']['status']}",
+                "",
+                f"**Result:** `{status}`",
+                "",
+                f"- Archive members: `{len(inventory_rows)}`",
+                f"- Platform metadata members: `{summary['result_counts']['platform_metadata_member_count']}`",
+                f"- Measurement-image members: `{summary['result_counts']['image_member_count']}`",
+                f"- Valid FINDS project files: `{len(projects)}`",
+                f"- Resolved project images: `{len(resolved)}`",
+                f"- License: `{license_id or 'unresolved'}`",
+                "- Source images persisted: `false`",
+                "- SAED analyzer executed: `false`",
+                "",
+                "This audit does not assign material, phase, reflection, or zone-axis identity.",
+                "",
+            ]
+        ),
         encoding="utf-8",
     )
     _write_manifest(output, [inventory_path, summary_path, report_path])
@@ -442,18 +532,28 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--config", type=Path, default=Path("case_studies/public_finds_saed/case_config.json")
+        "--config",
+        type=Path,
+        default=Path("case_studies/public_finds_saed/case_config.json"),
     )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     summary = run(args.config, args.output)
-    print(json.dumps({
-        "status": summary["readiness"]["status"],
-        "license": summary["source"]["license"],
-        "project_count": summary["result_counts"]["project_candidate_count"],
-        "resolved_image_count": summary["result_counts"]["resolved_project_image_count"],
-        "output": str(args.output),
-    }, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "status": summary["readiness"]["status"],
+                "license": summary["source"]["license"],
+                "project_count": summary["result_counts"]["project_candidate_count"],
+                "resolved_image_count": summary["result_counts"][
+                    "resolved_project_image_count"
+                ],
+                "output": str(args.output),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
