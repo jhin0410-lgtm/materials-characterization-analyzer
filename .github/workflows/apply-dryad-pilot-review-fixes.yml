@@ -52,6 +52,27 @@ jobs:
       - name: Apply deterministic patch
         run: python scripts/apply_dryad_pilot_review_fixes.py
 
+      - name: Align synthetic download fixture
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/test_dryad_hrtem_pilot_pair_audit.py")
+          text = path.read_text(encoding="utf-8")
+          old = """    def fake_download(url, destination, attempts=5, headers=None):
+              captured.update(dict(headers or {}))
+              destination.write_bytes(payload_path.read_bytes())
+          """
+          new = """    def fake_download(url, destination, attempts=5, headers=None):
+              captured.update(dict(headers or {}))
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(payload_path.read_bytes())
+          """
+          if text.count(old) != 1:
+              raise SystemExit("expected one synthetic download fixture")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+
       - name: Install package and development dependencies
         run: python -m pip install -e ".[dev]"
 
