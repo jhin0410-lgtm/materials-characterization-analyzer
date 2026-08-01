@@ -2,12 +2,7 @@
 
 This case study records a dated public-source search for an untouched cobalt-oxide TEM/HRTEM segmentation evaluation set.
 
-It deliberately separates:
-
-- exact target training/source data, which cannot be reused as external validation;
-- target-containing or related cobalt-phase images that still lack file-level provenance or independent labels;
-- human-labeled HRTEM data from other materials, which can support only cross-material diagnostics;
-- cobalt-oxide data from the wrong microscopy modality.
+It separates target training data, exact-material processed diagnostics, rendered figures, cross-material/cross-phase microscopy, and wrong-modality records. Repository or author separation alone never proves acquisition independence.
 
 Run:
 
@@ -17,45 +12,24 @@ mca tem-candidates \
   --output outputs/tem_external_validation_candidate_registry
 ```
 
-Outputs:
-
-- `tem_external_validation_candidate_inventory.csv`
-- `tem_external_validation_candidate_summary.json`
-- `tem_external_validation_candidate_report.md`
-- `tem_external_validation_annotation_protocol.json`
-- `tem_external_validation_candidate_manifest.json`
+Outputs are the candidate inventory, summary, report, annotation-protocol template, and checksum manifest.
 
 ## Source snapshot
 
-The registry was assembled on 2026-08-01 from official repository records:
+The registry was refreshed on 2026-08-02 from official records and checksum-bound audits:
 
-- Zenodo `10.5281/zenodo.14927582`: target cobalt-oxide TEM source and training files.
-- Dryad `10.7941/D1SP93`: Au/Ag/CdSe HRTEM image-label pairs; single human labeler.
-- Mendeley Data `10.17632/8w66synjmx.1`: raw TEM is reported for a CoP/Co2P/Co3O4 heterojunction, but the assessed landing page did not expose a file inventory.
-- Zenodo `10.5281/zenodo.14868077`: three low-dose cobalt-hydroxide/ionomer cryo-TEM TIFF files with MD5 values; no segmentation labels.
-- Zenodo `10.5281/zenodo.11161891`: cobalt-tungstate STEM/TEM files with MD5 values; not cobalt-oxide in-domain data.
-- Zenodo `10.5281/zenodo.7941248`: Co3O4 SEM/XPS/HAXPES data; excluded for wrong modality.
-
-This is a time-bounded and non-exhaustive search snapshot. Repository or author separation alone does not prove sample/acquisition independence.
-
-Readiness requires an exact resolved file inventory, checksum coverage, exact TEM/HRTEM modality tokens, at least two independently blinded labelers, an adjudicated consensus, immutable sample/acquisition IDs, verified model-development non-use, a verified licence, and no target-source or creator overlap. The evaluator supports only the pinned cobalt-oxide binary TEM/HRTEM segmentation contract and rejects other declared targets.
+- Zenodo `10.5281/zenodo.14927582`: target cobalt-oxide TEM source and training files; excluded as the target source.
+- Zenodo `10.5281/zenodo.17336678`: one Co3O4 nanoparticle tilt series in `Co3O4_denoised_tilt_series.h5`; exact-material but motion-corrected, tilt-aligned, denoised, single-particle, creator-overlapping, and not independently labeled.
+- Dryad `10.7941/D1SP93`: Au/Ag/CdSe HRTEM image-label pairs; cross-material only.
+- Mendeley Data `10.17632/8w66synjmx.1`: rendered RGB CoP/Co2P/Co3O4 publication figures, not raw detector data.
+- Zenodo `10.5281/zenodo.14868077`: cobalt-hydroxide/ionomer cryo-TEM; cross-phase and unlabeled.
+- Zenodo `10.5281/zenodo.11161891`: cobalt-tungstate STEM/TEM; cross-phase only.
+- Zenodo `10.5281/zenodo.7941248`: Co3O4 SEM/XPS/HAXPES; wrong modality.
 
 ## Current conclusion
 
-No assessed public candidate is ready for in-domain external validation. The highest-priority unresolved lead is the Mendeley CoP/Co2P/Co3O4 dataset because it reports target-containing raw TEM data, but its exact TEM file inventory, checksums, sample identity, acquisition lineage, and independent labels must be resolved before use.
+No assessed public candidate is ready for in-domain external validation. PhaseT3M is the best exact-material processed diagnostic source, not an evaluation set. It may support checksum/HDF5 ingestion and processed-representation robustness checks only.
 
-The emitted annotation protocol is a template only. It must not be frozen until candidate files and lineage have been audited.
+Readiness still requires raw or demonstrably lossless TEM/HRTEM from at least two independent samples/acquisitions, immutable lineage, explicit reuse terms, verified target-model non-use and content disjointness, and at least two blinded independent labels plus adjudication.
 
-## Readiness integration
-
-After generating the registry, pass its summary to the consolidated readiness command:
-
-```bash
-mca tem-readiness \
-  --training-summary path/to/training_data_readiness_summary.json \
-  --parent-overlap-summary path/to/parent_overlap_audit_summary.json \
-  --candidate-registry-summary outputs/tem_external_validation_candidate_registry/tem_external_validation_candidate_summary.json \
-  --output outputs/tem_segmentation_readiness_with_registry
-```
-
-The registry refines the next action but cannot by itself grant scientific evaluation readiness. Image files, sample/acquisition lineage, independent labels, verified non-use, and content-overlap clearance still require separate evidence.
+The annotation protocol remains a template and must not be frozen around PhaseT3M.

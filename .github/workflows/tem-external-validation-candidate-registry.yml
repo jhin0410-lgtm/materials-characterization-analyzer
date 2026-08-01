@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -65,16 +65,17 @@ jobs:
               "in_domain_external_validation_ready_count"
           ] == 0
           assert summary["result_counts"]["metadata_resolution_candidate_count"] == 0
+          assert summary["result_counts"]["processed_in_domain_diagnostic_count"] == 1
           assert summary["result_counts"][
               "rendered_representation_exclusion_count"
           ] == 1
           assert summary["readiness"]["recommended_candidate_id"] == (
-              "mendeley_8w66synjmx_cop_co2p_co3o4"
+              "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
           )
           assert summary["readiness"]["recommended_candidate_status"] == (
-              "excluded_rendered_figure_representation"
+              "processed_in_domain_diagnostic_only"
           )
-          assert "Acquire or obtain" in summary["readiness"][
+          assert "Request raw detector frames" in summary["readiness"][
               "recommended_next_action"
           ]
           manifest = json.loads(
@@ -90,7 +91,7 @@ jobs:
           PY
 
       - name: Upload candidate evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tem-external-validation-candidate-registry-evidence
           path: outputs/tem_external_validation_candidate_registry

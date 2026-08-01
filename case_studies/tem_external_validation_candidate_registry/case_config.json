@@ -1,7 +1,7 @@
 {
   "case_id": "tem_external_validation_candidate_registry",
   "search_snapshot": {
-    "search_date": "2026-08-01",
+    "search_date": "2026-08-02",
     "repositories_searched": [
       "Zenodo",
       "Dryad",
@@ -11,7 +11,8 @@
       "cobalt oxide HRTEM segmentation dataset labels",
       "Co3O4 TEM images raw data",
       "cobalt oxide electron microscopy dataset",
-      "Co3O4 TEM annotation external validation"
+      "Co3O4 TEM annotation external validation",
+      "Co3O4 electron tomography raw tilt series"
     ]
   },
   "target_contract": {
@@ -256,6 +257,46 @@
         "No TEM or HRTEM image set is reported."
       ],
       "next_validation_step": "Exclude from TEM segmentation validation; it may be relevant only to a separate SEM workflow.",
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false
+    },
+    {
+      "candidate_id": "zenodo_17336678_phaset3m_co3o4_processed_tilt_series",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.17336678",
+      "record_url": "https://zenodo.org/records/17336678",
+      "title": "PhaseT3M: 3D Imaging at 1.6 Å Resolution via Electron Cryo-Tomography with Nonlinear Phase Retrieval",
+      "materials": [
+        "Co3O4 nanoparticle"
+      ],
+      "modalities": [
+        "TEM",
+        "HRTEM",
+        "electron tomography"
+      ],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": false,
+      "reported_tem_file_count": 1,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "no independent segmentation labels reported",
+      "labeler_count": null,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": true,
+      "target_material_relation": "exact_cobalt_oxide",
+      "imaging_domain_relation": "material_or_acquisition_domain_shift",
+      "reuse_license": "dataset record does not explicitly declare a data reuse licence; GPL-3.0 is stated for code only",
+      "reuse_license_verified": false,
+      "target_training_source": false,
+      "source_evidence": [
+        "Official Zenodo metadata describes an approximately 7 nm Co3O4 nanoparticle and a 501 MB raw_tilt_data.zip archive with MD5 efb1e487aedbafa7c0822e0d31968d05.",
+        "The source states that released tilt series were motion-corrected and tilt-aligned, and names the relevant member Co3O4_denoised_tilt_series.h5.",
+        "The checksum-bound audit inspects the unique HDF5 member while preserving the source declaration that the representation is denoised and processed rather than raw detector data.",
+        "Min Gee Cho and Mary Scott overlap the target cobalt-oxide training-source creators, so repository separation does not establish model-development independence."
+      ],
+      "next_validation_step": "Use only for processed exact-material HDF5 and robustness diagnostics. Request raw detector frames, immutable sample/acquisition lineage, explicit data reuse terms, and an independent multi-sample source before blinded annotation or model evaluation.",
       "blinded_labeling_verified": false,
       "adjudicated_consensus_available": false
     }

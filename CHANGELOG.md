@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- A checksum-bound PhaseT3M Co3O4 tilt-series candidate audit that safely inventories the Zenodo ZIP, inspects the unique HDF5 member, records source processing, and excludes raw files from evidence artifacts.
+- A `processed_in_domain_diagnostic_only` registry state so exact-material denoised or otherwise processed microscopy cannot be mistaken for raw external-validation data.
+
 ### Fixed
 
 - Dryad HRTEM pilot automatic acquisition now resolves the pinned file-linked source version and checksum inventory, authenticates binary downloads without exposing the token, preserves raw API responses separately from enriched evidence, and keeps readiness blocked unless processed metadata binding is exact and authoritative.

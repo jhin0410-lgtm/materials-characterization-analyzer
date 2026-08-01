@@ -28,6 +28,7 @@ TARGET_SOURCE = "target_training_source"
 IN_DOMAIN_READY = "in_domain_external_validation_ready"
 METADATA_RESOLUTION = "metadata_resolution_required_before_image_audit"
 ANNOTATION_PILOT = "annotation_pilot_candidate_not_validation_ready"
+PROCESSED_IN_DOMAIN = "processed_in_domain_diagnostic_only"
 CROSS_PHASE = "cross_phase_annotation_candidate_not_in_domain"
 CROSS_MATERIAL = "diagnostic_cross_material_only"
 WRONG_MODALITY = "excluded_wrong_microscopy_modality"
@@ -352,10 +353,11 @@ def run_candidate_registry(
                 "status": "Supported",
                 "result": result,
                 "strongest_evidence": (
-                    "Six public records were assessed against explicit material, modality, "
-                    "file, representation, lineage, label, non-use, and licence gates. The "
-                    "only Co3O4-containing lead resolves to rendered mixed-heterojunction "
-                    "figure images rather than an independent raw validation set."
+                    f"{len(rows)} public records were assessed against explicit material, "
+                    "modality, file, representation, lineage, label, non-use, and licence "
+                    "gates. Exact-material records remain blocked as target-source data, "
+                    "processed single-particle data, or representations without the "
+                    "lineage and labels required for independent validation."
                 ),
                 "primary_limitation": (
                     "No public candidate provides checksum-bound raw cobalt-oxide TEM images "
@@ -418,6 +420,15 @@ def _candidate_row(candidate: Candidate) -> dict[str, Any]:
     rendered_exclusion = (
         candidate.imaging_domain_relation == "rendered_mixed_heterojunction_figure_images"
     )
+    processed_in_domain = all(
+        (
+            exact_target,
+            has_tem_modality,
+            not candidate.raw_or_lossless_tem_images_available,
+            candidate.file_inventory_status in _RESOLVED_INVENTORIES,
+            not rendered_exclusion,
+        )
+    )
     annotation_contract_satisfied = all(
         (
             candidate.independent_segmentation_labels_available,
@@ -478,6 +489,8 @@ def _candidate_row(candidate: Candidate) -> dict[str, Any]:
         status, rank = TARGET_SOURCE, 90
     elif ready:
         status, rank = IN_DOMAIN_READY, 1
+    elif processed_in_domain:
+        status, rank = PROCESSED_IN_DOMAIN, 12
     elif rendered_exclusion:
         status, rank = EXCLUDED_REPRESENTATION, 15
     elif candidate.file_inventory_status not in _RESOLVED_INVENTORIES:
@@ -542,6 +555,7 @@ def _recommendation(rows: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
         IN_DOMAIN_READY,
         METADATA_RESOLUTION,
         ANNOTATION_PILOT,
+        PROCESSED_IN_DOMAIN,
         EXCLUDED_REPRESENTATION,
         CROSS_PHASE,
         CROSS_MATERIAL,
@@ -567,6 +581,7 @@ def _counts(rows: Sequence[Mapping[str, Any]]) -> dict[str, int]:
         "in_domain_external_validation_ready_count": count(IN_DOMAIN_READY),
         "metadata_resolution_candidate_count": count(METADATA_RESOLUTION),
         "annotation_pilot_candidate_count": count(ANNOTATION_PILOT),
+        "processed_in_domain_diagnostic_count": count(PROCESSED_IN_DOMAIN),
         "rendered_representation_exclusion_count": count(EXCLUDED_REPRESENTATION),
         "cross_phase_candidate_count": count(CROSS_PHASE),
         "diagnostic_cross_material_candidate_count": count(CROSS_MATERIAL),

@@ -10,6 +10,7 @@ import pytest
 from mca.cli_entry import main as cli_main
 from mca.tem_external_validation_candidate_registry import (
     EXCLUDED_REPRESENTATION,
+    PROCESSED_IN_DOMAIN,
     RESULT,
     CandidateContractError,
     load_registry_config,
@@ -34,22 +35,23 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
     ]
     assert not summary["readiness"]["public_search_supports_model_evaluation_now"]
     assert summary["result_counts"] == {
-        "candidate_count": 6,
+        "candidate_count": 7,
         "in_domain_external_validation_ready_count": 0,
         "metadata_resolution_candidate_count": 0,
         "annotation_pilot_candidate_count": 0,
+        "processed_in_domain_diagnostic_count": 1,
         "rendered_representation_exclusion_count": 1,
         "cross_phase_candidate_count": 1,
         "diagnostic_cross_material_candidate_count": 1,
         "excluded_control_count": 3,
     }
     assert summary["readiness"]["recommended_candidate_id"] == (
-        "mendeley_8w66synjmx_cop_co2p_co3o4"
+        "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
     )
     assert summary["readiness"]["recommended_candidate_status"] == (
-        EXCLUDED_REPRESENTATION
+        PROCESSED_IN_DOMAIN
     )
-    assert "Acquire or obtain" in summary["readiness"]["recommended_next_action"]
+    assert "Request raw detector frames" in summary["readiness"]["recommended_next_action"]
 
 
 def test_resolved_mendeley_rendered_files_are_explicitly_excluded(
@@ -68,6 +70,29 @@ def test_resolved_mendeley_rendered_files_are_explicitly_excluded(
     assert f",{EXCLUDED_REPRESENTATION}," in row
     assert "rendered_figure_representation_not_raw_validation_data" in row
     assert "db3204100545fe3a152c0a545d29ab7f" in row
+
+
+def test_phaset3m_processed_exact_material_is_diagnostic_only(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out"
+    run_candidate_registry(load_registry_config(CONFIG), output)
+    with (output / "tem_external_validation_candidate_inventory.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+    candidate = next(
+        row
+        for row in rows
+        if row["candidate_id"]
+        == "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
+    )
+    assert candidate["candidate_status"] == PROCESSED_IN_DOMAIN
+    assert candidate["in_domain_external_validation_ready"] == "False"
+    assert candidate["evaluation_ready"] == "False"
+    assert "raw_or_lossless_tem_images_unavailable" in candidate["blockers"]
+    assert "target_creator_overlap" in candidate["blockers"]
+    assert "reuse_license_unverified" in candidate["blockers"]
 
 
 def test_training_source_is_explicitly_excluded(tmp_path: Path) -> None:
@@ -156,10 +181,10 @@ def test_cli_writes_registry_outputs(
     assert result == 0
     printed = json.loads(capsys.readouterr().out)
     assert printed["status"] == RESULT
-    assert printed["candidate_count"] == 6
+    assert printed["candidate_count"] == 7
     assert printed["in_domain_external_validation_ready_count"] == 0
     assert printed["recommended_candidate_id"] == (
-        "mendeley_8w66synjmx_cop_co2p_co3o4"
+        "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
     )
     assert (output / "tem_external_validation_candidate_report.md").is_file()
 
@@ -205,6 +230,7 @@ def test_mutually_exclusive_candidate_status_counts_reconcile(
             "in_domain_external_validation_ready_count",
             "metadata_resolution_candidate_count",
             "annotation_pilot_candidate_count",
+            "processed_in_domain_diagnostic_count",
             "rendered_representation_exclusion_count",
             "cross_phase_candidate_count",
             "diagnostic_cross_material_candidate_count",
