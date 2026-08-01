@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import hashlib
 import sys
 from pathlib import Path
@@ -113,6 +112,15 @@ def test_run_contracts_include_primary_two_smoothing_and_four_center_runs() -> N
         "smoothing_window": 7,
         "sensitivity_dimension": "primary",
     }
+    assert {record["run_id"] for record in contracts} == {
+        "primary",
+        "smoothing_5",
+        "smoothing_11",
+        "center_m2_p0",
+        "center_p2_p0",
+        "center_p0_m2",
+        "center_p0_p2",
+    }
     assert {record["smoothing_window"] for record in contracts} == {5, 7, 11}
     center_contracts = [
         record for record in contracts if record["sensitivity_dimension"] == "center_position"
@@ -139,10 +147,10 @@ def test_candidate_review_matches_one_to_one_and_preserves_unmatched() -> None:
         "primary",
         "smoothing_5",
         "smoothing_11",
-        "center_m2_0",
-        "center_p2_0",
-        "center_0_m2",
-        "center_0_p2",
+        "center_m2_p0",
+        "center_p2_p0",
+        "center_p0_m2",
+        "center_p0_p2",
     ]
     rows = [_candidate("primary", 1, 100.0, 0.5)]
     for index, run_id in enumerate(runs[1:], start=1):
