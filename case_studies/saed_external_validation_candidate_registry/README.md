@@ -4,20 +4,45 @@ This directory records source-backed candidates for future external validation o
 
 ## Current decision
 
-The best current candidate is Indiana University DataCORE dataset `10.5967/ct7n-8275`, which reports chromium-telluride SAED patterns along `[001]` and `[112]` zone axes and supplies both TIFF images and original Gatan DM4 files under CC BY 4.0.
+The best current candidate is Indiana University DataCORE dataset `10.5967/ct7n-8275`, which reports chromium-telluride SAED patterns along `[001]` and `[112]` zone axes and supplies TIFF images and original Gatan DM4 files under CC BY 4.0.
 
-The candidate is **not yet eligible for external validation**. The public landing page does not establish the archive checksum, member inventory, accelerating voltage, camera calibration, detector metadata, immutable sample/acquisition identities, pattern-center provenance, or acquisition independence.
+The related publication adds two useful facts: TEM was performed using a 120 kV JEOL JEM 1400plus, and the authors state that the main diffraction spots in both patterns can be indexed by `Cr1+deltaTe2` with `delta` approximately `0.5`. These are source claims, not analyzer ground truth, and they must not be used for parameter tuning.
+
+The candidate is **not yet eligible for external validation**. Camera length or a traceable camera constant, detector metadata, immutable sample/acquisition identities, pattern-center provenance, acquisition independence, archive/member checksums, and the relationship between each DM4 and TIFF representation remain unresolved.
 
 The existing FINDS SAED case remains useful for real-image software integration and sensitivity testing, but its lossy JPEG and unresolved material/acquisition provenance do not satisfy the raw calibrated validation contract.
+
+## Automated source audit
+
+`script/audit_datacore_saed_candidate.py` is intentionally not used; the executable audit is:
+
+```bash
+python scripts/audit_datacore_saed_candidate.py \
+  --source-url "https://datacore.iu.edu/downloads/37720f05n?locale=en" \
+  --output outputs/datacore-saed-source-audit
+```
+
+The audit:
+
+1. requests the official DataCORE file endpoint;
+2. records a checksum-bound, fail-closed diagnostic when the response is not a ZIP archive;
+3. rejects unsafe, duplicate, encrypted, or oversized ZIP members;
+4. records archive/member SHA-256 values;
+5. reads DM4 and TIFF arrays without changing pixels;
+6. extracts only relevant instrument/acquisition metadata;
+7. compares deterministically matched DM4/TIFF representations;
+8. deletes downloaded source files before evidence upload.
+
+Only inventory, summary/diagnostic, and artifact-manifest files may be persisted. Raw microscopy files remain external and untracked.
 
 ## Required acquisition audit
 
 1. Download `Diffraction_Pattern.zip` from the official DataCORE file panel without renaming or modifying the archive.
 2. Record the source URL, DOI, download date, archive byte size, and SHA-256.
-3. Extract into an immutable local data root and record every member path, byte size, and SHA-256.
-4. Read DM4 metadata without altering image arrays. Preserve dtype, shape, intensity range, and all relevant acquisition tags.
-5. Compare each TIFF with its corresponding DM4 representation. Determine whether the TIFF is a lossless export, a display conversion, or an independently processed image.
-6. Resolve material, sample, acquisition, accelerating-voltage, camera-length or camera-constant, detector, pixel-size, center, and zone-axis provenance.
+3. Record every archive member path, byte size, and SHA-256.
+4. Read DM4 metadata without altering image arrays. Preserve dtype, shape, intensity range, and relevant acquisition tags.
+5. Compare each TIFF with its corresponding DM4 representation. Determine whether the TIFF is a lossless export, display conversion, or independently processed image.
+6. Resolve material, sample, acquisition, camera-length or camera-constant, detector, pixel-size, center, and zone-axis provenance. The 120 kV microscope condition is supported at publication level but still needs file binding.
 7. Verify that at least two patterns come from independent acquisitions rather than alternative exports of one pattern.
 8. Freeze the primary center, smoothing, prominence, radius bounds, candidate matching, calibration, uncertainty, exclusion, and reference/indexing rules before inspecting analyzer agreement with source assignments.
 
@@ -31,7 +56,7 @@ A later real-data case may proceed only when all of the following are supported 
 - material and sample identity;
 - immutable acquisition identity;
 - at least two independent patterns or acquisitions;
-- accelerating voltage;
+- accelerating voltage bound to the audited files;
 - camera length or a traceable camera constant;
 - detector metadata when relevant;
 - source-supported or reproducibly calibrated pattern center;
@@ -39,6 +64,6 @@ A later real-data case may proceed only when all of the following are supported 
 
 ## Scientific boundary
 
-Reported `[001]` and `[112]` zone axes must not be used to tune center, smoothing, prominence, minimum distance, radius bounds, or candidate count. Until the raw-file audit passes, this registry supports only source triage. It does not support phase identification, reflection indexing, zone-axis accuracy, calibrated `d_nm` accuracy, generalization, or engineering release.
+Reported `[001]` and `[112]` zone axes and the publication-level `Cr1+deltaTe2` indexing statement must not be used to tune center, smoothing, prominence, minimum distance, radius bounds, or candidate count. Until the raw-file audit, lineage audit, calibration verification, and protocol freeze pass, this registry supports only source triage. It does not support phase identification, reflection indexing, zone-axis accuracy, calibrated `d_nm` accuracy, generalization, or engineering release.
 
 See `case_config.json` for the machine-readable search snapshot, confirmed evidence, unresolved fields, and next action.
