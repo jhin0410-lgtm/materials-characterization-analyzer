@@ -1,0 +1,27 @@
+{
+  "api_base": "https://api.data.mendeley.com",
+  "case_id": "mendeley_cop_co2p_co3o4_tem_candidate_audit",
+  "datasets": [
+    {
+      "dataset_id": "8w66synjmx",
+      "doi": "10.17632/8w66synjmx.1",
+      "expected_title_fragment": "Raw data-Three-dimensional nano-framework",
+      "role": "primary_raw",
+      "version": 1
+    },
+    {
+      "dataset_id": "zhnbzhjrtr",
+      "doi": "10.17632/zhnbzhjrtr.1",
+      "expected_title_fragment": "Three-dimensional nano-framework",
+      "role": "duplicate_raw_record",
+      "version": 1
+    },
+    {
+      "dataset_id": "jz9dpgwwc3",
+      "doi": "10.17632/jz9dpgwwc3.1",
+      "expected_title_fragment": "processed data-Three-dimensional nano-framework",
+      "role": "processed_control",
+      "version": 1
+    }
+  ]
+}
