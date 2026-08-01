@@ -9,6 +9,7 @@ import pytest
 
 from mca.tem_mendeley_candidate_audit import (
     STATUS_API_BLOCKED,
+    STATUS_INVENTORY_RESOLVED,
     STATUS_TEM_CANDIDATE_FOUND,
     AuditConfig,
     run_mendeley_candidate_audit,
@@ -19,7 +20,7 @@ def _config() -> AuditConfig:
     return AuditConfig.from_mapping(
         {
             "case_id": "mendeley_cop_co2p_co3o4_tem_candidate_audit",
-            "api_base": "https://api.data.mendeley.com",
+            "api_base": "https://data.mendeley.com/public-api",
             "datasets": [
                 {
                     "dataset_id": "8w66synjmx",
@@ -47,54 +48,69 @@ def _config() -> AuditConfig:
     )
 
 
+def _snapshot(dataset_id: str) -> dict[str, Any]:
+    title = {
+        "8w66synjmx": "Raw data-Three-dimensional nano-framework",
+        "zhnbzhjrtr": "Three-dimensional nano-framework raw data",
+        "jz9dpgwwc3": "processed data-Three-dimensional nano-framework",
+    }[dataset_id]
+    return {
+        "id": dataset_id,
+        "version": 1,
+        "name": title,
+        "description": "raw XRD, SEM, TEM and electrochemical data",
+        "doi": {"id": f"10.17632/{dataset_id}.1"},
+        "licence": {"name": "CC0"},
+    }
+
+
+def _file(
+    identifier: str,
+    filename: str,
+    sha256: str,
+    size: int,
+    description: str = "",
+) -> dict[str, Any]:
+    return {
+        "id": identifier,
+        "filename": filename,
+        "description": description,
+        "content_details": {
+            "id": f"content-{identifier}",
+            "sha256_hash": sha256,
+            "content_type": "application/octet-stream",
+            "size": size,
+            "download_url": "https://temporary.example/file?X-Amz-Signature=secret",
+        },
+        "status": "AVAILABLE",
+    }
+
+
 def _transport(url: str, accept: str) -> tuple[int, Mapping[str, str], Any]:
     del accept
     dataset_id = next(
         item for item in ("8w66synjmx", "zhnbzhjrtr", "jz9dpgwwc3") if item in url
     )
-    if "/files?" not in url:
-        title = {
-            "8w66synjmx": "Raw data-Three-dimensional nano-framework",
-            "zhnbzhjrtr": "Three-dimensional nano-framework raw data",
-            "jz9dpgwwc3": "processed data-Three-dimensional nano-framework",
-        }[dataset_id]
-        return 200, {"content-type": "application/json"}, {
-            "id": dataset_id,
-            "version": 1,
-            "name": title,
-            "description": "raw XRD, SEM, TEM and electrochemical data",
-            "doi": {"id": f"10.17632/{dataset_id}.1"},
-        }
-    if dataset_id == "8w66synjmx":
-        return 200, {}, [
-            {
-                "id": "11111111-1111-4111-8111-111111111111",
-                "filename": "HRTEM_raw_images.zip",
-                "description": "Transmission electron microscopy images",
-                "content_details": {
-                    "sha256_hash": "a" * 64,
-                    "content_type": "application/zip",
-                    "size": 12345,
-                    "download_url": "https://temporary.example/file",
-                },
-                "status": "AVAILABLE",
-            },
-            {
-                "id": "22222222-2222-4222-8222-222222222222",
-                "filename": "XRD.xlsx",
-                "description": "X-ray diffraction",
-                "content_details": {
-                    "sha256_hash": "b" * 64,
-                    "content_type": "application/vnd.ms-excel",
-                    "size": 456,
-                },
-                "status": "AVAILABLE",
-            },
-        ]
-    return 200, {}, []
+    if "/snapshot/" in url:
+        return 200, {"Content-Type": "application/json"}, _snapshot(dataset_id)
+    common = [
+        _file("archive", "database.rar", "a" * 64, 12_345),
+        _file(
+            "tem-image",
+            "TEM_image.tif",
+            "b" * 64,
+            456,
+            "Transmission electron microscopy image",
+        ),
+    ]
+    if dataset_id in {"8w66synjmx", "zhnbzhjrtr"}:
+        return 200, {"Content-Type": "application/json"}, common
+    return 200, {"Content-Type": "application/json"}, [
+        _file("processed", "processed data.rar", "c" * 64, 789)
+    ]
 
 
-def test_resolves_checksum_bound_tem_candidate_without_opening_annotation_gate(
+def test_resolves_public_files_plain_tem_and_duplicate_content(
     tmp_path: Path,
 ) -> None:
     output = tmp_path / "out"
@@ -107,20 +123,21 @@ def test_resolves_checksum_bound_tem_candidate_without_opening_annotation_gate(
     assert summary["result_counts"]["primary_file_count"] == 2
     assert summary["result_counts"]["primary_tem_candidate_file_count"] == 1
     assert summary["inventory_readiness"]["primary_checksums_and_sizes_complete"]
+    assert summary["inventory_readiness"]["duplicate_raw_record_content_identical"]
     assert not summary["lineage_and_annotation_gates"]["annotation_pilot_ready"]
     assert not summary["lineage_and_annotation_gates"][
         "external_model_evaluation_ready"
     ]
 
     inventory = (output / "mendeley_file_inventory.csv").read_text(encoding="utf-8")
-    assert "HRTEM_raw_images.zip" in inventory
-    assert "aaaaaaaaaaaaaaaa" in inventory
+    assert "TEM_image.tif" in inventory
+    assert "bbbbbbbbbbbbbbbb" in inventory
     snapshots = json.loads(
         (output / "mendeley_api_snapshots.json").read_text(encoding="utf-8")
     )
     encoded = json.dumps(snapshots, sort_keys=True)
     assert "temporary.example" not in encoded
-    assert "redacted_ephemeral_url" in encoded
+    assert '"download_url": "redacted"' in encoded
 
     manifest = json.loads(
         (output / "mendeley_candidate_audit_manifest.json").read_text(
@@ -134,27 +151,31 @@ def test_resolves_checksum_bound_tem_candidate_without_opening_annotation_gate(
         assert record["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()
 
 
-def test_publics_endpoint_fallback_is_supported(tmp_path: Path) -> None:
-    def fallback(url: str, accept: str) -> tuple[int, Mapping[str, str], Any]:
-        if "/datasets/publics/" not in url:
-            return 401, {}, {"message": "authentication required"}
-        return _transport(url.replace("/datasets/publics/", "/datasets/"), accept)
+def test_generic_archive_inventory_is_resolved_without_false_tem_claim(
+    tmp_path: Path,
+) -> None:
+    def archives(url: str, accept: str) -> tuple[int, Mapping[str, str], Any]:
+        del accept
+        dataset_id = next(
+            item
+            for item in ("8w66synjmx", "zhnbzhjrtr", "jz9dpgwwc3")
+            if item in url
+        )
+        if "/snapshot/" in url:
+            return 200, {}, _snapshot(dataset_id)
+        name = "processed data.rar" if dataset_id == "jz9dpgwwc3" else "database.rar"
+        digest = "c" * 64 if dataset_id == "jz9dpgwwc3" else "a" * 64
+        return 200, {}, [_file(dataset_id, name, digest, 123)]
 
     summary = run_mendeley_candidate_audit(
         _config(),
         tmp_path / "out",
-        transport=fallback,
+        transport=archives,
     )
-    assert summary["inventory_readiness"]["status"] == STATUS_TEM_CANDIDATE_FOUND
-    snapshots = json.loads(
-        (tmp_path / "out" / "mendeley_api_snapshots.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert all(
-        item["selected_variant"] == "datasets_publics"
-        for item in snapshots["snapshots"]
-    )
+    assert summary["inventory_readiness"]["status"] == STATUS_INVENTORY_RESOLVED
+    assert summary["result_counts"]["primary_tem_candidate_file_count"] == 0
+    assert summary["inventory_readiness"]["duplicate_raw_record_content_identical"]
+    assert "inventory the public root archive" in summary["next_action"]
 
 
 def test_api_blocker_is_inconclusive_and_fail_closed(tmp_path: Path) -> None:
@@ -183,7 +204,7 @@ def test_output_overwrite_is_refused(tmp_path: Path) -> None:
 def test_invalid_primary_contract_is_rejected() -> None:
     payload = {
         "case_id": "mendeley_cop_co2p_co3o4_tem_candidate_audit",
-        "api_base": "https://api.data.mendeley.com",
+        "api_base": "https://data.mendeley.com/public-api",
         "datasets": [
             {
                 "dataset_id": "zhnbzhjrtr",
