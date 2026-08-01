@@ -1,0 +1,62 @@
+name: Apply TEM intake fixes onto current main
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/apply-tem-intake-v2.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  copy-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out current replacement branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Copy the already validated five-file fix
+        run: |
+          set -euo pipefail
+          git fetch origin agent/fix-tem-validation-intake-gates
+          git checkout origin/agent/fix-tem-validation-intake-gates -- \
+            CHANGELOG.md \
+            case_studies/tem_external_validation_intake/README.md \
+            case_studies/tem_external_validation_intake/manifest_template.example.json \
+            src/mca/tem_external_validation_intake.py \
+            tests/test_tem_external_validation_intake.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and development dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused tests
+        run: python -m pytest -q tests/test_tem_external_validation_intake.py
+
+      - name: Run full repository tests
+        run: python -m pytest -q
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Commit validated current-main application
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            CHANGELOG.md \
+            case_studies/tem_external_validation_intake/README.md \
+            case_studies/tem_external_validation_intake/manifest_template.example.json \
+            src/mca/tem_external_validation_intake.py \
+            tests/test_tem_external_validation_intake.py
+          git commit -m "Apply fail-closed TEM validation intake fixes [intake-v2-applied]"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
