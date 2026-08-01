@@ -1,5 +1,5 @@
 {
-  "api_base": "https://api.data.mendeley.com",
+  "api_base": "https://data.mendeley.com/public-api",
   "case_id": "mendeley_cop_co2p_co3o4_tem_candidate_audit",
   "datasets": [
     {
