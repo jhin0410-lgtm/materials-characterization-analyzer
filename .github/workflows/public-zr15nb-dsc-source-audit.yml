@@ -6,10 +6,12 @@ on:
       - "case_studies/public_zr15nb_dsc/**"
       - "scripts/audit_public_zr15nb_dsc_source.py"
       - "scripts/run_public_zr15nb_dsc_case.py"
+      - "scripts/review_public_zr15nb_dsc_candidates.py"
       - "src/mca/thermal.py"
       - "src/mca/thermal_features.py"
       - "tests/test_public_zr15nb_dsc_source_audit.py"
       - "tests/test_public_zr15nb_dsc_case.py"
+      - "tests/test_public_zr15nb_dsc_candidate_review.py"
       - ".github/workflows/public-zr15nb-dsc-source-audit.yml"
   workflow_dispatch:
 
@@ -37,6 +39,7 @@ jobs:
           python -m pytest -q
           tests/test_public_zr15nb_dsc_source_audit.py
           tests/test_public_zr15nb_dsc_case.py
+          tests/test_public_zr15nb_dsc_candidate_review.py
 
       - name: Audit checksum-bound real DSC source
         run: |
@@ -50,6 +53,12 @@ jobs:
             --config case_studies/public_zr15nb_dsc/case_config.json \
             --output outputs/public-zr15nb-dsc/result
 
+      - name: Review candidate smoothing sensitivity
+        run: |
+          python scripts/review_public_zr15nb_dsc_candidates.py \
+            --config case_studies/public_zr15nb_dsc/case_config.json \
+            --result outputs/public-zr15nb-dsc/result
+
       - name: Verify real-data evidence and artifact hashes
         run: |
           python - <<'PY'
@@ -57,12 +66,17 @@ jobs:
           import json
           from pathlib import Path
 
+          import pandas as pd
+
           audit_output = Path("outputs/public-zr15nb-dsc/source-audit")
           result_output = Path("outputs/public-zr15nb-dsc/result")
           audit = json.loads((audit_output / "source_audit_summary.json").read_text())
           audit_manifest = json.loads((audit_output / "source_audit_manifest.json").read_text())
           summary = json.loads((result_output / "case_summary.json").read_text())
           manifest = json.loads((result_output / "case_artifact_manifest.json").read_text())
+          candidates = pd.read_csv(result_output / "dsc_sensitivity_candidates.csv")
+          robustness = pd.read_csv(result_output / "dsc_candidate_robustness.csv")
+          unmatched = pd.read_csv(result_output / "dsc_unmatched_sensitivity_candidates.csv")
 
           assert audit["case_id"] == "public_zr15nb_dsc_source_audit"
           assert audit["source"]["record_id"] == 17590045
@@ -99,6 +113,7 @@ jobs:
           assert {record["run_id"] for record in summary["analysis_runs"]} == {
               "primary", "sensitivity_1c", "sensitivity_5c"
           }
+          assert {record["candidate_count"] for record in summary["analysis_runs"]} == {5}
           for record in summary["analysis_runs"]:
               analysis_manifest = json.loads(
                   (result_output / record["analysis_manifest"]).read_text()
@@ -110,6 +125,26 @@ jobs:
               assert "thermal_sample_mass_not_provided" in analysis["warnings"]
               assert "thermal_crucible_material_not_provided" in analysis["warnings"]
 
+          review = summary["candidate_robustness"]
+          assert review["temperature_tolerance_c"] == 10.0
+          assert review["primary_candidate_count"] == 5
+          assert review["all_runs_matched_count"] == 5
+          assert review["unmatched_sensitivity_candidate_count"] == 0
+          assert not review["raw_analyzer_candidate_tables_modified"]
+          assert not review["candidate_acceptance_or_rejection_performed"]
+          assert not review["phase_or_reaction_labels_assigned"]
+          assert len(robustness) == 5
+          assert unmatched.empty
+          assert robustness["all_runs_matched"].all()
+          assert (
+              robustness["case_review_status"]
+              == "stable_temperature_area_direction_review_required"
+          ).sum() == 1
+          assert (
+              robustness["case_review_status"]
+              == "stable_temperature_review_required"
+          ).sum() == 4
+
           for base, current_manifest in (
               (audit_output, audit_manifest),
               (result_output, manifest),
@@ -119,6 +154,10 @@ jobs:
                   assert path.stat().st_size == record["bytes"]
                   assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
 
+          candidate_temperatures = {
+              run_id: [round(value, 5) for value in group["temperature_c"].tolist()]
+              for run_id, group in candidates.groupby("run_id", sort=True)
+          }
           print(json.dumps({
               "status": summary["readiness"]["status"],
               "canonical_rows": adapter["canonical_row_count"],
@@ -130,10 +169,8 @@ jobs:
                   record["run_id"]: record["candidate_count"]
                   for record in summary["analysis_runs"]
               },
-              "candidate_temperatures": {
-                  record["run_id"]: []
-                  for record in summary["analysis_runs"]
-              },
+              "candidate_temperatures": candidate_temperatures,
+              "robustness_status_counts": review["status_counts"],
               "raw_source_files_persisted": summary["source"][
                   "raw_source_files_persisted"
               ],
