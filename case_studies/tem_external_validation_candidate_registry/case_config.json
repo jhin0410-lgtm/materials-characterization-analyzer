@@ -1,0 +1,211 @@
+{
+  "case_id": "tem_external_validation_candidate_registry",
+  "search_snapshot": {
+    "search_date": "2026-08-01",
+    "repositories_searched": [
+      "Zenodo",
+      "Dryad",
+      "Mendeley Data"
+    ],
+    "search_terms": [
+      "cobalt oxide HRTEM segmentation dataset labels",
+      "Co3O4 TEM images raw data",
+      "cobalt oxide electron microscopy dataset",
+      "Co3O4 TEM annotation external validation"
+    ]
+  },
+  "target_contract": {
+    "task": "binary nanoparticle segmentation for cobalt-oxide TEM or HRTEM images",
+    "material": "cobalt oxide",
+    "modalities": [
+      "TEM",
+      "HRTEM"
+    ],
+    "target_training_creators": [
+      "Min Gee Cho",
+      "Mary Scott"
+    ]
+  },
+  "candidates": [
+    {
+      "candidate_id": "zenodo_14927582_target_training_source",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.14927582",
+      "record_url": "https://zenodo.org/records/14927582",
+      "title": "Transmission electron microscopy images and deep Learning-predicted segmentation for statistical analysis of cobalt oxide nanoparticles",
+      "materials": ["cobalt oxide nanoparticles"],
+      "modalities": ["TEM", "HRTEM"],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": true,
+      "reported_tem_file_count": null,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "hand-labeled training patches and source-model predicted masks; neither is independent external ground truth",
+      "labeler_count": null,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": true,
+      "target_material_relation": "exact_cobalt_oxide",
+      "imaging_domain_relation": "potentially_comparable_after_file_audit",
+      "reuse_license": "CC-BY-4.0",
+      "reuse_license_verified": true,
+      "target_training_source": true,
+      "source_evidence": [
+        "Record reports TEM images, deep-learning predicted segmentation, and hand-labeled images used for neural-network training.",
+        "Files include TEM_images.zip, Segmented_images.zip, training_images.h5, and training_labels.h5 with repository MD5 values."
+      ],
+      "next_validation_step": "Exclude from external validation; preserve only as the target training/source-overlap control."
+    },
+    {
+      "candidate_id": "dryad_d1sp93_human_labeled_hrtem",
+      "repository": "Dryad",
+      "doi": "10.7941/D1SP93",
+      "record_url": "https://datadryad.org/dataset/doi:10.7941/D1SP93",
+      "title": "Atomic segmentation of high-resolution transmission electron microscopy images using deep learning",
+      "materials": ["Au", "Ag", "CdSe"],
+      "modalities": ["HRTEM"],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": true,
+      "reported_tem_file_count": 13,
+      "independent_segmentation_labels_available": true,
+      "label_origin": "single-human processed segmentation labels reported by the source",
+      "labeler_count": 1,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": true,
+      "target_material_relation": "not_cobalt_oxide",
+      "imaging_domain_relation": "material_or_acquisition_domain_shift",
+      "reuse_license": "CC0-1.0",
+      "reuse_license_verified": true,
+      "target_training_source": false,
+      "source_evidence": [
+        "Source metadata reports 407 raw HRTEM images and 13 processed image-label pairs across Au, Ag, and CdSe.",
+        "The assessed metadata reports one human labeler and one creator name overlapping the target source."
+      ],
+      "next_validation_step": "Use only for a predeclared cross-material diagnostic after authenticated file audit; never classify it as cobalt-oxide in-domain validation."
+    },
+    {
+      "candidate_id": "mendeley_8w66synjmx_cop_co2p_co3o4",
+      "repository": "Mendeley Data",
+      "doi": "10.17632/8w66synjmx.1",
+      "record_url": "https://data.mendeley.com/datasets/8w66synjmx/1",
+      "title": "Raw data-Three-dimensional nano-framework CoP/Co2P/Co3O4 heterojunction as trifunctional electrocatalyst for metal-air battery and water splitting",
+      "materials": ["CoP", "Co2P", "Co3O4 heterojunction"],
+      "modalities": ["TEM", "SEM", "XRD"],
+      "file_inventory_status": "metadata_page_does_not_expose_files",
+      "file_checksums_available": false,
+      "raw_or_lossless_tem_images_available": true,
+      "reported_tem_file_count": null,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "no segmentation labels reported",
+      "labeler_count": null,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": false,
+      "target_material_relation": "heterojunction_contains_cobalt_oxide",
+      "imaging_domain_relation": "unknown_until_file_audit",
+      "reuse_license": "CC0-1.0",
+      "reuse_license_verified": true,
+      "target_training_source": false,
+      "source_evidence": [
+        "Official dataset description states that raw XRD, SEM, TEM, and electrochemical data are included.",
+        "The public landing page confirms DOI, contributor, institution, and CC0 but does not expose a parseable file inventory in the assessed snapshot."
+      ],
+      "next_validation_step": "Resolve the exact file inventory and checksums, identify which files contain Co3O4-bearing TEM frames, and reject the source unless sample/acquisition lineage can be bound before any annotation."
+    },
+    {
+      "candidate_id": "zenodo_14868077_cooh_cryo_tem",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.14868077",
+      "record_url": "https://zenodo.org/records/14868077",
+      "title": "Dataset of Durable, pure-water-fed, anion-exchange-membrane electrolyzers through interphase engineering",
+      "materials": ["electrochemically derived cobalt hydroxide", "ionomer"],
+      "modalities": ["cryo-TEM"],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": true,
+      "reported_tem_file_count": 3,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "no segmentation labels reported",
+      "labeler_count": null,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": false,
+      "target_material_relation": "related_cobalt_phase",
+      "imaging_domain_relation": "material_or_acquisition_domain_shift",
+      "reuse_license": "not_verified_from_search_snapshot",
+      "reuse_license_verified": false,
+      "target_training_source": false,
+      "source_evidence": [
+        "Official record describes low-dose cryo-TEM images for cobalt-hydroxide/ionomer systems.",
+        "Three TEM TIFF files and repository MD5 values are listed; the images are not cobalt-oxide HRTEM segmentation labels."
+      ],
+      "next_validation_step": "Verify the record licence and image-level metadata, then consider only a cross-phase annotation-method pilot; do not use it for cobalt-oxide in-domain performance claims."
+    },
+    {
+      "candidate_id": "zenodo_11161891_cobalt_tungstate_stem",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.11161891",
+      "record_url": "https://zenodo.org/records/11161891",
+      "title": "STEM and XRD files of Water and Hydroxide Trapping in Cobalt Tungstate for Proton Exchange Membrane Water Electrolysis",
+      "materials": ["cobalt tungstate", "cobalt oxide XRD reference"],
+      "modalities": ["STEM", "TEM"],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": true,
+      "reported_tem_file_count": null,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "no segmentation labels reported",
+      "labeler_count": null,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": false,
+      "target_material_relation": "related_cobalt_phase",
+      "imaging_domain_relation": "material_or_acquisition_domain_shift",
+      "reuse_license": "CC-BY-4.0",
+      "reuse_license_verified": true,
+      "target_training_source": false,
+      "source_evidence": [
+        "Official record lists DM3, DM4, EMD, TIFF, and PNG microscopy files with MD5 values under CC-BY-4.0.",
+        "The microscopy target is cobalt tungstate; the file named Cobalt Oxide.ras is an XRD reference, not a labeled cobalt-oxide TEM set."
+      ],
+      "next_validation_step": "Retain only as a cross-phase microscopy robustness source after file audit and independent annotation; it cannot establish cobalt-oxide in-domain generalization."
+    },
+    {
+      "candidate_id": "zenodo_7941248_co3o4_sem_only",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.7941248",
+      "record_url": "https://zenodo.org/records/7941248",
+      "title": "Physico-chemical characterization of sterilized Co3O4 nanoparticles by XPS / HAXPES / SEM",
+      "materials": ["Co3O4 nanoparticles"],
+      "modalities": ["SEM", "XPS", "HAXPES"],
+      "file_inventory_status": "record_metadata_verified",
+      "file_checksums_available": false,
+      "raw_or_lossless_tem_images_available": false,
+      "reported_tem_file_count": 0,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "no TEM segmentation labels",
+      "labeler_count": null,
+      "immutable_sample_ids_available": true,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": false,
+      "target_material_relation": "exact_cobalt_oxide",
+      "imaging_domain_relation": "wrong_modality",
+      "reuse_license": "not_assessed_for_excluded_wrong_modality_source",
+      "reuse_license_verified": false,
+      "target_training_source": false,
+      "source_evidence": [
+        "Official record describes XPS, HAXPES, and SEM measurements for five Co3O4 nanoparticle treatment conditions.",
+        "No TEM or HRTEM image set is reported."
+      ],
+      "next_validation_step": "Exclude from TEM segmentation validation; it may be relevant only to a separate SEM workflow."
+    }
+  ]
+}
