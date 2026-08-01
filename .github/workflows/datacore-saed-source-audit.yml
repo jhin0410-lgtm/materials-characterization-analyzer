@@ -1,4 +1,55 @@
-name: DataCORE SAED source audit
+name: Apply final DataCORE audit cleanup
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/datacore-saed-source-audit.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/audit-datacore-saed-source
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Apply redaction, regression, and workflow cleanup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          audit_path = Path("scripts/audit_datacore_saed_candidate.py")
+          audit = audit_path.read_text(encoding="utf-8")
+          old = '''    prefix = payload[:256]\n    text_prefix = prefix.decode("utf-8", errors="replace")\n    sanitized_text = re.sub(r"\\s+", " ", text_prefix).strip()[:200]\n    return {\n        "schema_version": "1.0",\n        "case_id": "datacore_chromium_telluride_saed_download_diagnostic",\n        "source_url": _safe_url(source_url),\n        "resolved_url": _safe_url(final_url),\n        "response": dict(response_metadata),\n        "bytes": len(payload),\n        "sha256": _sha256(payload),\n        "first_32_bytes_hex": payload[:32].hex(),\n        "sanitized_text_prefix": sanitized_text,\n        "is_zip": zipfile.is_zipfile(io.BytesIO(payload)),\n        "raw_payload_persisted": False,\n    }\n'''
+          new = '''    stripped = payload.lstrip()\n    lowered_prefix = stripped[:32].lower()\n    response_prefix_kind = (\n        "html"\n        if lowered_prefix.startswith((b"<!doctype html", b"<html"))\n        else "binary_or_unknown"\n    )\n    return {\n        "schema_version": "1.0",\n        "case_id": "datacore_chromium_telluride_saed_download_diagnostic",\n        "source_url": _safe_url(source_url),\n        "resolved_url": _safe_url(final_url),\n        "response": dict(response_metadata),\n        "bytes": len(payload),\n        "sha256": _sha256(payload),\n        "first_16_bytes_hex": payload[:16].hex(),\n        "response_prefix_kind": response_prefix_kind,\n        "is_zip": zipfile.is_zipfile(io.BytesIO(payload)),\n        "raw_payload_persisted": False,\n        "response_text_persisted": False,\n    }\n'''
+          if old not in audit:
+              raise SystemExit("expected diagnostic block was not found")
+          audit_path.write_text(audit.replace(old, new), encoding="utf-8")
+
+          test_path = Path("tests/test_datacore_saed_candidate_audit.py")
+          tests = test_path.read_text(encoding="utf-8")
+          old_payload = 'payload = b"<!doctype html><html><title>Download</title></html>"'
+          new_payload = '''payload = (\n        b'<!doctype html><html><head><meta name="csrf-token" '\n        b'content="do-not-persist-this-token"></head></html>'\n    )'''
+          if old_payload not in tests:
+              raise SystemExit("expected non-ZIP payload was not found")
+          tests = tests.replace(old_payload, new_payload)
+          marker = '    assert not (output / "source.zip").exists()\n\n\ndef test_run_records_raw_evidence_without_authorizing_validation('
+          replacement = '''    assert not (output / "source.zip").exists()\n    diagnostic_text = (output / "source_download_diagnostic.json").read_text(\n        encoding="utf-8"\n    )\n    assert "do-not-persist-this-token" not in diagnostic_text\n    assert "sanitized_text_prefix" not in diagnostic_text\n    assert '"response_text_persisted": false' in diagnostic_text\n\n\ndef test_run_records_raw_evidence_without_authorizing_validation('''
+          if marker not in tests:
+              raise SystemExit("expected non-ZIP test marker was not found")
+          test_path.write_text(tests.replace(marker, replacement), encoding="utf-8")
+
+          final_workflow = '''name: DataCORE SAED source audit
 
 on:
   pull_request:
@@ -40,80 +91,28 @@ jobs:
 
       - name: Probe public DataCORE file page
         run: |
-          python scripts/probe_datacore_file_page.py \
-            --url "https://datacore.iu.edu/concern/file_sets/37720f05n" \
+          python scripts/probe_datacore_file_page.py \\
+            --url "https://datacore.iu.edu/concern/file_sets/37720f05n" \\
             --output outputs/datacore-saed-source-audit/file_page_probe.json
-
-      - name: Submit official archive retrieval request once
-        run: |
-          python - <<'PY'
-          import hashlib
-          import json
-          import re
-          import urllib.parse
-          import urllib.request
-          from pathlib import Path
-
-          base = "https://datacore.iu.edu/sda/request/datacore/4j03d088v_Diffraction_Pattern.zip"
-          query = urllib.parse.urlencode(
-              {
-                  "user_email": "",
-                  "request": "Request file retrieval from archives",
-              }
-          )
-          request = urllib.request.Request(
-              f"{base}?{query}",
-              headers={
-                  "User-Agent": "materials-characterization-analyzer-datacore-retrieval/1.0",
-                  "Accept": "text/html,application/xhtml+xml",
-                  "Referer": "https://datacore.iu.edu/concern/file_sets/37720f05n",
-              },
-          )
-          with urllib.request.urlopen(request, timeout=120) as response:
-              payload = response.read()
-              result = {
-                  "schema_version": "1.0",
-                  "case_id": "datacore_saed_archive_retrieval_request",
-                  "request_endpoint": base,
-                  "email_supplied": False,
-                  "status": int(getattr(response, "status", 200)),
-                  "resolved_url": response.geturl().split("?", 1)[0],
-                  "content_type": response.headers.get_content_type(),
-                  "response_bytes": len(payload),
-                  "response_sha256": hashlib.sha256(payload).hexdigest(),
-                  "sanitized_text_prefix": re.sub(
-                      r"\s+", " ", payload[:512].decode("utf-8", errors="replace")
-                  ).strip()[:300],
-                  "raw_response_persisted": False,
-              }
-          output = Path("outputs/datacore-saed-source-audit")
-          output.mkdir(parents=True, exist_ok=True)
-          (output / "retrieval_request_result.json").write_text(
-              json.dumps(result, indent=2, sort_keys=True) + "\n",
-              encoding="utf-8",
-          )
-          print(json.dumps(result, indent=2, sort_keys=True))
-          PY
 
       - name: Audit public DataCORE DM4 and TIFF source
         run: |
-          python scripts/audit_datacore_saed_candidate.py \
-            --source-url "https://datacore.iu.edu/downloads/37720f05n?locale=en" \
+          python scripts/audit_datacore_saed_candidate.py \\
+            --source-url "https://datacore.iu.edu/downloads/37720f05n?locale=en" \\
             --output outputs/datacore-saed-source-audit/source-audit
 
       - name: Print audit evidence
         if: always()
         run: |
-          python - <<'PY'
+          python - <<'PYCODE'
           import json
           from pathlib import Path
 
           root = Path("outputs/datacore-saed-source-audit")
-          for filename in ("file_page_probe.json", "retrieval_request_result.json"):
-              path = root / filename
-              if path.exists():
-                  print(filename.upper())
-                  print(path.read_text(encoding="utf-8"))
+          probe = root / "file_page_probe.json"
+          if probe.exists():
+              print("FILE PAGE PROBE")
+              print(probe.read_text(encoding="utf-8"))
           audit_root = root / "source-audit"
           summary_path = audit_root / "source_audit_summary.json"
           diagnostic_path = audit_root / "source_download_diagnostic.json"
@@ -125,7 +124,7 @@ jobs:
           elif diagnostic_path.exists():
               print("DOWNLOAD DIAGNOSTIC")
               print(diagnostic_path.read_text(encoding="utf-8"))
-          PY
+          PYCODE
 
       - name: Remove raw source payloads before artifact upload
         if: always()
@@ -140,10 +139,30 @@ jobs:
           name: datacore-saed-source-audit-evidence
           path: |
             outputs/datacore-saed-source-audit/file_page_probe.json
-            outputs/datacore-saed-source-audit/retrieval_request_result.json
             outputs/datacore-saed-source-audit/source-audit/archive_inventory.csv
             outputs/datacore-saed-source-audit/source-audit/source_audit_summary.json
             outputs/datacore-saed-source-audit/source-audit/source_download_diagnostic.json
             outputs/datacore-saed-source-audit/source-audit/source_audit_manifest.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
+'''
+          Path(".github/workflows/datacore-saed-source-audit.yml").write_text(
+              final_workflow, encoding="utf-8"
+          )
+          PY
+
+          rm -f .github/workflows/request-datacore-saed-retrieval.yml
+          rm -f .github/workflows/apply-datacore-audit-security-fix.yml
+
+      - name: Run focused tests
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pytest -q tests/test_datacore_saed_candidate_audit.py
+
+      - name: Commit and push cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Redact DataCORE response diagnostics"
+          git push origin HEAD:agent/audit-datacore-saed-source
