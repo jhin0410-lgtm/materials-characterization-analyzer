@@ -8,6 +8,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 No unreleased changes are currently recorded.
 
+## [0.10.0] - 2026-08-01
+
+### Added
+
+- A checksum-bound Mendeley CoP/Co2P/Co3O4 TEM source audit using the anonymous public API used by the landing page, including immutable file inventory, duplicate-record detection, safe RAR inventory, and selective microscopy-member inspection.
+- A fail-closed `mca tem-validation-intake` command for future independent cobalt-oxide TEM datasets, with SHA-256, sample/acquisition lineage, non-use, blinded-label, content-overlap, and evaluation-freeze gates.
+- A public Zr15Nb DSC real-data case using Zenodo record `17590045`, with exact three-row header binding, `mW/mg` to `W/g` identity conversion, 43,167-row monotonic heating validation, three predeclared smoothing runs, and candidate robustness review.
+- A public FINDS SAED diagnostic case using Zenodo record `13748483`, with project-bound center and camera constant, decoded-pixel-equal JPEG-to-PNG adaptation, seven center/smoothing runs, and post-detection source d-value comparison.
+- Dedicated real-data workflows, focused regression suites, deterministic evidence verifiers, checksum-bound manifests, and case-level scientific closeouts for the DSC and SAED cases.
+
+### Changed
+
+- The TEM external-validation registry now excludes the assessed Mendeley source as a rendered mixed-heterojunction figure representation instead of leaving it as a metadata-resolution candidate.
+- The next TEM action now targets acquisition of independent raw cobalt-oxide TEM data rather than additional inspection of the rejected Mendeley source.
+- SAED ZIP auditing distinguishes platform resource-fork metadata from measurement images and requires valid image references before accepting FINDS project files.
+
+### Scientific status
+
+- The Mendeley TEM source is **Diagnostic** and not suitable for independent segmentation validation: the inspected files are rendered RGB TIFF/BMP publication figures without immutable sample/acquisition IDs, Co3O4-region binding, detector-intensity provenance, or independent labels.
+- The Zr15Nb DSC case is **Diagnostic**: five automatic event candidates persist across the three smoothing spans, but phase, reaction, mechanism, validated onset, quantitative enthalpy, and engineering claims remain unsupported.
+- The FINDS SAED case is **Diagnostic**: four calibrated ring candidates persist across all seven runs, but the source is a lossy JPEG without material, acquisition, detector, raw-intensity, or crystallographic ground-truth provenance.
+- Synthetic intake fixtures validate software behavior only and are not scientific evidence.
+
 ## [0.9.3] - 2026-07-29
 
 ### Added

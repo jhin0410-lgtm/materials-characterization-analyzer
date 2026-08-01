@@ -41,7 +41,13 @@ Raman, TEM, SAED, XPS, FTIR, TGA, and DSC are standalone baseline workflows and 
 - Security-sensitive reports should follow [SECURITY.md](SECURITY.md).
 - Proposed changes should follow [CONTRIBUTING.md](CONTRIBUTING.md), including the separation between software and scientific validation.
 
-The public DWCNT multimodal case under `case_studies/public_carbon_multimodal/` fetches its source files at runtime and records source identifiers and checksums. The external raw dataset is not vendored into this repository.
+Public real-data case studies fetch their external sources at runtime, verify source identifiers and checksums, and do not vendor external raw datasets into this repository:
+
+- `case_studies/public_carbon_multimodal/`: DWCNT Raman/FTIR/XPS/TGA diagnostic case;
+- `case_studies/public_zr15nb_dsc/`: checksum-bound Zr15Nb DSC real-data case;
+- `case_studies/public_finds_saed/`: calibrated FINDS SAED real-image diagnostic case.
+
+The TEM external-validation intake under `case_studies/tem_external_validation_intake/` is a fail-closed dataset contract, not a certified scientific dataset.
 
 ## Installation
 
@@ -215,6 +221,42 @@ mca thermal \
 
 The thermal baseline accepts one strictly increasing heating segment. Cooling, holds, cycling, and multisegment programs require explicit segmentation and are not silently reordered.
 
+### Public real-data case studies
+
+Run the complete checksum-bound DSC case:
+
+```bash
+python scripts/audit_public_zr15nb_dsc_source.py \
+  --config case_studies/public_zr15nb_dsc/case_config.json \
+  --output outputs/public-zr15nb-dsc/source-audit
+
+python scripts/run_public_zr15nb_dsc_case.py \
+  --config case_studies/public_zr15nb_dsc/case_config.json \
+  --output outputs/public-zr15nb-dsc/result
+
+python scripts/review_public_zr15nb_dsc_candidates.py \
+  --config case_studies/public_zr15nb_dsc/case_config.json \
+  --result outputs/public-zr15nb-dsc/result
+```
+
+Run the calibrated FINDS SAED diagnostic case:
+
+```bash
+python scripts/audit_public_finds_saed_source.py \
+  --config case_studies/public_finds_saed/case_config.json \
+  --output outputs/public-finds-saed/source-audit
+
+python scripts/run_public_finds_saed_case.py \
+  --config case_studies/public_finds_saed/case_config.json \
+  --output outputs/public-finds-saed/result
+
+python scripts/verify_public_finds_saed_case.py \
+  --audit outputs/public-finds-saed/source-audit \
+  --result outputs/public-finds-saed/result
+```
+
+These cases are diagnostic. Their automatic candidates are not phase, reaction, reflection, or structure assignments.
+
 ## Main Outputs
 
 ### XRD
@@ -358,10 +400,11 @@ The software in this repository is licensed under the [BSD 3-Clause License](LIC
 
 ## Next Development Order
 
-1. Validate the remaining baseline analyzers on representative public or appropriately shareable data with complete metadata, prioritizing XRD, SEM, EDS, SAED, and DSC.
-2. Complete one additional credible end-to-end real-data case before adding advanced interpretation methods.
-3. Define and validate stable sample/measurement exchange contracts with `materials-data-analyzer` before cross-repository integration.
-4. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
-5. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
-6. Add cooling, hold, cycling, simultaneous TGA-DSC, and multisegment thermal workflows only with explicit segment contracts.
-7. Extend integrated reporting only after individual contracts and scientific validation gates are stable.
+1. Acquire independent raw/lossless cobalt-oxide TEM data that passes `mca tem-validation-intake`; do not retrain the segmentation model before evaluation-set independence is protected.
+2. Acquire a raw or lossless calibrated SAED dataset with material, acquisition, detector, and crystallographic reference metadata; the FINDS JPEG case remains software-integration evidence only.
+3. Add a representative real-data case for any remaining baseline workflow only when it fills a defined scientific-validation gap rather than duplicating the existing RWGS, DWCNT, Zr15Nb DSC, or FINDS SAED cases.
+4. Define and validate stable sample/measurement exchange contracts with `materials-data-analyzer` before cross-repository integration.
+5. Add explicit XPS component fitting only after line-shape, constraints, reference, and uncertainty contracts are defined.
+6. Add HRTEM lattice-fringe analysis only after calibration, ROI, FFT, uncertainty, and validation contracts are defined.
+7. Add cooling, hold, cycling, simultaneous TGA-DSC, and multisegment thermal workflows only with explicit segment contracts.
+8. Extend integrated reporting only after individual contracts and scientific validation gates are stable.

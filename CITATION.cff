@@ -4,20 +4,20 @@ type: software
 title: "Materials Characterization Analyzer"
 authors:
   - name: "jhin0410-lgtm"
-version: 0.9.3
-date-released: 2026-07-29
+version: 0.10.0
+date-released: 2026-08-01
 repository-code: "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
 url: "https://github.com/jhin0410-lgtm/materials-characterization-analyzer"
 license: BSD-3-Clause
 abstract: >-
-  A provenance-aware Python command-line toolkit for cautious baseline analysis
-  and reproducible output generation across XRD, SEM, EDS, Raman, TEM, SAED,
-  XPS, FTIR, TGA, and DSC characterization workflows. The software separates
-  software validation from scientific validation and does not automatically
-  confirm phases, compounds, chemical states, functional groups, reactions,
-  mechanisms, quantitative composition, segmentation validity, raw-image
-  identity, parent-image independence, pixel calibration, or physical particle
-  dimensions.
+  A provenance-aware Python command-line toolkit for cautious baseline analysis,
+  checksum-bound public real-data case studies, and reproducible output generation
+  across XRD, SEM, EDS, Raman, TEM, SAED, XPS, FTIR, TGA, and DSC characterization
+  workflows. The software separates software validation from scientific validation
+  and does not automatically confirm phases, compounds, chemical states, functional
+  groups, reactions, mechanisms, quantitative composition, segmentation validity,
+  raw-image identity, parent-image independence, pixel calibration, or physical
+  particle dimensions.
 keywords:
   - materials science
   - materials characterization
