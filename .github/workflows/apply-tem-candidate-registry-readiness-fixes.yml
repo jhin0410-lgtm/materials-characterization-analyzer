@@ -25,6 +25,38 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Align documentation patch anchor
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/apply_tem_candidate_registry_readiness_fixes.py")
+          text = path.read_text(encoding="utf-8")
+          start = text.rindex("replace_exact(\n    readme,")
+          end = text.index("\n)\n\nprint", start) + 3
+          old = (
+              "This is a time-bounded and non-exhaustive search snapshot. "
+              "Repository or author separation alone does not prove "
+              "sample/acquisition independence.\n"
+          )
+          new = old + (
+              "\nReadiness requires an exact resolved file inventory, checksum coverage, "
+              "exact TEM/HRTEM modality tokens, at least two independently blinded "
+              "labelers, an adjudicated consensus, immutable sample/acquisition IDs, "
+              "verified model-development non-use, a verified licence, and no target-source "
+              "or creator overlap. The evaluator supports only the pinned cobalt-oxide "
+              "binary TEM/HRTEM segmentation contract and rejects other declared targets.\n"
+          )
+          replacement = (
+              "replace_exact(\n"
+              "    readme,\n"
+              f"    {old!r},\n"
+              f"    {new!r},\n"
+              ")"
+          )
+          path.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
+          PY
+
       - name: Apply deterministic patch
         run: python scripts/apply_tem_candidate_registry_readiness_fixes.py
 
