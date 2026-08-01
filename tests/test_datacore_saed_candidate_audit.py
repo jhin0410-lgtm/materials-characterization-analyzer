@@ -63,9 +63,37 @@ def test_array_comparison_distinguishes_exact_and_shape_mismatch() -> None:
     assert exact["exact_value_equal"]
     assert exact["allclose"]
 
-    mismatch = audit._compare_arrays(left, np.arange(8, dtype=np.uint16).reshape(2, 4))
+    mismatch = audit._compare_arrays(
+        left, np.arange(8, dtype=np.uint16).reshape(2, 4)
+    )
     assert not mismatch["shape_equal"]
     assert not mismatch["exact_value_equal"]
+
+
+def test_non_zip_response_is_recorded_without_persisting_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = b"<!doctype html><html><title>Download</title></html>"
+    monkeypatch.setattr(
+        audit,
+        "_request_bytes",
+        lambda url: (
+            payload,
+            "https://datacore.iu.edu/downloads/example?token=removed",
+            {"status": 200, "content_type": "text/html"},
+        ),
+    )
+    output = tmp_path / "blocked"
+    summary = audit.run(
+        source_url="https://datacore.iu.edu/downloads/example?locale=en",
+        output=output,
+    )
+    assert summary["decision"]["status"] == "blocked_source_download_not_zip"
+    assert not summary["decision"]["raw_file_audit_completed"]
+    assert not summary["decision"]["eligible_for_calibrated_saed_validation_now"]
+    assert (output / "source_download_diagnostic.json").exists()
+    assert (output / "source_audit_manifest.json").exists()
+    assert not (output / "source.zip").exists()
 
 
 def test_run_records_raw_evidence_without_authorizing_validation(
@@ -85,7 +113,11 @@ def test_run_records_raw_evidence_without_authorizing_validation(
     monkeypatch.setattr(
         audit,
         "_request_bytes",
-        lambda url: (payload, "https://datacore.iu.edu/downloads/example?token=removed"),
+        lambda url: (
+            payload,
+            "https://datacore.iu.edu/downloads/example?token=removed",
+            {"status": 200, "content_type": "application/zip"},
+        ),
     )
 
     def inspect_dm4(path: Path):
@@ -110,7 +142,10 @@ def test_run_records_raw_evidence_without_authorizing_validation(
 
     def inspect_tiff(path: Path):
         array = array_001 if "001" in path.name else array_112
-        return ({"series_count": 1, "arrays": [audit._array_record(array)]}, [array.copy()])
+        return (
+            {"series_count": 1, "arrays": [audit._array_record(array)]},
+            [array.copy()],
+        )
 
     monkeypatch.setattr(audit, "_inspect_dm4", inspect_dm4)
     monkeypatch.setattr(audit, "_inspect_tiff", inspect_tiff)
@@ -125,6 +160,7 @@ def test_run_records_raw_evidence_without_authorizing_validation(
     assert summary["counts"]["tiff_file_count"] == 2
     assert summary["evidence_gates"]["all_paired_arrays_exactly_equal"]
     assert summary["decision"]["raw_file_audit_completed"]
+    assert summary["decision"]["ready_for_manual_metadata_review"]
     assert not summary["decision"]["independent_acquisition_count_verified"]
     assert not summary["decision"]["eligible_for_calibrated_saed_validation_now"]
     assert not summary["decision"]["phase_or_zone_axis_claim_allowed"]
