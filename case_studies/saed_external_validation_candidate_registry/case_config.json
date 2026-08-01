@@ -41,9 +41,11 @@
       "repository": "Indiana University DataCORE",
       "doi": "10.5967/ct7n-8275",
       "record_url": "https://datacore.iu.edu/concern/data_sets/4j03d088v",
+      "related_publication_doi": "10.1038/s41467-025-63535-7",
       "title": "Data for \"Probing stress and magnetism at high pressures with two-dimensional quantum sensors\"",
       "materials": [
-        "chromium telluride nanoplates"
+        "chromium telluride nanoplates",
+        "source-author indexed Cr1+deltaTe2 with delta approximately 0.5"
       ],
       "modalities": [
         "TEM",
@@ -53,10 +55,16 @@
         "[001]",
         "[112]"
       ],
+      "publication_instrument": {
+        "microscope": "JEOL JEM 1400plus",
+        "accelerating_voltage_kv": 120,
+        "evidence_scope": "publication methods; file-level DM4 metadata not yet audited"
+      },
+      "source_author_reference_statement": "The publication states that the main diffraction spots in both patterns can be indexed by Cr1+deltaTe2 with delta approximately 0.5.",
       "file_inventory_status": "landing_page_only",
       "reported_archive_filename": "Diffraction_Pattern.zip",
       "reported_dataset_file_count": 3,
-      "reported_dataset_size_bytes": null,
+      "reported_dataset_size_bytes": 19293798,
       "raw_or_lossless_diffraction_files_reported": true,
       "reported_file_formats": [
         "DM4",
@@ -69,32 +77,36 @@
       "material_identity_available": true,
       "sample_identity_available": false,
       "acquisition_identity_available": false,
-      "accelerating_voltage_available": false,
+      "accelerating_voltage_available": true,
+      "microscope_model_available": true,
       "camera_length_or_constant_available": false,
       "detector_metadata_available": false,
       "pattern_center_available": false,
       "independent_pattern_count_verified": false,
-      "source_author_assignments_available": "reported zone axes only; reflection inventory not yet audited",
+      "source_author_assignments_available": "zone axes and a publication-level main-spot indexing statement are available; the complete reflection inventory and file binding are not audited",
       "status": "promising_pending_raw_file_audit",
       "source_evidence": [
         "The official DataCORE landing page reports raw TEM diffraction data for chromium telluride nanoplates.",
         "The methodology states that SAED patterns were recorded along [001] and [112] zone axes.",
         "The description states that diffraction data are supplied as TIFF images and original Gatan DM4 files.",
-        "The record has DOI 10.5967/ct7n-8275 and a CC BY 4.0 license."
+        "The record has DOI 10.5967/ct7n-8275, reports three dataset files totaling 18.4 MB, and uses a CC BY 4.0 license.",
+        "The related publication reports TEM studies using a 120 kV JEOL JEM 1400plus.",
+        "The related publication states that the main spots in both SAED patterns can be indexed by Cr1+deltaTe2 with delta approximately 0.5."
       ],
       "blocking_evidence": [
         "The landing page does not expose an archive checksum or per-member checksums.",
-        "Accelerating voltage, camera length, detector metadata, pattern center, immutable sample IDs, and acquisition IDs are not established by the landing-page metadata.",
+        "Camera length or a traceable camera constant, detector metadata, pattern center, immutable sample IDs, and acquisition IDs are not established by the landing-page or publication metadata.",
         "The independence of the two stated zone-axis patterns has not been verified.",
-        "The DM4-to-TIFF relationship and preservation of original intensity values have not been audited."
+        "The DM4-to-TIFF relationship and preservation of original intensity values have not been audited.",
+        "The publication-level phase and zone-axis statements are not yet checksum-bound to specific source files and cannot be used for parameter tuning."
       ],
-      "next_validation_step": "Download Diffraction_Pattern.zip through the DataCORE file panel, bind the archive and every member by SHA-256, inspect DM4 metadata without modifying arrays, compare DM4 and TIFF representations, and verify at least two independent acquisitions before creating a real-data validation case."
+      "next_validation_step": "Resolve the official Diffraction_Pattern.zip file-delivery response, bind the archive and every member by SHA-256, inspect DM4 metadata without modifying arrays, compare DM4 and TIFF representations, and verify at least two independent acquisitions before creating a real-data validation case."
     }
   ],
   "registry_decision": {
     "eligible_for_external_validation_now": false,
     "best_current_candidate_id": "iu_datacore_4j03d088v_chromium_telluride_saed",
-    "next_action": "perform checksum-bound raw-file and metadata audit",
-    "scientific_boundary": "Do not tune center, smoothing, prominence, radius bounds, or candidate count against the reported zone axes. No phase, reflection, zone-axis, d-spacing accuracy, or engineering claim is allowed before the raw-file audit and protocol freeze."
+    "next_action": "complete the checksum-bound raw-file and metadata audit",
+    "scientific_boundary": "Do not tune center, smoothing, prominence, radius bounds, or candidate count against the reported zone axes or publication indexing statement. No phase, reflection, zone-axis, d-spacing accuracy, or engineering claim is allowed before raw-file audit, acquisition-lineage verification, calibration verification, and protocol freeze."
   }
 }
