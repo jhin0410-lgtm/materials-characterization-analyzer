@@ -1,0 +1,43 @@
+{
+  "case_id": "public_zr15nb_dsc_source_audit",
+  "dataset": {
+    "repository": "Zenodo",
+    "record_id": 17590045,
+    "doi": "10.5281/zenodo.17590045",
+    "version": "v1",
+    "title": "Experimental data related to the publication: Phase transformations in metastable beta Zr15Nb alloy revealed by in-situ methods",
+    "license": "CC-BY-4.0"
+  },
+  "article": {
+    "doi": "10.1007/s10853-025-11846-x",
+    "heating_start_description": "room temperature",
+    "heating_end_c": 800.0,
+    "heating_rate_c_min": 5.0,
+    "atmosphere": "argon",
+    "instrument_model": "Netzsch DSC 404 C Pegasus",
+    "reported_replicate_count": 2
+  },
+  "files": [
+    {
+      "filename": "DSC_ElResistance_ThExpansion.csv",
+      "role": "combined_dsc_electrical_resistance_thermal_expansion_table",
+      "expected_size_bytes": 1788024,
+      "checksum_algorithm": "md5",
+      "checksum": "174931eb55f16ee3d27ce2fdb257e4f8"
+    },
+    {
+      "filename": "ReadMe.txt",
+      "role": "source_readme",
+      "expected_size_bytes": 1656,
+      "checksum_algorithm": "md5",
+      "checksum": "c00c813ba71fdd320cb554b150111132"
+    }
+  ],
+  "scientific_boundary": {
+    "source_is_real_measurement": true,
+    "phase_assignment_from_dsc_alone_allowed": false,
+    "reaction_assignment_from_dsc_alone_allowed": false,
+    "enthalpy_claim_allowed_before_signal_unit_and_mass_review": false,
+    "raw_source_files_committed": false
+  }
+}
