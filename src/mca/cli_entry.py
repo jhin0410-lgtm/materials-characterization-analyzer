@@ -10,6 +10,7 @@ from .ftir_cli import main as ftir_main
 from .raman_cli import main as raman_main
 from .saed_cli import main as saed_main
 from .tem_cli import main as tem_main
+from .tem_external_validation_candidate_registry_cli import main as tem_candidates_main
 from .tem_segmentation_readiness_cli import main as tem_readiness_main
 from .thermal_cli import main as thermal_main
 from .xps_cli import main as xps_main
@@ -24,6 +25,8 @@ def main(argv: list[str] | None = None) -> int:
         return raman_main(args[1:])
     if args and args[0] == "tem":
         return tem_main(args[1:])
+    if args and args[0] == "tem-candidates":
+        return tem_candidates_main(args[1:])
     if args and args[0] == "tem-readiness":
         return tem_readiness_main(args[1:])
     if args and args[0] == "saed":
@@ -36,7 +39,8 @@ def main(argv: list[str] | None = None) -> int:
         return thermal_main(args[1:])
     if args in (["--help"], ["-h"]):
         print(
-            "Additional commands: raman, tem, tem-readiness, saed, xps, ftir, thermal "
+            "Additional commands: raman, tem, tem-candidates, tem-readiness, "
+            "saed, xps, ftir, thermal "
             "(run 'mca <command> --help' for options).\n"
             "Version: mca --version"
         )

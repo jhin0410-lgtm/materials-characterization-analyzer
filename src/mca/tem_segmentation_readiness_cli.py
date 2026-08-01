@@ -6,15 +6,17 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from .tem_segmentation_readiness import build_tem_segmentation_readiness
+from .tem_candidate_registry_readiness import (
+    build_tem_segmentation_readiness_with_registry,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mca tem-readiness",
         description=(
-            "Consolidate existing TEM training, leakage, and external-validation "
-            "audit summaries without training or evaluating a model."
+            "Consolidate existing TEM training, leakage, public-candidate, and "
+            "external-validation audit summaries without training or evaluating a model."
         ),
     )
     parser.add_argument(
@@ -33,6 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--external-candidate-summary",
         type=Path,
         help="optional external_validation_candidate_summary.json",
+    )
+    parser.add_argument(
+        "--candidate-registry-summary",
+        type=Path,
+        help="optional tem_external_validation_candidate_summary.json",
     )
     parser.add_argument(
         "--pilot-readiness",
@@ -55,10 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    summary = build_tem_segmentation_readiness(
+    summary = build_tem_segmentation_readiness_with_registry(
         training_summary_path=args.training_summary,
         parent_overlap_summary_path=args.parent_overlap_summary,
         external_candidate_summary_path=args.external_candidate_summary,
+        candidate_registry_summary_path=args.candidate_registry_summary,
         pilot_readiness_path=args.pilot_readiness,
         pilot_summary_path=args.pilot_summary,
         output_dir=args.output,
