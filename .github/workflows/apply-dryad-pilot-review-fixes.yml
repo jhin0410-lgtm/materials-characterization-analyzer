@@ -25,6 +25,30 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Narrow changelog patch anchor
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/apply_dryad_pilot_review_fixes.py")
+          text = path.read_text(encoding="utf-8")
+          old = """replace_exact(
+              changelog,
+              '### Fixed\\n\\n',
+              '### Fixed\\n\\n- Dryad HRTEM pilot automatic acquisition now resolves the pinned file-linked source version and checksum inventory, authenticates binary downloads without exposing the token, preserves raw API responses separately from enriched evidence, and keeps readiness blocked unless processed metadata binding is exact and authoritative.\\n- The public Dryad pilot contract now pins the HDF5, training, overlap, notebook, source-version, and endpoint configuration; workflow evidence distinguishes a configured credential from a successfully verified authenticated download.\\n',
+          )
+          """
+          new = """replace_exact(
+              changelog,
+              '## [Unreleased]\\n\\n### Fixed\\n\\n',
+              '## [Unreleased]\\n\\n### Fixed\\n\\n- Dryad HRTEM pilot automatic acquisition now resolves the pinned file-linked source version and checksum inventory, authenticates binary downloads without exposing the token, preserves raw API responses separately from enriched evidence, and keeps readiness blocked unless processed metadata binding is exact and authoritative.\\n- The public Dryad pilot contract now pins the HDF5, training, overlap, notebook, source-version, and endpoint configuration; workflow evidence distinguishes a configured credential from a successfully verified authenticated download.\\n',
+          )
+          """
+          if text.count(old) != 1:
+              raise SystemExit("expected one changelog patch block")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+
       - name: Apply deterministic patch
         run: python scripts/apply_dryad_pilot_review_fixes.py
 
