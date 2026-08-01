@@ -39,12 +39,26 @@ def test_project_contract_resolves_image_and_camera_conversion() -> None:
     assert project["center_y_px"] == 575
 
 
-def test_nonproject_text_is_ignored() -> None:
+def test_nonproject_and_numeric_d_value_text_are_ignored() -> None:
     assert audit._project_candidate(
         "README.txt",
         b"This is documentation.\nNo camera constant here.\n",
         {},
     ) is None
+    assert audit._project_candidate(
+        "SAED A d-values.txt",
+        b"SAED A d-values\n2.022\n1.431\n1.167\n1.011\n",
+        {},
+    ) is None
+
+
+def test_platform_resource_forks_are_not_counted_as_measurement_images() -> None:
+    assert audit._member_class("SAED A.jpg", is_directory=False) == "image"
+    assert (
+        audit._member_class("__MACOSX/._SAED A.jpg", is_directory=False)
+        == "platform_metadata"
+    )
+    assert audit._member_class("__MACOSX", is_directory=True) == "directory"
 
 
 def test_safe_members_rejects_parent_traversal() -> None:
