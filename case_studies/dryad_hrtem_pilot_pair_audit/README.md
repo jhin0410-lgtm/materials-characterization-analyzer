@@ -21,7 +21,7 @@ The current source-version inventory reports SHA-256 digests:
 Dryad's API download endpoint requires an authenticated API user. The GitHub Actions workflow therefore behaves explicitly:
 
 - without repository secret `DRYAD_API_TOKEN`, it verifies live metadata, source version, checksums, software tests, and records `blocked_missing_dryad_api_token`;
-- with `DRYAD_API_TOKEN`, it downloads the exact files and runs the real HDF5 and content-overlap audit.
+- with `DRYAD_API_TOKEN`, the workflow first records only that a credential is configured, marks authenticated download availability true only after all three binary downloads succeed, and then runs the real HDF5 and content-overlap audit.
 
 A successful unauthenticated workflow is **not** a real-data audit result.
 
@@ -48,7 +48,7 @@ The source describes standardizing each `4096 x 4096` parent image before dividi
 - Cobalt training source: Zenodo record `14927582`, `training_images.h5`
 - Cobalt training SHA-256: `e709b7f1fa383bd111bb0b7e8d4662452b46198f52e4e88b19bb3f3e222c0926`
 
-Missing, unsupported, or mismatched checksums fail closed. Raw API and source-version responses are preserved as workflow evidence.
+Missing, unsupported, or mismatched checksums fail closed. Raw individual-file API responses are copied before enrichment, enriched records are written to separate files, and source version `247105` plus dataset DOI `10.7941/D1SP93` are verified before their checksums are used.
 
 ## Run
 
@@ -101,7 +101,7 @@ Raw image and label arrays are not copied into the evidence package.
 
 **Evidence level: Diagnostic**
 
-A completed authenticated data audit may permit freezing a protocol for a diagnostic Au-to-cobalt cross-material stress test. It cannot establish in-domain cobalt-oxide external validation, unbiased generalization, acquisition independence, multi-rater annotation reliability, physical size, causal relationships, optimization, or engineering-release readiness.
+A completed authenticated data audit may permit freezing a protocol for a diagnostic Au-to-cobalt cross-material stress test only when the processed metadata row is bound exactly and uniquely. It cannot establish in-domain cobalt-oxide external validation, unbiased generalization, acquisition independence, multi-rater annotation reliability, physical size, causal relationships, optimization, or engineering-release readiness.
 
 When acquisition is blocked, the scientific result is **Inconclusive** for HDF5 structure and content overlap because those arrays were not inspected.
 

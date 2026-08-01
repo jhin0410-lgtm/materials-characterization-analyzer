@@ -10,7 +10,10 @@ import numpy as np
 import pytest
 
 from mca.tem_external_validation_pilot_audit import run_pilot_pair_audit
+from mca.tem_external_validation_pilot_io import resolve_dryad_file
 from mca.tem_external_validation_pilot_contract import (
+    Hdf5Contract,
+    OverlapContract,
     load_config,
     normalize_dryad_file_metadata,
     validate_public_config,
@@ -49,6 +52,8 @@ def _api(
                 "path": name,
                 "size": path.stat().st_size,
                 "digest": f"{algorithm}:{digest}",
+                "source_version_id": 247105,
+                "dataset_doi": "10.7941/D1SP93",
                 "_links": {
                     "stash:download": {
                         "href": (
@@ -264,4 +269,177 @@ def test_unsupported_digest_algorithm_fails_closed() -> None:
             },
             config.image_file,
             "https://datadryad.org/downloads/file_stream/2451485",
+        )
+
+
+
+def test_public_contract_rejects_scientific_contract_drift() -> None:
+    base = load_config(CONFIG)
+    with pytest.raises(ValueError, match="public config mismatch for hdf5"):
+        validate_public_config(
+            replace(
+                base,
+                hdf5=Hdf5Contract(
+                    image_dataset_name=base.hdf5.image_dataset_name,
+                    label_dataset_name=base.hdf5.label_dataset_name,
+                    patch_height=base.hdf5.patch_height,
+                    patch_width=base.hdf5.patch_width,
+                    image_mean_abs_tolerance=base.hdf5.image_mean_abs_tolerance,
+                    image_std_abs_tolerance=base.hdf5.image_std_abs_tolerance,
+                    allowed_label_values=(0, 1, 2),
+                ),
+            )
+        )
+    with pytest.raises(ValueError, match="public config mismatch for overlap"):
+        validate_public_config(
+            replace(
+                base,
+                overlap=OverlapContract(
+                    quantization_decimals=base.overlap.quantization_decimals,
+                    signature_block_size=base.overlap.signature_block_size,
+                    review_ncc_threshold=0.90,
+                    exact_match_rule=base.overlap.exact_match_rule,
+                ),
+            )
+        )
+    with pytest.raises(ValueError, match="public config mismatch for training"):
+        validate_public_config(
+            replace(base, training=replace(base.training, sha256="0" * 64))
+        )
+    with pytest.raises(ValueError, match="public config mismatch for notebook_commit"):
+        validate_public_config(replace(base, notebook_commit="0" * 40))
+
+
+def test_non_authoritative_processed_metadata_binding_blocks_protocol_freeze(
+    tmp_path: Path,
+) -> None:
+    fixture = _fixture(tmp_path)
+    config = fixture["config"]
+    fixture["metadata"].write_text(
+        "dataset,material\n"
+        f"{config.image_file.name.removesuffix('_Images.h5')},Au\n",
+        encoding="utf-8",
+    )
+    fixture["metadata_api"] = _api(
+        fixture["metadata"],
+        config.processed_metadata_file.file_id,
+        config.processed_metadata_file.name,
+    )
+    summary = _run(tmp_path, fixture)
+    assert summary["source"]["processed_metadata_binding"]["status"] == (
+        "unique_prefix_candidate_not_authoritative"
+    )
+    assert not summary["readiness"]["data_audit_complete"]
+    assert not summary["readiness"]["processed_metadata_binding_authoritative"]
+    assert summary["readiness"]["next_status"] == (
+        "blocked_unresolved_processed_metadata_binding"
+    )
+
+
+def test_automatic_resolution_follows_pinned_version_and_sends_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = load_config(CONFIG)
+    payload_path = tmp_path / config.processed_metadata_file.name
+    payload_path.write_text("x\n", encoding="utf-8")
+    digest = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+    api_url = config.api_file_endpoint_template.format(
+        file_id=config.processed_metadata_file.file_id
+    )
+    version_url = f"https://datadryad.org/api/v2/versions/{config.source_version_id}"
+    files_url = version_url + "/files"
+    individual = {
+        "id": config.processed_metadata_file.file_id,
+        "path": config.processed_metadata_file.name,
+        "size": payload_path.stat().st_size,
+        "_links": {
+            "stash:version": {"href": version_url},
+            "stash:download": {"href": api_url + "/download"},
+        },
+    }
+    version = {
+        "doi": config.doi,
+        "_links": {"stash:files": {"href": files_url}},
+    }
+    files = {
+        "files": [
+            {
+                "id": config.processed_metadata_file.file_id,
+                "path": config.processed_metadata_file.name,
+                "size": payload_path.stat().st_size,
+                "digest": f"sha256:{digest}",
+            }
+        ]
+    }
+    responses = {api_url: individual, version_url: version, files_url: files}
+    monkeypatch.setattr(
+        "mca.tem_external_validation_pilot_io.fetch_json",
+        lambda url, attempts=5, headers=None: responses[url],
+    )
+    captured: dict[str, str] = {}
+
+    def fake_download(url, destination, attempts=5, headers=None):
+        captured.update(dict(headers or {}))
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(payload_path.read_bytes())
+
+    monkeypatch.setattr(
+        "mca.tem_external_validation_pilot_io.download", fake_download
+    )
+    monkeypatch.setenv("DRYAD_API_TOKEN", "test-token")
+    metadata, resolved = resolve_dryad_file(
+        config,
+        config.processed_metadata_file,
+        local_path=None,
+        api_metadata_path=None,
+        temp=tmp_path / "download",
+        source_version_cache={},
+    )
+    assert resolved.is_file()
+    assert metadata["source_version_id"] == 247105
+    assert metadata["dataset_doi"] == config.doi
+    assert metadata["source_digest_verified"]
+    assert captured["Authorization"] == "Bearer test-token"
+
+
+def test_automatic_download_requires_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config = load_config(CONFIG)
+    api_url = config.api_file_endpoint_template.format(file_id=config.image_file.file_id)
+    version_url = f"https://datadryad.org/api/v2/versions/{config.source_version_id}"
+    files_url = version_url + "/files"
+    responses = {
+        api_url: {
+            "id": config.image_file.file_id,
+            "path": config.image_file.name,
+            "size": 1,
+            "_links": {
+                "stash:version": {"href": version_url},
+                "stash:download": {"href": api_url + "/download"},
+            },
+        },
+        version_url: {"doi": config.doi, "_links": {"stash:files": {"href": files_url}}},
+        files_url: {
+            "files": [
+                {
+                    "id": config.image_file.file_id,
+                    "path": config.image_file.name,
+                    "size": 1,
+                    "digest": "sha256:" + hashlib.sha256(b"x").hexdigest(),
+                }
+            ]
+        },
+    }
+    monkeypatch.setattr(
+        "mca.tem_external_validation_pilot_io.fetch_json",
+        lambda url, attempts=5, headers=None: responses[url],
+    )
+    monkeypatch.delenv("DRYAD_API_TOKEN", raising=False)
+    with pytest.raises(RuntimeError, match="DRYAD_API_TOKEN is required"):
+        resolve_dryad_file(
+            config,
+            config.image_file,
+            local_path=None,
+            api_metadata_path=None,
+            temp=tmp_path / "download",
+            source_version_cache={},
         )

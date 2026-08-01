@@ -6,6 +6,7 @@
     "published_date": "2023-07-31",
     "version_label": "2023-07-31",
     "license": "CC0-1.0",
+    "source_version_id": 247105,
     "api_file_endpoint_template": "https://datadryad.org/api/v2/files/{file_id}",
     "download_endpoint_template": "https://datadryad.org/api/v2/files/{file_id}/download"
   },

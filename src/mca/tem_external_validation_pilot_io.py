@@ -10,6 +10,7 @@ import shutil
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -48,6 +49,204 @@ OVERLAP_COLUMNS = (
 )
 
 
+def _request_headers(*, dryad_binary: bool = False) -> dict[str, str]:
+    headers = {"User-Agent": "materials-characterization-analyzer/0.10"}
+    if dryad_binary:
+        token = os.environ.get("DRYAD_API_TOKEN", "").strip()
+        if not token:
+            raise RuntimeError(
+                "DRYAD_API_TOKEN is required for automatic Dryad binary acquisition."
+            )
+        headers["Authorization"] = f"Bearer {token}"
+        headers["Accept"] = "application/octet-stream"
+    return headers
+
+
+def _dryad_link(payload: Mapping[str, Any], base_url: str, *names: str) -> str | None:
+    links = payload.get("_links")
+    if not isinstance(links, Mapping):
+        return None
+    for name in names:
+        value = links.get(name)
+        href = value.get("href") if isinstance(value, Mapping) else value
+        if isinstance(href, str) and href.strip():
+            resolved = urllib.parse.urljoin(base_url, href.strip())
+            if urllib.parse.urlsplit(resolved).netloc != "datadryad.org":
+                raise ValueError(f"unexpected Dryad link host: {resolved}")
+            return resolved
+    return None
+
+
+def _dryad_records(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    direct = payload.get("files")
+    if isinstance(direct, list):
+        return [item for item in direct if isinstance(item, Mapping)]
+    embedded = payload.get("_embedded")
+    if isinstance(embedded, Mapping):
+        for key, value in embedded.items():
+            if isinstance(value, list) and "file" in str(key).lower():
+                return [item for item in value if isinstance(item, Mapping)]
+    for key in ("data", "items", "results"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, Mapping)]
+    raise ValueError("Dryad source-version response does not contain a file list.")
+
+
+def _normalize_doi(value: str) -> str:
+    text = value.strip()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if text.lower().startswith(prefix):
+            text = text[len(prefix):]
+            break
+    return text.upper()
+
+
+def _find_doi(value: Any) -> str | None:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            if "doi" in str(key).lower() and isinstance(item, str) and "10." in item:
+                return item
+        for item in value.values():
+            found = _find_doi(item)
+            if found is not None:
+                return found
+    elif isinstance(value, list):
+        for item in value:
+            found = _find_doi(item)
+            if found is not None:
+                return found
+    return None
+
+
+def _source_version_context(
+    config: PilotAuditConfig,
+    individual_payload: Mapping[str, Any],
+    api_url: str,
+    cache: dict[str, Any],
+) -> tuple[str, list[Mapping[str, Any]]]:
+    version_url = _dryad_link(individual_payload, api_url, "stash:version", "version")
+    if version_url is None:
+        raise ValueError("Dryad individual-file response lacks a source-version link.")
+    version_id = int(version_url.rstrip("/").rsplit("/", 1)[-1])
+    if version_id != config.source_version_id:
+        raise ValueError(
+            f"Dryad source-version mismatch: {version_id} != {config.source_version_id}"
+        )
+    if version_url not in cache:
+        version_payload = fetch_json(version_url)
+        doi = _find_doi(version_payload)
+        dataset_url = _dryad_link(version_payload, version_url, "stash:dataset", "dataset")
+        if doi is None:
+            if dataset_url is None:
+                raise ValueError("Dryad source version lacks verifiable dataset DOI identity.")
+            dataset_payload = fetch_json(dataset_url)
+            doi = _find_doi(dataset_payload)
+        if doi is None or _normalize_doi(doi) != _normalize_doi(config.doi):
+            raise ValueError(f"Dryad dataset DOI mismatch for source version {version_id}.")
+        files_url = _dryad_link(version_payload, version_url, "stash:files", "files")
+        if files_url is None:
+            files_url = version_url.rstrip("/") + "/files"
+        records: list[Mapping[str, Any]] = []
+        seen: set[str] = set()
+        url: str | None = files_url
+        while url is not None:
+            if url in seen:
+                raise ValueError(f"Dryad file pagination cycle detected at {url}")
+            seen.add(url)
+            page = fetch_json(url)
+            records.extend(_dryad_records(page))
+            url = _dryad_link(page, url, "next", "stash:next")
+        if not records:
+            raise ValueError("Dryad source-version file inventory is empty.")
+        cache[version_url] = {
+            "records": records,
+            "files_url": files_url,
+            "dataset_doi": config.doi,
+        }
+    context = cache[version_url]
+    return version_url, list(context["records"])
+
+
+def _record_name(record: Mapping[str, Any]) -> str | None:
+    for key in ("path", "filename", "fileName", "name"):
+        value = record.get(key)
+        if isinstance(value, str) and value.strip():
+            return Path(value).name
+    return None
+
+
+def _record_id(record: Mapping[str, Any]) -> int | None:
+    value = record.get("id", record.get("fileId"))
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _record_digest(record: Mapping[str, Any]) -> Any:
+    for key in ("digest", "checksum", "md5", "sha256"):
+        if record.get(key) is not None:
+            return record[key]
+    return None
+
+
+def _enrich_dryad_metadata(
+    config: PilotAuditConfig,
+    spec: RemoteFileSpec,
+    raw_payload: Mapping[str, Any],
+    api_url: str,
+    cache: dict[str, Any],
+) -> Mapping[str, Any]:
+    version_url, records = _source_version_context(config, raw_payload, api_url, cache)
+    matches = [
+        record
+        for record in records
+        if _record_name(record) == spec.name
+        and _record_id(record) in (None, spec.file_id)
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected one source-version record for {spec.name!r}; found {len(matches)}"
+        )
+    digest = _record_digest(matches[0])
+    if digest is None:
+        raise ValueError(f"source-version record lacks checksum for {spec.name}.")
+    download_url = _dryad_link(
+        raw_payload, api_url, "stash:download", "download"
+    ) or config.download_endpoint_template.format(file_id=spec.file_id)
+    enriched = dict(raw_payload)
+    enriched.update(
+        {
+            "id": spec.file_id,
+            "path": spec.name,
+            "digest": digest,
+            "source_version_id": config.source_version_id,
+            "source_version_api_url": version_url,
+            "source_version_file_record": dict(matches[0]),
+            "dataset_doi": config.doi,
+            "downloadUrl": download_url,
+        }
+    )
+    return enriched
+
+
+def _validate_enriched_identity(
+    payload: Mapping[str, Any], config: PilotAuditConfig
+) -> None:
+    try:
+        version_id = int(payload.get("source_version_id"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Dryad metadata lacks pinned source_version_id.") from exc
+    if version_id != config.source_version_id:
+        raise ValueError(
+            f"Dryad source-version mismatch: {version_id} != {config.source_version_id}"
+        )
+    doi = payload.get("dataset_doi")
+    if not isinstance(doi, str) or _normalize_doi(doi) != _normalize_doi(config.doi):
+        raise ValueError("Dryad metadata dataset DOI mismatch.")
+
+
 def resolve_dryad_file(
     config: PilotAuditConfig,
     spec: RemoteFileSpec,
@@ -55,8 +254,10 @@ def resolve_dryad_file(
     local_path: str | Path | None,
     api_metadata_path: str | Path | None,
     temp: Path,
+    source_version_cache: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], Path]:
     api_url = config.api_file_endpoint_template.format(file_id=spec.file_id)
+    cache = source_version_cache if source_version_cache is not None else {}
     raw_payload = (
         json.loads(Path(api_metadata_path).read_text(encoding="utf-8"))
         if api_metadata_path is not None
@@ -64,16 +265,29 @@ def resolve_dryad_file(
     )
     if not isinstance(raw_payload, Mapping):
         raise ValueError(f"Dryad API response for {spec.name} is not an object.")
+    if api_metadata_path is None:
+        resolved_payload = _enrich_dryad_metadata(
+            config, spec, raw_payload, api_url, cache
+        )
+    else:
+        resolved_payload = raw_payload
+    _validate_enriched_identity(resolved_payload, config)
     fallback_url = config.download_endpoint_template.format(file_id=spec.file_id)
-    metadata = normalize_dryad_file_metadata(raw_payload, spec, fallback_url)
+    metadata = normalize_dryad_file_metadata(resolved_payload, spec, fallback_url)
     metadata["api_url"] = api_url
+    metadata["source_version_id"] = config.source_version_id
+    metadata["dataset_doi"] = config.doi
     metadata["api_response_sha256"] = hashlib.sha256(
-        json.dumps(raw_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(resolved_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
 
     if local_path is None:
         destination = temp / spec.name
-        download(metadata["download_url"], destination)
+        download(
+            metadata["download_url"],
+            destination,
+            headers=_request_headers(dryad_binary=True),
+        )
         acquisition_mode = "downloaded_from_api_resolved_url"
     else:
         destination = Path(local_path)
@@ -235,13 +449,15 @@ def normalized_signature(values: np.ndarray, block: int) -> np.ndarray:
     return centered / norm
 
 
-def fetch_json(url: str, attempts: int = 5) -> Mapping[str, Any]:
+def fetch_json(
+    url: str,
+    attempts: int = 5,
+    headers: Mapping[str, str] | None = None,
+) -> Mapping[str, Any]:
     last_error: Exception | None = None
+    request_headers = dict(headers or _request_headers())
     for attempt in range(attempts):
-        request = urllib.request.Request(
-            url,
-            headers={"User-Agent": "materials-characterization-analyzer/0.9"},
-        )
+        request = urllib.request.Request(url, headers=request_headers)
         try:
             with urllib.request.urlopen(request, timeout=120) as response:
                 payload = json.loads(response.read().decode("utf-8"))
@@ -255,16 +471,19 @@ def fetch_json(url: str, attempts: int = 5) -> Mapping[str, Any]:
     raise RuntimeError(f"failed to fetch JSON from {url}") from last_error
 
 
-def download(url: str, destination: Path, attempts: int = 5) -> None:
+def download(
+    url: str,
+    destination: Path,
+    attempts: int = 5,
+    headers: Mapping[str, str] | None = None,
+) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     partial = destination.with_suffix(destination.suffix + ".part")
     last_error: Exception | None = None
+    request_headers = dict(headers or _request_headers())
     for attempt in range(attempts):
         partial.unlink(missing_ok=True)
-        request = urllib.request.Request(
-            url,
-            headers={"User-Agent": "materials-characterization-analyzer/0.9"},
-        )
+        request = urllib.request.Request(url, headers=request_headers)
         try:
             with urllib.request.urlopen(request, timeout=180) as response, partial.open("wb") as handle:
                 shutil.copyfileobj(response, handle, length=1024 * 1024)
