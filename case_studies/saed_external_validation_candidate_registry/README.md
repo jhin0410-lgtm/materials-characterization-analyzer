@@ -14,7 +14,7 @@ The existing FINDS SAED case remains useful for real-image software integration 
 
 ## Automated source audit
 
-`script/audit_datacore_saed_candidate.py` is intentionally not used; the executable audit is:
+Run the executable audit with:
 
 ```bash
 python scripts/audit_datacore_saed_candidate.py \
