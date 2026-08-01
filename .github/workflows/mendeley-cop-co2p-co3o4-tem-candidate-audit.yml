@@ -7,6 +7,7 @@ on:
       - "src/mca/tem_mendeley_candidate_audit_cli.py"
       - "src/mca/cli_entry.py"
       - "scripts/probe_mendeley_public_page.py"
+      - "scripts/probe_mendeley_public_api.py"
       - "tests/test_tem_mendeley_candidate_audit.py"
       - "case_studies/mendeley_cop_co2p_co3o4_tem_candidate/**"
       - ".github/workflows/mendeley-cop-co2p-co3o4-tem-candidate-audit.yml"
@@ -34,7 +35,7 @@ jobs:
       - name: Run focused regression tests
         run: python -m pytest tests/test_tem_mendeley_candidate_audit.py -q
 
-      - name: Resolve live Mendeley dataset and file metadata
+      - name: Resolve authenticated-API readiness
         run: |
           mca tem-mendeley-audit \
             --config case_studies/mendeley_cop_co2p_co3o4_tem_candidate/case_config.json \
@@ -44,6 +45,11 @@ jobs:
         run: |
           python scripts/probe_mendeley_public_page.py \
             --output outputs/mendeley-cop-co2p-co3o4-tem-candidate/mendeley_public_page_probe.json
+
+      - name: Probe anonymous public API used by landing pages
+        run: |
+          python scripts/probe_mendeley_public_api.py \
+            --output outputs/mendeley-cop-co2p-co3o4-tem-candidate/mendeley_anonymous_public_api_probe.json
 
       - name: Verify fail-closed result and artifact hashes
         run: |
@@ -55,28 +61,35 @@ jobs:
           output = Path("outputs/mendeley-cop-co2p-co3o4-tem-candidate")
           summary = json.loads((output / "mendeley_candidate_audit_summary.json").read_text())
           manifest = json.loads((output / "mendeley_candidate_audit_manifest.json").read_text())
-          probe = json.loads((output / "mendeley_public_page_probe.json").read_text())
+          page_probe = json.loads((output / "mendeley_public_page_probe.json").read_text())
+          api_probe = json.loads((output / "mendeley_anonymous_public_api_probe.json").read_text())
           assert summary["case_id"] == "mendeley_cop_co2p_co3o4_tem_candidate_audit"
           assert summary["source"]["primary_dataset_id"] == "8w66synjmx"
           assert not summary["lineage_and_annotation_gates"]["annotation_pilot_ready"]
           assert not summary["lineage_and_annotation_gates"]["external_model_evaluation_ready"]
           assert manifest["artifact_count"] == 5
-          assert probe["case_id"] == "mendeley_public_page_endpoint_probe"
-          assert len(probe["pages"]) == 3
+          assert page_probe["case_id"] == "mendeley_public_page_endpoint_probe"
+          assert api_probe["case_id"] == "mendeley_anonymous_public_api_probe"
+          assert len(page_probe["pages"]) == 3
+          assert len(api_probe["datasets"]) == 3
           for record in manifest["artifacts"]:
               path = output / record["path"]
               assert path.stat().st_size == record["bytes"]
               assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
           print(json.dumps({
-              "status": summary["inventory_readiness"]["status"],
+              "authenticated_api_status": summary["inventory_readiness"]["status"],
               "file_count": summary["result_counts"]["file_count"],
-              "primary_tem_candidate_file_count": summary["result_counts"]["primary_tem_candidate_file_count"],
-              "candidate_filenames": summary["inventory_readiness"]["candidate_filenames"],
               "page_uuid_counts": {
                   page["dataset_id"]: page["clues"]["uuid_count"]
-                  for page in probe["pages"]
+                  for page in page_probe["pages"]
               },
-              "matching_asset_count": len(probe["matching_assets"]),
+              "anonymous_public_api_statuses": {
+                  dataset["dataset_id"]: {
+                      name: call["status"]
+                      for name, call in dataset["calls"].items()
+                  }
+                  for dataset in api_probe["datasets"]
+              },
           }, indent=2, sort_keys=True))
           PY
 
