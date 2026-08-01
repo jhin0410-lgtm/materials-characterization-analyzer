@@ -95,7 +95,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            .github/workflows/dryad-hrtem-pilot-pair-audit.yml \
             case_studies/dryad_hrtem_pilot_pair_audit/case_config.json \
             case_studies/dryad_hrtem_pilot_pair_audit/README.md \
             scripts/resolve_dryad_pilot_file_metadata.py \
