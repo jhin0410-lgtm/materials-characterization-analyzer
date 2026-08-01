@@ -8,6 +8,7 @@ on:
       - "src/mca/cli_entry.py"
       - "scripts/probe_mendeley_public_page.py"
       - "scripts/probe_mendeley_public_api.py"
+      - "scripts/audit_mendeley_public_archive.py"
       - "tests/test_tem_mendeley_candidate_audit.py"
       - "case_studies/mendeley_cop_co2p_co3o4_tem_candidate/**"
       - ".github/workflows/mendeley-cop-co2p-co3o4-tem-candidate-audit.yml"
@@ -29,8 +30,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install package and tests
-        run: python -m pip install -e ".[dev]"
+      - name: Install package, tests, and RAR inventory tool
+        run: |
+          python -m pip install -e ".[dev]"
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full
 
       - name: Run focused regression tests
         run: python -m pytest tests/test_tem_mendeley_candidate_audit.py -q
@@ -51,18 +55,27 @@ jobs:
           python scripts/probe_mendeley_public_api.py \
             --output outputs/mendeley-cop-co2p-co3o4-tem-candidate/mendeley_anonymous_public_api_probe.json
 
-      - name: Verify fail-closed result and artifact hashes
+      - name: Verify and inventory public raw archive
+        run: |
+          python scripts/audit_mendeley_public_archive.py \
+            --output outputs/mendeley-public-archive-audit
+
+      - name: Verify fail-closed results and artifact hashes
         run: |
           python - <<'PY'
           import hashlib
           import json
           from pathlib import Path
 
-          output = Path("outputs/mendeley-cop-co2p-co3o4-tem-candidate")
-          summary = json.loads((output / "mendeley_candidate_audit_summary.json").read_text())
-          manifest = json.loads((output / "mendeley_candidate_audit_manifest.json").read_text())
-          page_probe = json.loads((output / "mendeley_public_page_probe.json").read_text())
-          api_probe = json.loads((output / "mendeley_anonymous_public_api_probe.json").read_text())
+          metadata_output = Path("outputs/mendeley-cop-co2p-co3o4-tem-candidate")
+          archive_output = Path("outputs/mendeley-public-archive-audit")
+          summary = json.loads((metadata_output / "mendeley_candidate_audit_summary.json").read_text())
+          manifest = json.loads((metadata_output / "mendeley_candidate_audit_manifest.json").read_text())
+          page_probe = json.loads((metadata_output / "mendeley_public_page_probe.json").read_text())
+          api_probe = json.loads((metadata_output / "mendeley_anonymous_public_api_probe.json").read_text())
+          archive = json.loads((archive_output / "mendeley_public_archive_audit_summary.json").read_text())
+          archive_manifest = json.loads((archive_output / "mendeley_public_archive_audit_manifest.json").read_text())
+
           assert summary["case_id"] == "mendeley_cop_co2p_co3o4_tem_candidate_audit"
           assert summary["source"]["primary_dataset_id"] == "8w66synjmx"
           assert not summary["lineage_and_annotation_gates"]["annotation_pilot_ready"]
@@ -72,24 +85,30 @@ jobs:
           assert api_probe["case_id"] == "mendeley_anonymous_public_api_probe"
           assert len(page_probe["pages"]) == 3
           assert len(api_probe["datasets"]) == 3
-          for record in manifest["artifacts"]:
-              path = output / record["path"]
-              assert path.stat().st_size == record["bytes"]
-              assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+
+          assert archive["source"]["duplicate_raw_record_content_identical"]
+          assert archive["readiness"]["archive_checksum_and_size_verified"]
+          assert archive["readiness"]["member_inventory_resolved"]
+          assert not archive["readiness"]["annotation_pilot_ready"]
+          assert not archive["readiness"]["external_model_evaluation_ready"]
+          assert archive_manifest["artifact_count"] == 3
+
+          for base, current_manifest in (
+              (metadata_output, manifest),
+              (archive_output, archive_manifest),
+          ):
+              for record in current_manifest["artifacts"]:
+                  path = base / record["path"]
+                  assert path.stat().st_size == record["bytes"]
+                  assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+
           print(json.dumps({
               "authenticated_api_status": summary["inventory_readiness"]["status"],
-              "file_count": summary["result_counts"]["file_count"],
-              "page_uuid_counts": {
-                  page["dataset_id"]: page["clues"]["uuid_count"]
-                  for page in page_probe["pages"]
-              },
-              "anonymous_public_api_statuses": {
-                  dataset["dataset_id"]: {
-                      name: call["status"]
-                      for name, call in dataset["calls"].items()
-                  }
-                  for dataset in api_probe["datasets"]
-              },
+              "archive_sha256": archive["source"]["primary_archive"]["sha256"],
+              "duplicate_raw_record_content_identical": archive["source"]["duplicate_raw_record_content_identical"],
+              "archive_member_count": archive["archive_inventory"]["member_count"],
+              "archive_tem_candidate_member_paths": archive["archive_inventory"]["tem_candidate_member_paths"],
+              "annotation_pilot_ready": archive["readiness"]["annotation_pilot_ready"],
           }, indent=2, sort_keys=True))
           PY
 
@@ -97,6 +116,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mendeley-cop-co2p-co3o4-tem-candidate-evidence
-          path: outputs/mendeley-cop-co2p-co3o4-tem-candidate
+          path: |
+            outputs/mendeley-cop-co2p-co3o4-tem-candidate
+            outputs/mendeley-public-archive-audit
           if-no-files-found: error
           retention-days: 30
