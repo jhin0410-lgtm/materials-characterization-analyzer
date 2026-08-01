@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "case_id": "tem_external_validation_intake",
+  "dataset": {
+    "dataset_id": "replace-with-stable-dataset-id",
+    "dataset_version": "replace-with-version",
+    "source_type": "new_acquisition",
+    "material_domain": "cobalt oxide",
+    "license": "replace-with-reuse-terms",
+    "reuse_authorized": false,
+    "identity_provenance": "operator_assigned_at_acquisition",
+    "target_training_nonuse_attested": false,
+    "target_creator_overlap": false,
+    "cross_dataset_lineage_independence_attested": false,
+    "minimum_independent_blinded_labelers": 2
+  },
+  "images": [
+    {
+      "image_id": "image-001",
+      "relative_path": "images/image-001.tif",
+      "sha256": "replace-with-64-lowercase-hex-sha256",
+      "sample_id": "sample-001",
+      "acquisition_id": "acquisition-001",
+      "modality": "HRTEM",
+      "representation": "raw_detector",
+      "original_detector_intensity_available": true,
+      "nm_per_pixel": null,
+      "calibration_source": null,
+      "used_for_training": false,
+      "used_for_threshold_selection": false,
+      "used_for_hyperparameter_tuning": false,
+      "used_for_model_selection": false,
+      "excluded": false,
+      "exclusion_reason": null
+    }
+  ],
+  "annotations": [],
+  "evaluation_protocol": {
+    "source_metadata_review_status": "not_run",
+    "image_content_audit_status": "not_run",
+    "label_content_audit_status": "not_run",
+    "content_overlap_audit_status": "not_run",
+    "test_manifest_checksum_frozen": false,
+    "metrics_frozen": false,
+    "confidence_interval_method_frozen": false,
+    "exclusion_rules_frozen": false,
+    "frozen_protocol_id": null
+  }
+}
