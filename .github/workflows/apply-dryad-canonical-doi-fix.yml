@@ -101,7 +101,8 @@ jobs:
           test_path = Path("tests/test_dryad_hrtem_pilot_pair_audit.py")
           tests = test_path.read_text(encoding="utf-8")
           old_fixture = '    version = {"_links": {"stash:files": {"href": files_url}}}\n'
-          new_fixture = textwrap.dedent('''\
+          new_fixture = textwrap.indent(
+              textwrap.dedent('''\
               version = {
                   "identifier": "https://doi.org/10.18126/z4mr-xwk5",
                   "_links": {
@@ -109,7 +110,9 @@ jobs:
                       "stash:files": {"href": files_url},
                   },
               }
-          ''')
+              '''),
+              "    ",
+          )
           if tests.count(old_fixture) != 1:
               raise SystemExit("expected one automatic-resolution version fixture")
           test_path.write_text(
@@ -122,7 +125,7 @@ jobs:
       - name: Run focused validation
         run: |
           python -m pip install -e ".[dev]"
-          python -m compileall -q src/mca scripts/resolve_dryad_pilot_file_metadata.py
+          python -m compileall -q src/mca scripts/resolve_dryad_pilot_file_metadata.py tests/test_dryad_hrtem_pilot_pair_audit.py
           python -m pytest -q \
             tests/test_resolve_dryad_pilot_file_metadata.py \
             tests/test_dryad_hrtem_pilot_pair_audit.py
