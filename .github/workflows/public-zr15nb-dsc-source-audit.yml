@@ -1,11 +1,15 @@
-name: Public Zr15Nb DSC source audit
+name: Public Zr15Nb DSC real-data case
 
 on:
   pull_request:
     paths:
       - "case_studies/public_zr15nb_dsc/**"
       - "scripts/audit_public_zr15nb_dsc_source.py"
+      - "scripts/run_public_zr15nb_dsc_case.py"
+      - "src/mca/thermal.py"
+      - "src/mca/thermal_features.py"
       - "tests/test_public_zr15nb_dsc_source_audit.py"
+      - "tests/test_public_zr15nb_dsc_case.py"
       - ".github/workflows/public-zr15nb-dsc-source-audit.yml"
   workflow_dispatch:
 
@@ -15,7 +19,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -29,7 +33,10 @@ jobs:
         run: python -m pip install -e ".[dev]"
 
       - name: Run focused regression tests
-        run: python -m pytest tests/test_public_zr15nb_dsc_source_audit.py -q
+        run: >-
+          python -m pytest -q
+          tests/test_public_zr15nb_dsc_source_audit.py
+          tests/test_public_zr15nb_dsc_case.py
 
       - name: Audit checksum-bound real DSC source
         run: |
@@ -37,45 +44,108 @@ jobs:
             --config case_studies/public_zr15nb_dsc/case_config.json \
             --output outputs/public-zr15nb-dsc/source-audit
 
-      - name: Verify source-structure evidence and artifact hashes
+      - name: Execute public Zr15Nb DSC case
+        run: |
+          python scripts/run_public_zr15nb_dsc_case.py \
+            --config case_studies/public_zr15nb_dsc/case_config.json \
+            --output outputs/public-zr15nb-dsc/result
+
+      - name: Verify real-data evidence and artifact hashes
         run: |
           python - <<'PY'
           import hashlib
           import json
           from pathlib import Path
 
-          output = Path("outputs/public-zr15nb-dsc/source-audit")
-          summary = json.loads((output / "source_audit_summary.json").read_text())
-          manifest = json.loads((output / "source_audit_manifest.json").read_text())
-          assert summary["case_id"] == "public_zr15nb_dsc_source_audit"
-          assert summary["source"]["record_id"] == 17590045
-          assert summary["source"]["doi"] == "10.5281/zenodo.17590045"
+          audit_output = Path("outputs/public-zr15nb-dsc/source-audit")
+          result_output = Path("outputs/public-zr15nb-dsc/result")
+          audit = json.loads((audit_output / "source_audit_summary.json").read_text())
+          audit_manifest = json.loads((audit_output / "source_audit_manifest.json").read_text())
+          summary = json.loads((result_output / "case_summary.json").read_text())
+          manifest = json.loads((result_output / "case_artifact_manifest.json").read_text())
+
+          assert audit["case_id"] == "public_zr15nb_dsc_source_audit"
+          assert audit["source"]["record_id"] == 17590045
+          assert audit["source"]["doi"] == "10.5281/zenodo.17590045"
+          assert audit["readiness"]["source_checksums_verified"]
+          assert not audit["readiness"]["raw_source_files_persisted"]
+          assert not audit["readiness"]["thermal_analyzer_executed"]
+          assert audit["table_structure"]["data_row_count"] == 43167
+          assert audit["table_structure"]["column_count"] == 6
+          assert audit_manifest["artifact_count"] == 3
+
+          assert summary["case_id"] == "public_zr15nb_dsc_real_data_case"
+          assert summary["readiness"]["status"] == "diagnostic_real_dsc_case_completed"
           assert summary["readiness"]["source_checksums_verified"]
-          assert not summary["readiness"]["raw_source_files_persisted"]
-          assert not summary["readiness"]["thermal_analyzer_executed"]
-          assert summary["table_structure"]["data_row_count"] > 0
-          assert summary["table_structure"]["column_count"] > 1
-          assert manifest["artifact_count"] == 3
-          for record in manifest["artifacts"]:
-              path = output / record["path"]
-              assert path.stat().st_size == record["bytes"]
-              assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+          assert summary["readiness"]["single_strictly_increasing_heating_segment_verified"]
+          assert summary["readiness"]["thermal_analyzer_executed"]
+          assert summary["readiness"]["sensitivity_analysis_completed"]
+          assert not summary["readiness"]["phase_or_reaction_assignment_performed"]
+          assert not summary["readiness"]["quantitative_enthalpy_validated"]
+          assert not summary["readiness"]["engineering_release_ready"]
+          adapter = summary["canonical_adapter"]
+          assert adapter["canonical_row_count"] == 43167
+          assert adapter["temperature_strictly_increasing"]
+          assert adapter["source_rows_excluded"] == 0
+          assert not adapter["source_rows_sorted"]
+          assert not adapter["source_rows_interpolated"]
+          assert abs(adapter["temperature_start_c"] - 80.005) < 1e-9
+          assert abs(adapter["temperature_end_c"] - 799.99799) < 1e-9
+          assert summary["analysis_contract"]["source_signal_unit"] == "mW/mg"
+          assert summary["analysis_contract"]["signal_type"] == "heat_flow_w_g"
+          assert summary["analysis_contract"]["endotherm_direction"] == "down"
+          assert not summary["analysis_contract"]["article_intervals_used_as_detection_labels"]
+          assert len(summary["analysis_runs"]) == 3
+          assert {record["run_id"] for record in summary["analysis_runs"]} == {
+              "primary", "sensitivity_1c", "sensitivity_5c"
+          }
+          for record in summary["analysis_runs"]:
+              analysis_manifest = json.loads(
+                  (result_output / record["analysis_manifest"]).read_text()
+              )
+              analysis = analysis_manifest["analyses"][0]
+              assert analysis["instrument"] == "dsc"
+              assert analysis["sample_id"] == "zr15nb_solution_treated_alloy"
+              assert analysis["source_sha256"] == adapter["canonical_sha256"]
+              assert "thermal_sample_mass_not_provided" in analysis["warnings"]
+              assert "thermal_crucible_material_not_provided" in analysis["warnings"]
+
+          for base, current_manifest in (
+              (audit_output, audit_manifest),
+              (result_output, manifest),
+          ):
+              for record in current_manifest["artifacts"]:
+                  path = base / record["path"]
+                  assert path.stat().st_size == record["bytes"]
+                  assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+
           print(json.dumps({
               "status": summary["readiness"]["status"],
-              "encoding": summary["table_structure"]["encoding"],
-              "delimiter": summary["table_structure"]["delimiter"],
-              "row_count": summary["table_structure"]["data_row_count"],
-              "column_count": summary["table_structure"]["column_count"],
-              "headers": summary["table_structure"]["header_rows"],
-              "temperature_candidates": summary["table_structure"]["temperature_candidate_columns"],
-              "dsc_candidates": summary["table_structure"]["dsc_candidate_columns"],
+              "canonical_rows": adapter["canonical_row_count"],
+              "temperature_range_c": [
+                  adapter["temperature_start_c"], adapter["temperature_end_c"]
+              ],
+              "median_step_c": adapter["median_temperature_step_c"],
+              "candidate_counts": {
+                  record["run_id"]: record["candidate_count"]
+                  for record in summary["analysis_runs"]
+              },
+              "candidate_temperatures": {
+                  record["run_id"]: []
+                  for record in summary["analysis_runs"]
+              },
+              "raw_source_files_persisted": summary["source"][
+                  "raw_source_files_persisted"
+              ],
           }, indent=2, sort_keys=True))
           PY
 
-      - name: Upload source audit evidence
+      - name: Upload public DSC evidence
         uses: actions/upload-artifact@v4
         with:
-          name: public-zr15nb-dsc-source-audit-evidence
-          path: outputs/public-zr15nb-dsc/source-audit
+          name: public-zr15nb-dsc-real-data-evidence
+          path: |
+            outputs/public-zr15nb-dsc/source-audit
+            outputs/public-zr15nb-dsc/result
           if-no-files-found: error
           retention-days: 30
