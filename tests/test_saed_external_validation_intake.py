@@ -154,6 +154,13 @@ def test_checksum_bound_patterns_are_ready_to_freeze_protocol(
     assert not summary["decision"]["crystallographic_performance_claim_ready"]
     assert summary["result_counts"]["sample_count"] == 2
     assert summary["result_counts"]["acquisition_count"] == 2
+    assert summary["evidence_gates"]["unresolved_evidence"] == []
+    assert "source_metadata_review_passed" in summary[
+        "protocol_freeze_gates"
+    ]["unresolved_protocol"]
+    assert summary["result_counts"][
+        "unresolved_protocol_gate_count"
+    ] > 0
 
     artifacts = json.loads(
         (output / "saed_validation_intake_artifact_manifest.json").read_text(
@@ -265,6 +272,36 @@ def test_complete_frozen_protocol_reaches_only_predeclared_evaluation(
     assert summary["decision"]["predeclared_saed_external_evaluation_ready"]
     assert not summary["decision"]["crystallographic_performance_claim_ready"]
     assert not summary["decision"]["engineering_release_ready"]
+    assert summary["protocol_freeze_gates"][
+        "unresolved_protocol"
+    ] == []
+    assert summary["result_counts"][
+        "unresolved_protocol_gate_count"
+    ] == 0
+
+
+def test_failed_review_is_explicit_and_blocks_protocol_readiness(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    payload = _manifest(_two_patterns(root))
+    payload["evaluation_protocol"]["calibration_review_status"] = (
+        "failed"
+    )
+    summary = run_saed_external_validation_intake(
+        load_intake_manifest(
+            _write_manifest(tmp_path / "manifest.json", payload)
+        ),
+        root,
+        tmp_path / "out",
+    )
+    assert summary["decision"]["status"] == BLOCKED
+    assert not summary["decision"]["saed_protocol_freeze_ready"]
+    assert "calibration_review_passed" in summary[
+        "protocol_freeze_gates"
+    ]["unresolved_protocol"]
+    assert summary["result_counts"]["failed_review_count"] == 1
 
 
 def test_frozen_manifest_mutation_fails_without_partial_output(

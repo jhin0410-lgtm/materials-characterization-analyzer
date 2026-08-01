@@ -606,29 +606,66 @@ def run_saed_external_validation_intake(
             for status in manifest.evaluation_protocol.review_statuses
             if status == "failed"
         ]
+        protocol_gates: dict[str, bool] = {
+            "source_metadata_review_passed": (
+                manifest.evaluation_protocol.source_metadata_review_status
+                == "passed"
+            ),
+            "file_content_audit_passed": (
+                manifest.evaluation_protocol.file_content_audit_status
+                == "passed"
+            ),
+            "calibration_review_passed": (
+                manifest.evaluation_protocol.calibration_review_status
+                == "passed"
+            ),
+            "acquisition_independence_review_passed": (
+                manifest.evaluation_protocol
+                .acquisition_independence_review_status
+                == "passed"
+            ),
+            "content_overlap_audit_passed": (
+                manifest.evaluation_protocol.content_overlap_audit_status
+                == "passed"
+            ),
+            "analysis_parameters_frozen": (
+                manifest.evaluation_protocol.analysis_parameters_frozen
+            ),
+            "indexing_protocol_frozen": (
+                manifest.evaluation_protocol.indexing_protocol_frozen
+            ),
+            "reference_set_frozen": (
+                manifest.evaluation_protocol.reference_set_frozen
+            ),
+            "canonical_manifest_checksum_frozen": (
+                manifest.evaluation_protocol.manifest_checksum_frozen
+                and manifest.evaluation_protocol.frozen_manifest_sha256
+                == manifest.canonical_sha256
+            ),
+            "frozen_protocol_id_assigned": (
+                manifest.evaluation_protocol.frozen_protocol_id is not None
+            ),
+            "reference_protocol_bound": (
+                manifest.evaluation_protocol.reference_type != "none"
+                and manifest.evaluation_protocol.reference_identifier
+                is not None
+            ),
+            "metrics_frozen": (
+                manifest.evaluation_protocol.metrics_frozen
+            ),
+            "uncertainty_method_frozen": (
+                manifest.evaluation_protocol.uncertainty_method_frozen
+            ),
+            "exclusion_rules_frozen": (
+                manifest.evaluation_protocol.exclusion_rules_frozen
+            ),
+        }
         base_ready = all(gates.values()) and not failed_reviews
-        protocol_complete = (
-            base_ready
-            and all(
-                status == "passed"
-                for status in manifest.evaluation_protocol.review_statuses
-            )
-            and manifest.evaluation_protocol.analysis_parameters_frozen
-            and manifest.evaluation_protocol.indexing_protocol_frozen
-            and manifest.evaluation_protocol.reference_set_frozen
-            and manifest.evaluation_protocol.manifest_checksum_frozen
-            and manifest.evaluation_protocol.frozen_manifest_sha256
-            == manifest.canonical_sha256
-            and manifest.evaluation_protocol.frozen_protocol_id is not None
-            and manifest.evaluation_protocol.reference_type != "none"
-            and manifest.evaluation_protocol.reference_identifier is not None
-            and manifest.evaluation_protocol.metrics_frozen
-            and manifest.evaluation_protocol.uncertainty_method_frozen
-            and manifest.evaluation_protocol.exclusion_rules_frozen
-        )
+        protocol_complete = base_ready and all(protocol_gates.values())
         unresolved = [name for name, passed in gates.items() if not passed]
-        if failed_reviews:
-            unresolved.append("failed_protocol_or_evidence_review")
+        unresolved_protocol = [
+            name for name, passed in protocol_gates.items() if not passed
+        ]
         if not base_ready:
             status = BLOCKED
             next_action = (
@@ -671,10 +708,15 @@ def run_saed_external_validation_intake(
                     duplicate_active_hashes
                 ),
                 "failed_review_count": len(failed_reviews),
+                "unresolved_protocol_gate_count": len(unresolved_protocol),
             },
             "evidence_gates": {
                 **gates,
                 "unresolved_evidence": unresolved,
+            },
+            "protocol_freeze_gates": {
+                **protocol_gates,
+                "unresolved_protocol": unresolved_protocol,
             },
             "decision": {
                 "status": status,
@@ -865,7 +907,13 @@ def _render_report(summary: Mapping[str, Any]) -> str:
     decision = summary["decision"]
     counts = summary["result_counts"]
     unresolved = summary["evidence_gates"]["unresolved_evidence"]
+    unresolved_protocol = summary["protocol_freeze_gates"][
+        "unresolved_protocol"
+    ]
     unresolved_text = ", ".join(unresolved) if unresolved else "none"
+    unresolved_protocol_text = (
+        ", ".join(unresolved_protocol) if unresolved_protocol else "none"
+    )
     return (
         "# SAED external-validation intake\n\n"
         f"- Status: `{decision['status']}`\n"
@@ -874,7 +922,8 @@ def _render_report(summary: Mapping[str, Any]) -> str:
         f"- Independent acquisitions: `{counts['acquisition_count']}`\n"
         f"- Duplicate active content: "
         f"`{counts['duplicate_active_pattern_content_count']}`\n"
-        f"- Unresolved evidence: `{unresolved_text}`\n"
+        f"- Unresolved source evidence: `{unresolved_text}`\n"
+        f"- Unresolved protocol gates: `{unresolved_protocol_text}`\n"
         f"- Protocol freeze ready: "
         f"`{str(decision['saed_protocol_freeze_ready']).lower()}`\n"
         f"- Predeclared external evaluation ready: "
