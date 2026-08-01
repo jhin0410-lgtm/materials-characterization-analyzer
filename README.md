@@ -46,6 +46,7 @@ Public real-data case studies fetch their external sources at runtime, verify so
 - `case_studies/public_carbon_multimodal/`: DWCNT Raman/FTIR/XPS/TGA diagnostic case;
 - `case_studies/public_zr15nb_dsc/`: checksum-bound Zr15Nb DSC real-data case;
 - `case_studies/public_finds_saed/`: calibrated FINDS SAED real-image diagnostic case.
+- `case_studies/phaset3m_co3o4_candidate_audit/`: checksum-bound processed Co3O4 tilt-series diagnostic audit; not external segmentation validation.
 
 The TEM external-validation intake under `case_studies/tem_external_validation_intake/` is a fail-closed dataset contract, not a certified scientific dataset.
 
