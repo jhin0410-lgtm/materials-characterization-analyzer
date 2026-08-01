@@ -444,6 +444,8 @@ def _candidate_row(candidate: Candidate) -> dict[str, Any]:
         "independent_segmentation_labels_available": (
             candidate.independent_segmentation_labels_available
         ),
+        "label_origin": candidate.label_origin,
+        "labeler_count": candidate.labeler_count,
         "immutable_sample_ids_available": candidate.immutable_sample_ids_available,
         "immutable_acquisition_ids_available": (
             candidate.immutable_acquisition_ids_available
@@ -456,6 +458,8 @@ def _candidate_row(candidate: Candidate) -> dict[str, Any]:
         "imaging_domain_relation": candidate.imaging_domain_relation,
         "reuse_license": candidate.reuse_license,
         "reuse_license_verified": candidate.reuse_license_verified,
+        "target_training_source": candidate.target_training_source,
+        "in_domain_external_validation_ready": ready,
         "evaluation_ready": ready,
         "blockers": " | ".join(blockers),
         "source_evidence": " | ".join(candidate.source_evidence),
@@ -496,9 +500,7 @@ def _counts(rows: Sequence[Mapping[str, Any]]) -> dict[str, int]:
         "rendered_representation_exclusion_count": count(EXCLUDED_REPRESENTATION),
         "cross_phase_candidate_count": count(CROSS_PHASE),
         "diagnostic_cross_material_candidate_count": count(CROSS_MATERIAL),
-        "excluded_control_count": (
-            count(TARGET_SOURCE) + count(WRONG_MODALITY) + count(EXCLUDED_REPRESENTATION)
-        ),
+        "excluded_control_count": count(TARGET_SOURCE) + count(WRONG_MODALITY),
     }
 
 
@@ -701,6 +703,8 @@ INVENTORY_COLUMNS = (
     "raw_or_lossless_tem_images_available",
     "reported_tem_file_count",
     "independent_segmentation_labels_available",
+    "label_origin",
+    "labeler_count",
     "immutable_sample_ids_available",
     "immutable_acquisition_ids_available",
     "verified_not_used_for_target_training_or_model_selection",
@@ -709,6 +713,8 @@ INVENTORY_COLUMNS = (
     "imaging_domain_relation",
     "reuse_license",
     "reuse_license_verified",
+    "target_training_source",
+    "in_domain_external_validation_ready",
     "evaluation_ready",
     "blockers",
     "source_evidence",

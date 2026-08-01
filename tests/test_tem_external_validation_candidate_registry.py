@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 from pathlib import Path
@@ -40,7 +41,7 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
         "rendered_representation_exclusion_count": 1,
         "cross_phase_candidate_count": 2,
         "diagnostic_cross_material_candidate_count": 1,
-        "excluded_control_count": 3,
+        "excluded_control_count": 2,
     }
     assert summary["readiness"]["recommended_candidate_id"] == (
         "mendeley_8w66synjmx_cop_co2p_co3o4"
@@ -161,3 +162,53 @@ def test_cli_writes_registry_outputs(
         "mendeley_8w66synjmx_cop_co2p_co3o4"
     )
     assert (output / "tem_external_validation_candidate_report.md").is_file()
+
+
+
+def test_candidate_inventory_preserves_versioned_provenance_columns(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out"
+    run_candidate_registry(load_registry_config(CONFIG), output)
+    with (output / "tem_external_validation_candidate_inventory.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows
+    expected = {
+        "label_origin",
+        "labeler_count",
+        "target_training_source",
+        "in_domain_external_validation_ready",
+        "evaluation_ready",
+    }
+    assert expected.issubset(rows[0])
+    target = next(
+        row
+        for row in rows
+        if row["candidate_id"] == "zenodo_14927582_target_training_source"
+    )
+    assert target["target_training_source"] == "True"
+    assert target["in_domain_external_validation_ready"] == "False"
+    assert target["evaluation_ready"] == "False"
+
+
+def test_mutually_exclusive_candidate_status_counts_reconcile(
+    tmp_path: Path,
+) -> None:
+    counts = run_candidate_registry(
+        load_registry_config(CONFIG), tmp_path / "out"
+    )["result_counts"]
+    bucket_total = sum(
+        counts[key]
+        for key in (
+            "in_domain_external_validation_ready_count",
+            "metadata_resolution_candidate_count",
+            "annotation_pilot_candidate_count",
+            "rendered_representation_exclusion_count",
+            "cross_phase_candidate_count",
+            "diagnostic_cross_material_candidate_count",
+            "excluded_control_count",
+        )
+    )
+    assert bucket_total == counts["candidate_count"]

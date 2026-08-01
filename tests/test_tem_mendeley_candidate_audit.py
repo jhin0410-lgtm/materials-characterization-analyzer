@@ -12,6 +12,7 @@ from mca.tem_mendeley_candidate_audit import (
     STATUS_INVENTORY_RESOLVED,
     STATUS_TEM_CANDIDATE_FOUND,
     AuditConfig,
+    refresh_mendeley_candidate_audit_manifest,
     run_mendeley_candidate_audit,
 )
 
@@ -217,3 +218,113 @@ def test_invalid_primary_contract_is_rejected() -> None:
     }
     with pytest.raises(ValueError, match="pinned candidate"):
         AuditConfig.from_mapping(payload)
+
+
+
+def test_primary_file_failure_is_blocked_when_other_records_succeed(
+    tmp_path: Path,
+) -> None:
+    def partial(url: str, accept: str) -> tuple[int, Mapping[str, str], Any]:
+        del accept
+        dataset_id = next(
+            item
+            for item in ("8w66synjmx", "zhnbzhjrtr", "jz9dpgwwc3")
+            if item in url
+        )
+        if "/snapshot/" in url:
+            return 200, {}, _snapshot(dataset_id)
+        if dataset_id == "8w66synjmx":
+            return 503, {}, {"message": "primary unavailable"}
+        return 200, {}, [_file(dataset_id, "database.rar", "a" * 64, 123)]
+
+    summary = run_mendeley_candidate_audit(
+        _config(),
+        tmp_path / "out",
+        transport=partial,
+    )
+    assert summary["inventory_readiness"]["status"] == STATUS_API_BLOCKED
+    assert not summary["inventory_readiness"]["primary_root_files_request_succeeded"]
+    assert not summary["inventory_readiness"]["primary_file_inventory_resolved"]
+    assert summary["scientific_closeout"]["status"] == "Inconclusive"
+
+
+def test_duplicate_identity_requires_complete_checksums(tmp_path: Path) -> None:
+    def missing_checksums(
+        url: str, accept: str
+    ) -> tuple[int, Mapping[str, str], Any]:
+        del accept
+        dataset_id = next(
+            item
+            for item in ("8w66synjmx", "zhnbzhjrtr", "jz9dpgwwc3")
+            if item in url
+        )
+        if "/snapshot/" in url:
+            return 200, {}, _snapshot(dataset_id)
+        item = _file(dataset_id, "database.rar", "a" * 64, 123)
+        item["content_details"].pop("sha256_hash")
+        return 200, {}, [item]
+
+    summary = run_mendeley_candidate_audit(
+        _config(),
+        tmp_path / "out",
+        transport=missing_checksums,
+    )
+    assert not summary["inventory_readiness"]["primary_checksums_and_sizes_complete"]
+    assert not summary["inventory_readiness"][
+        "duplicate_raw_record_checksums_and_sizes_complete"
+    ]
+    assert not summary["inventory_readiness"][
+        "duplicate_raw_record_content_identical"
+    ]
+
+
+def test_configured_api_base_is_used_and_reported(tmp_path: Path) -> None:
+    payload = {
+        "case_id": "mendeley_cop_co2p_co3o4_tem_candidate_audit",
+        "api_base": "https://api.data.mendeley.com",
+        "datasets": [
+            {
+                "dataset_id": item.dataset_id,
+                "version": item.version,
+                "doi": item.doi,
+                "role": item.role,
+                "expected_title_fragment": item.expected_title_fragment,
+            }
+            for item in _config().datasets
+        ],
+    }
+    config = AuditConfig.from_mapping(payload)
+    observed_urls: list[str] = []
+
+    def transport(url: str, accept: str) -> tuple[int, Mapping[str, str], Any]:
+        observed_urls.append(url)
+        return _transport(url, accept)
+
+    summary = run_mendeley_candidate_audit(
+        config,
+        tmp_path / "out",
+        transport=transport,
+    )
+    assert observed_urls
+    assert all(url.startswith("https://api.data.mendeley.com/") for url in observed_urls)
+    assert summary["source"]["api_base"] == "https://api.data.mendeley.com"
+
+
+def test_refresh_manifest_binds_probe_artifacts(tmp_path: Path) -> None:
+    output = tmp_path / "out"
+    run_mendeley_candidate_audit(_config(), output, transport=_transport)
+    (output / "mendeley_public_page_probe.json").write_text(
+        '{"case_id":"page-probe"}\n', encoding="utf-8"
+    )
+    (output / "mendeley_anonymous_public_api_probe.json").write_text(
+        '{"case_id":"api-probe"}\n', encoding="utf-8"
+    )
+    manifest = refresh_mendeley_candidate_audit_manifest(output)
+    assert manifest["artifact_count"] == 7
+    paths = {record["path"] for record in manifest["artifacts"]}
+    assert "mendeley_public_page_probe.json" in paths
+    assert "mendeley_anonymous_public_api_probe.json" in paths
+    for record in manifest["artifacts"]:
+        path = output / record["path"]
+        assert record["bytes"] == path.stat().st_size
+        assert record["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
