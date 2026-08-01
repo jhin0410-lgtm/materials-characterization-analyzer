@@ -1,5 +1,6 @@
 {
   "case_id": "public_zr15nb_dsc_source_audit",
+  "analysis_case_id": "public_zr15nb_dsc_real_data_case",
   "dataset": {
     "repository": "Zenodo",
     "record_id": 17590045,
@@ -15,29 +16,90 @@
     "heating_rate_c_min": 5.0,
     "atmosphere": "argon",
     "instrument_model": "Netzsch DSC 404 C Pegasus",
-    "reported_replicate_count": 2
+    "reported_replicate_count": 2,
+    "reported_plot_convention": "exotherm_positive_endotherm_negative",
+    "thermal_context_intervals_not_detection_labels": [
+      {
+        "process_direction": "exothermic",
+        "temperature_start_c": 200.0,
+        "temperature_end_c": 450.0,
+        "description": "broad shallow event with a more distinct event between approximately 350 and 400 degC"
+      },
+      {
+        "process_direction": "endothermic",
+        "temperature_start_c": 420.0,
+        "temperature_end_c": 550.0,
+        "description": "reported endothermic process"
+      },
+      {
+        "process_direction": "exothermic",
+        "temperature_start_c": 550.0,
+        "temperature_end_c": 650.0,
+        "description": "reported sharp exothermic event"
+      }
+    ]
   },
   "files": [
     {
       "filename": "DSC_ElResistance_ThExpansion.csv",
       "role": "combined_dsc_electrical_resistance_thermal_expansion_table",
-      "expected_size_bytes": null,
+      "expected_size_bytes": 1720217,
       "checksum_algorithm": "md5",
-      "checksum": "174931eb55f16ee3d27ce2fdb257e4f8"
+      "checksum": "174931eb55f16ee3d27ce2fdb257e4f8",
+      "verified_sha256": "42b1215b676cccd6535529db0b3fa53752bab1f17bdd57a127889d78bf335e8f"
     },
     {
       "filename": "ReadMe.txt",
       "role": "source_readme",
-      "expected_size_bytes": null,
+      "expected_size_bytes": 1607,
       "checksum_algorithm": "md5",
-      "checksum": "c00c813ba71fdd320cb554b150111132"
+      "checksum": "c00c813ba71fdd320cb554b150111132",
+      "verified_sha256": "5ce0a675160eba7e9fee28c51a2a21cbef4f74702be12ca48c4e5026c7f23796"
     }
   ],
+  "column_binding": {
+    "header_row_count": 3,
+    "expected_headers": [
+      ["DSC", "", "Electrical resistance", "", "Thermal expansion", ""],
+      ["Temperature", "DSC signal", "Temperature", "Relative electrical resistance", "Temperature", "deltaL"],
+      ["°C", "mW/mg", "°C", "", "°C", "um"]
+    ],
+    "temperature_column_index": 0,
+    "signal_column_index": 1,
+    "source_signal_unit": "mW/mg",
+    "canonical_signal_type": "heat_flow_w_g",
+    "source_to_canonical_factor": 1.0,
+    "conversion_basis": "1 mW/mg equals 1 W/g",
+    "endotherm_direction": "down",
+    "row_selection": "all finite source rows in original order",
+    "sorting_allowed": false,
+    "interpolation_allowed": false,
+    "exclusion_allowed": false
+  },
+  "analysis": {
+    "sample_id": "zr15nb_solution_treated_alloy",
+    "measurement_id": "zenodo_17590045_dsc_linear_heating",
+    "baseline_method": "linear",
+    "primary_smoothing_span_c": 2.0,
+    "sensitivity_smoothing_spans_c": [1.0, 5.0],
+    "smoothing_polyorder": 3,
+    "prominence_fraction": 0.08,
+    "minimum_candidate_separation_c": 10.0,
+    "parameter_selection_status": "predeclared_diagnostic_not_fitted_to_article_intervals"
+  },
+  "unresolved_metadata": {
+    "source_file_replicate_identity": "unresolved",
+    "sample_mass_mg": null,
+    "crucible_material": null,
+    "gas_flow_ml_min": null,
+    "calibration_reference": null
+  },
   "scientific_boundary": {
     "source_is_real_measurement": true,
     "phase_assignment_from_dsc_alone_allowed": false,
     "reaction_assignment_from_dsc_alone_allowed": false,
-    "enthalpy_claim_allowed_before_signal_unit_and_mass_review": false,
+    "article_intervals_used_as_detection_labels": false,
+    "diagnostic_enthalpy_is_validated_quantitative_enthalpy": false,
     "raw_source_files_committed": false
   }
 }
