@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "src/mca/tem_mendeley_candidate_audit.py"
+      - "src/mca/tem_mendeley_candidate_audit_engine.py"
       - "src/mca/tem_mendeley_candidate_audit_cli.py"
       - "src/mca/cli_entry.py"
       - "scripts/probe_mendeley_public_page.py"
@@ -11,6 +12,7 @@ on:
       - "scripts/audit_mendeley_public_archive.py"
       - "scripts/inspect_mendeley_microscopy_members.py"
       - "tests/test_tem_mendeley_candidate_audit.py"
+      - "tests/test_mendeley_microscopy_tag_compatibility.py"
       - "case_studies/mendeley_cop_co2p_co3o4_tem_candidate/**"
       - ".github/workflows/mendeley-cop-co2p-co3o4-tem-candidate-audit.yml"
   workflow_dispatch:
@@ -38,9 +40,13 @@ jobs:
           sudo apt-get install -y p7zip-full
 
       - name: Run focused regression tests
-        run: python -m pytest tests/test_tem_mendeley_candidate_audit.py -q
+        run: |
+          python -m pytest \
+            tests/test_tem_mendeley_candidate_audit.py \
+            tests/test_mendeley_microscopy_tag_compatibility.py \
+            -q
 
-      - name: Resolve authenticated-API readiness
+      - name: Resolve anonymous public API metadata
         run: |
           mca tem-mendeley-audit \
             --config case_studies/mendeley_cop_co2p_co3o4_tem_candidate/case_config.json \
@@ -87,6 +93,13 @@ jobs:
 
           assert summary["case_id"] == "mendeley_cop_co2p_co3o4_tem_candidate_audit"
           assert summary["source"]["primary_dataset_id"] == "8w66synjmx"
+          assert summary["inventory_readiness"]["status"] == (
+              "file_inventory_resolved_annotation_not_ready"
+          )
+          assert summary["result_counts"]["file_count"] == 3
+          assert summary["result_counts"]["primary_file_count"] == 1
+          assert summary["inventory_readiness"]["primary_checksums_and_sizes_complete"]
+          assert summary["inventory_readiness"]["duplicate_raw_record_content_identical"]
           assert not summary["lineage_and_annotation_gates"]["annotation_pilot_ready"]
           assert not summary["lineage_and_annotation_gates"]["external_model_evaluation_ready"]
           assert manifest["artifact_count"] == 5
@@ -106,6 +119,10 @@ jobs:
           assert images["result_counts"]["inspected_member_count"] == 6
           assert images["result_counts"]["tiff_member_count"] == 2
           assert images["result_counts"]["haadf_or_element_map_member_count"] == 4
+          assert images["result_counts"]["rendered_multichannel_member_count"] == 6
+          assert images["representation"]["all_members_rendered_multichannel"]
+          assert not images["representation"]["pixel_calibration_available"]
+          assert not images["representation"]["co3o4_region_binding_available"]
           assert not images["readiness"]["annotation_pilot_ready"]
           assert not images["readiness"]["external_model_evaluation_ready"]
           assert image_manifest["artifact_count"] == 3
@@ -121,7 +138,7 @@ jobs:
                   assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
 
           print(json.dumps({
-              "authenticated_api_status": summary["inventory_readiness"]["status"],
+              "metadata_status": summary["inventory_readiness"]["status"],
               "archive_sha256": archive["source"]["primary_archive"]["sha256"],
               "duplicate_raw_record_content_identical": archive["source"]["duplicate_raw_record_content_identical"],
               "archive_member_count": archive["archive_inventory"]["member_count"],
