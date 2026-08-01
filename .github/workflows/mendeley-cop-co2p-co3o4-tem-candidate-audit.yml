@@ -6,6 +6,7 @@ on:
       - "src/mca/tem_mendeley_candidate_audit.py"
       - "src/mca/tem_mendeley_candidate_audit_cli.py"
       - "src/mca/cli_entry.py"
+      - "scripts/probe_mendeley_public_page.py"
       - "tests/test_tem_mendeley_candidate_audit.py"
       - "case_studies/mendeley_cop_co2p_co3o4_tem_candidate/**"
       - ".github/workflows/mendeley-cop-co2p-co3o4-tem-candidate-audit.yml"
@@ -39,6 +40,11 @@ jobs:
             --config case_studies/mendeley_cop_co2p_co3o4_tem_candidate/case_config.json \
             --output outputs/mendeley-cop-co2p-co3o4-tem-candidate
 
+      - name: Probe public landing-page metadata paths
+        run: |
+          python scripts/probe_mendeley_public_page.py \
+            --output outputs/mendeley-cop-co2p-co3o4-tem-candidate/mendeley_public_page_probe.json
+
       - name: Verify fail-closed result and artifact hashes
         run: |
           python - <<'PY'
@@ -49,11 +55,14 @@ jobs:
           output = Path("outputs/mendeley-cop-co2p-co3o4-tem-candidate")
           summary = json.loads((output / "mendeley_candidate_audit_summary.json").read_text())
           manifest = json.loads((output / "mendeley_candidate_audit_manifest.json").read_text())
+          probe = json.loads((output / "mendeley_public_page_probe.json").read_text())
           assert summary["case_id"] == "mendeley_cop_co2p_co3o4_tem_candidate_audit"
           assert summary["source"]["primary_dataset_id"] == "8w66synjmx"
           assert not summary["lineage_and_annotation_gates"]["annotation_pilot_ready"]
           assert not summary["lineage_and_annotation_gates"]["external_model_evaluation_ready"]
           assert manifest["artifact_count"] == 5
+          assert probe["case_id"] == "mendeley_public_page_endpoint_probe"
+          assert len(probe["pages"]) == 3
           for record in manifest["artifacts"]:
               path = output / record["path"]
               assert path.stat().st_size == record["bytes"]
@@ -63,6 +72,11 @@ jobs:
               "file_count": summary["result_counts"]["file_count"],
               "primary_tem_candidate_file_count": summary["result_counts"]["primary_tem_candidate_file_count"],
               "candidate_filenames": summary["inventory_readiness"]["candidate_filenames"],
+              "page_uuid_counts": {
+                  page["dataset_id"]: page["clues"]["uuid_count"]
+                  for page in probe["pages"]
+              },
+              "matching_asset_count": len(probe["matching_assets"]),
           }, indent=2, sort_keys=True))
           PY
 
