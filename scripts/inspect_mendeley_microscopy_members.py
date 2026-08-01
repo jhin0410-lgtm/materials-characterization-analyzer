@@ -1,8 +1,8 @@
-"""Inspect only the microscopy-like members in the verified Mendeley archive.
+"""Inspect only microscopy-like members in the verified Mendeley archive.
 
 Source images are extracted to a temporary directory, inspected, hashed, and
-deleted. The script exports metadata only; it does not persist or redistribute
-source image bytes.
+deleted. Only metadata is exported; source image bytes are never persisted as
+repository or workflow artifacts.
 """
 from __future__ import annotations
 
@@ -10,14 +10,13 @@ import argparse
 import csv
 import hashlib
 import json
-import re
 import shutil
 import subprocess
 import tempfile
 import urllib.parse
 import urllib.request
 from pathlib import Path, PurePosixPath
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from PIL import Image, TiffTags
 
@@ -25,8 +24,10 @@ BASE = "https://data.mendeley.com/public-api"
 DATASET_ID = "8w66synjmx"
 VERSION = 1
 EXPECTED_ARCHIVE_NAME = "database.rar"
-EXPECTED_ARCHIVE_SIZE = 3472702
-EXPECTED_ARCHIVE_SHA256 = "db3204100545fe3a152c0a545d29ab7f27f85c86594de3e3484bb76020ad7edf"
+EXPECTED_ARCHIVE_SIZE = 3_472_702
+EXPECTED_ARCHIVE_SHA256 = (
+    "db3204100545fe3a152c0a545d29ab7f27f85c86594de3e3484bb76020ad7edf"
+)
 MEMBERS = (
     "database/figure 1/figure 1b/0002 Ceta.tif",
     "database/figure 1/figure 1c-1e/0007 Ceta.tif",
@@ -35,7 +36,7 @@ MEMBERS = (
     "database/figure 1/figure 1i/HAADF_P.bmp",
     "database/figure 1/figure 1j/HAADF_O.bmp",
 )
-TIFF_TAGS = {
+TIFF_TAG_NAMES = {
     "BitsPerSample",
     "Compression",
     "DateTime",
@@ -67,7 +68,11 @@ def _root_file() -> Mapping[str, Any]:
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         payload = json.loads(response.read().decode("utf-8"))
-    if not isinstance(payload, list) or len(payload) != 1 or not isinstance(payload[0], Mapping):
+    if (
+        not isinstance(payload, list)
+        or len(payload) != 1
+        or not isinstance(payload[0], Mapping)
+    ):
         raise ValueError("primary dataset must expose one root archive")
     return payload[0]
 
@@ -81,25 +86,34 @@ def _download_archive(target: Path) -> None:
     size = content.get("size")
     sha256 = content.get("sha256_hash")
     url = content.get("download_url")
-    if name != EXPECTED_ARCHIVE_NAME or size != EXPECTED_ARCHIVE_SIZE or sha256 != EXPECTED_ARCHIVE_SHA256:
+    if (
+        name != EXPECTED_ARCHIVE_NAME
+        or size != EXPECTED_ARCHIVE_SIZE
+        or sha256 != EXPECTED_ARCHIVE_SHA256
+    ):
         raise ValueError("public archive contract changed")
     if not isinstance(url, str) or not url.startswith("https://"):
         raise ValueError("archive download URL is unavailable")
+
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "materials-characterization-analyzer-image-inspection/1.0"},
+        headers={
+            "User-Agent": "materials-characterization-analyzer-image-inspection/1.0"
+        },
     )
     digest = hashlib.sha256()
     observed_size = 0
-    with urllib.request.urlopen(request, timeout=120) as response, target.open("wb") as handle:
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
+    with urllib.request.urlopen(request, timeout=120) as response, target.open(
+        "wb"
+    ) as handle:
+        while chunk := response.read(1024 * 1024):
             handle.write(chunk)
             digest.update(chunk)
             observed_size += len(chunk)
-    if observed_size != EXPECTED_ARCHIVE_SIZE or digest.hexdigest() != EXPECTED_ARCHIVE_SHA256:
+    if (
+        observed_size != EXPECTED_ARCHIVE_SIZE
+        or digest.hexdigest() != EXPECTED_ARCHIVE_SHA256
+    ):
         target.unlink(missing_ok=True)
         raise ValueError("downloaded archive failed size or SHA-256 verification")
 
@@ -123,23 +137,46 @@ def _extract(archive: Path, directory: Path) -> list[Path]:
     paths = [directory.joinpath(*PurePosixPath(member).parts) for member in MEMBERS]
     missing = [str(path) for path in paths if not path.is_file()]
     if missing:
-        raise FileNotFoundError(f"configured microscopy members not extracted: {missing}")
+        raise FileNotFoundError(
+            f"configured microscopy members not extracted: {missing}"
+        )
     return paths
 
 
-def _clean_tag_value(value: Any) -> Any:
+def _tag_name(code: int) -> str:
+    """Return a stable Pillow TIFF tag name across Pillow releases."""
+    info = TiffTags.TAGS_V2.get(code)
+    if isinstance(info, str):
+        return info
+    if isinstance(info, Mapping):
+        candidate = info.get("name")
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    candidate = getattr(info, "name", None)
+    if isinstance(candidate, str) and candidate:
+        return candidate
+    legacy = TiffTags.TAGS.get(code)
+    if isinstance(legacy, str) and legacy:
+        return legacy
+    return str(code)
+
+
+def _clean_value(value: Any) -> Any:
     if isinstance(value, bytes):
         return {
             "bytes": len(value),
             "sha256": hashlib.sha256(value).hexdigest(),
         }
     if isinstance(value, tuple):
-        return [_clean_tag_value(item) for item in value]
+        return [_clean_value(item) for item in value]
     if isinstance(value, (str, int, float, bool)) or value is None:
-        text = value if not isinstance(value, str) else value.strip()
-        if isinstance(text, str) and len(text) > 500:
-            return {"characters": len(text), "sha256": hashlib.sha256(text.encode()).hexdigest()}
-        return text
+        result = value.strip() if isinstance(value, str) else value
+        if isinstance(result, str) and len(result) > 500:
+            return {
+                "characters": len(result),
+                "sha256": hashlib.sha256(result.encode()).hexdigest(),
+            }
+        return result
     numerator = getattr(value, "numerator", None)
     denominator = getattr(value, "denominator", None)
     if isinstance(numerator, int) and isinstance(denominator, int):
@@ -155,19 +192,15 @@ def _inspect(path: Path, member: str) -> dict[str, Any]:
         tag_v2 = getattr(image, "tag_v2", None)
         if tag_v2 is not None:
             for code, value in tag_v2.items():
-                name = TiffTags.TAGS_V2.get(code, str(code))
-                if name in TIFF_TAGS:
-                    tags[name] = _clean_tag_value(value)
-        extrema = image.getextrema()
-        rendered_rgb = image.mode in {"RGB", "RGBA", "P", "CMYK"}
-        quantitative_intensity_status = (
-            "rendered_multichannel_intensity_not_raw_detector_counts"
-            if rendered_rgb
-            else "single_channel_intensity_requires_source_calibration_review"
-        )
+                name = _tag_name(int(code))
+                if name in TIFF_TAG_NAMES:
+                    tags[name] = _clean_value(value)
+        extrema = _clean_value(image.getextrema())
+        rendered_multichannel = image.mode in {"RGB", "RGBA", "P", "CMYK"}
+        map_or_haadf = "HAADF_" in Path(member).name
         role = (
             "haadf_or_element_map_rendered_image_not_segmentation_ground_truth"
-            if "HAADF_" in Path(member).name
+            if map_or_haadf
             else "rendered_tem_image_candidate_requires_visual_and_lineage_review"
         )
         return {
@@ -179,9 +212,9 @@ def _inspect(path: Path, member: str) -> dict[str, Any]:
             "width_px": image.width,
             "height_px": image.height,
             "frame_count": getattr(image, "n_frames", 1),
-            "extrema": _clean_tag_value(extrema),
+            "extrema": extrema,
             "tiff_tags": tags,
-            "rendered_multichannel": rendered_rgb,
+            "rendered_multichannel": rendered_multichannel,
             "original_detector_intensity_provenance_available": False,
             "pixel_calibration_available": False,
             "scale_bar_or_annotation_absence_verified": False,
@@ -189,14 +222,38 @@ def _inspect(path: Path, member: str) -> dict[str, Any]:
             "sample_id_available": False,
             "acquisition_id_available": False,
             "candidate_role": role,
-            "quantitative_intensity_status": quantitative_intensity_status,
+            "quantitative_intensity_status": (
+                "rendered_multichannel_intensity_not_raw_detector_counts"
+                if rendered_multichannel
+                else "single_channel_intensity_requires_source_calibration_review"
+            ),
             "annotation_pilot_ready": False,
             "external_model_evaluation_ready": False,
         }
 
 
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def _write_csv(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
+    flattened = [
+        {
+            key: json.dumps(value, sort_keys=True)
+            if isinstance(value, (dict, list))
+            else value
+            for key, value in row.items()
+        }
+        for row in rows
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=list(flattened[0]), lineterminator="\n"
+        )
+        writer.writeheader()
+        writer.writerows(flattened)
 
 
 def run(output: Path) -> dict[str, Any]:
@@ -205,6 +262,7 @@ def run(output: Path) -> dict[str, Any]:
             raise FileExistsError("output directory must be absent or empty")
     else:
         output.mkdir(parents=True)
+
     with tempfile.TemporaryDirectory(prefix="mca-mendeley-images-") as temp_name:
         temp = Path(temp_name)
         archive = temp / EXPECTED_ARCHIVE_NAME
@@ -212,10 +270,10 @@ def run(output: Path) -> dict[str, Any]:
         extracted = _extract(archive, temp / "extracted")
         rows = [_inspect(path, member) for path, member in zip(extracted, MEMBERS)]
 
-    tiff_rows = [row for row in rows if row["format"] == "TIFF"]
-    map_rows = [row for row in rows if "haadf_or_element_map" in row["candidate_role"]]
-    all_rendered = all(bool(row["rendered_multichannel"]) for row in rows)
-    summary = {
+    tiff_count = sum(row["format"] == "TIFF" for row in rows)
+    map_count = sum("haadf_or_element_map" in row["candidate_role"] for row in rows)
+    rendered_count = sum(bool(row["rendered_multichannel"]) for row in rows)
+    summary: dict[str, Any] = {
         "schema_version": "1.0",
         "case_id": "mendeley_cop_co2p_co3o4_microscopy_member_inspection",
         "source": {
@@ -227,14 +285,12 @@ def run(output: Path) -> dict[str, Any]:
         },
         "result_counts": {
             "inspected_member_count": len(rows),
-            "tiff_member_count": len(tiff_rows),
-            "haadf_or_element_map_member_count": len(map_rows),
-            "rendered_multichannel_member_count": sum(
-                int(bool(row["rendered_multichannel"])) for row in rows
-            ),
+            "tiff_member_count": tiff_count,
+            "haadf_or_element_map_member_count": map_count,
+            "rendered_multichannel_member_count": rendered_count,
         },
         "representation": {
-            "all_members_rendered_multichannel": all_rendered,
+            "all_members_rendered_multichannel": rendered_count == len(rows),
             "original_detector_intensity_provenance_available": False,
             "pixel_calibration_available": False,
             "co3o4_region_binding_available": False,
@@ -270,31 +326,26 @@ def run(output: Path) -> dict[str, Any]:
     summary_path = output / "mendeley_microscopy_member_inspection_summary.json"
     report_path = output / "mendeley_microscopy_member_inspection_report.md"
     manifest_path = output / "mendeley_microscopy_member_inspection_manifest.json"
-    flat_rows = [
-        {key: json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else value for key, value in row.items()}
-        for row in rows
-    ]
-    with table_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(flat_rows[0]), lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(flat_rows)
+    _write_csv(table_path, rows)
     _write_json(summary_path, summary)
     report_path.write_text(_report(summary), encoding="utf-8")
     artifacts = [table_path, summary_path, report_path]
-    manifest = {
-        "schema_version": "1.0",
-        "case_id": summary["case_id"],
-        "artifact_count": len(artifacts),
-        "artifacts": [
-            {
-                "path": path.name,
-                "bytes": path.stat().st_size,
-                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            }
-            for path in artifacts
-        ],
-    }
-    _write_json(manifest_path, manifest)
+    _write_json(
+        manifest_path,
+        {
+            "schema_version": "1.0",
+            "case_id": summary["case_id"],
+            "artifact_count": len(artifacts),
+            "artifacts": [
+                {
+                    "path": path.name,
+                    "bytes": path.stat().st_size,
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                }
+                for path in artifacts
+            ],
+        },
+    )
     return summary
 
 
@@ -341,11 +392,15 @@ def main() -> int:
         json.dumps(
             {
                 "result": result["scientific_closeout"]["result"],
-                "inspected_member_count": result["result_counts"]["inspected_member_count"],
+                "inspected_member_count": result["result_counts"][
+                    "inspected_member_count"
+                ],
                 "all_members_rendered_multichannel": result["representation"][
                     "all_members_rendered_multichannel"
                 ],
-                "annotation_pilot_ready": result["readiness"]["annotation_pilot_ready"],
+                "annotation_pilot_ready": result["readiness"][
+                    "annotation_pilot_ready"
+                ],
             },
             indent=2,
             sort_keys=True,
