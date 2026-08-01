@@ -13,6 +13,7 @@ from mca.tem_external_validation_intake import (
     BLOCKED,
     EVALUATION_READY,
     IntakeContractError,
+    compute_intake_manifest_sha256,
     load_intake_manifest,
     run_external_validation_intake,
 )
@@ -89,6 +90,7 @@ def _protocol(*, complete: bool = False) -> dict:
         "label_content_audit_status": "passed" if complete else "not_run",
         "content_overlap_audit_status": "passed" if complete else "not_run",
         "test_manifest_checksum_frozen": complete,
+        "frozen_manifest_sha256": None,
         "metrics_frozen": complete,
         "confidence_interval_method_frozen": complete,
         "exclusion_rules_frozen": complete,
@@ -97,7 +99,7 @@ def _protocol(*, complete: bool = False) -> dict:
 
 
 def _manifest(images: list[dict], annotations: list[dict], *, protocol_complete: bool = False) -> dict:
-    return {
+    payload = {
         "schema_version": "1.0",
         "case_id": "tem_external_validation_intake",
         "dataset": {
@@ -117,6 +119,11 @@ def _manifest(images: list[dict], annotations: list[dict], *, protocol_complete:
         "annotations": annotations,
         "evaluation_protocol": _protocol(complete=protocol_complete),
     }
+    if protocol_complete:
+        payload["evaluation_protocol"]["frozen_manifest_sha256"] = (
+            compute_intake_manifest_sha256(payload)
+        )
+    return payload
 
 
 def _write_manifest(path: Path, payload: dict) -> Path:
@@ -373,3 +380,174 @@ def test_cli_dispatches_and_writes_report(
     assert printed["status"] == ANNOTATION_READY
     assert printed["active_image_count"] == 2
     assert (output / "tem_validation_intake_report.md").is_file()
+
+
+
+def test_blocked_dataset_never_allows_inference_even_with_complete_protocol(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    images = _two_images(root)
+    for image in images:
+        image["representation"] = "rendered_figure"
+        image["original_detector_intensity_available"] = False
+    payload = _manifest(images, _complete_annotations(root), protocol_complete=True)
+    summary = run_external_validation_intake(
+        load_intake_manifest(_write_manifest(tmp_path / "manifest.json", payload)),
+        root,
+        tmp_path / "out",
+    )
+    assert summary["decision"]["status"] == BLOCKED
+    assert not summary["decision"]["predeclared_external_model_evaluation_ready"]
+    assert not summary["decision"]["model_inference_allowed_now"]
+
+
+def test_excluded_copy_does_not_count_as_duplicate_active_content(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    images = _two_images(root)
+    duplicate_digest = _write_file(root, "images/excluded-copy.tif", b"synthetic-image-a")
+    excluded = _image(
+        "image-excluded",
+        "images/excluded-copy.tif",
+        duplicate_digest,
+        "sample-excluded",
+        "acq-excluded",
+    )
+    excluded["excluded"] = True
+    excluded["exclusion_reason"] = "archival duplicate retained for provenance"
+    images.append(excluded)
+    summary = run_external_validation_intake(
+        load_intake_manifest(
+            _write_manifest(tmp_path / "manifest.json", _manifest(images, []))
+        ),
+        root,
+        tmp_path / "out",
+    )
+    assert summary["decision"]["status"] == ANNOTATION_READY
+    assert summary["result_counts"]["duplicate_active_image_content_count"] == 0
+
+
+def test_annotations_for_excluded_images_do_not_change_active_annotation_status(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    images = _two_images(root)
+    excluded_digest = _write_file(root, "images/excluded.tif", b"excluded-image")
+    excluded = _image(
+        "image-excluded",
+        "images/excluded.tif",
+        excluded_digest,
+        "sample-excluded",
+        "acq-excluded",
+    )
+    excluded["excluded"] = True
+    excluded["exclusion_reason"] = "not part of the frozen cohort"
+    images.append(excluded)
+    label_digest = _write_file(root, "labels/excluded.png", b"excluded-label")
+    annotations = [
+        _annotation(
+            "excluded-label",
+            "image-excluded",
+            "labels/excluded.png",
+            label_digest,
+            "expert-1",
+            "independent",
+        )
+    ]
+    summary = run_external_validation_intake(
+        load_intake_manifest(
+            _write_manifest(tmp_path / "manifest.json", _manifest(images, annotations))
+        ),
+        root,
+        tmp_path / "out",
+    )
+    assert summary["decision"]["status"] == ANNOTATION_READY
+    assert summary["result_counts"]["annotation_count"] == 1
+    assert summary["result_counts"]["active_annotation_count"] == 0
+
+
+def test_frozen_manifest_digest_detects_post_freeze_mutation(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    payload = _manifest(
+        _two_images(root),
+        _complete_annotations(root),
+        protocol_complete=True,
+    )
+    payload["images"][0]["sample_id"] = "post-freeze-mutated-sample"
+    with pytest.raises(IntakeContractError, match="does not match the canonical manifest"):
+        load_intake_manifest(_write_manifest(tmp_path / "manifest.json", payload))
+
+
+def test_duplicate_json_keys_fail_closed(tmp_path: Path) -> None:
+    path = tmp_path / "manifest.json"
+    path.write_text(
+        '{"schema_version":"1.0","schema_version":"0.9"}',
+        encoding="utf-8",
+    )
+    with pytest.raises(IntakeContractError, match="duplicate JSON object key"):
+        load_intake_manifest(path)
+
+
+def test_any_contaminated_active_annotation_blocks_completion(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    images = _two_images(root)
+    annotations = _complete_annotations(root)
+    digest = _write_file(root, "labels/image-a-contaminated.png", b"contaminated")
+    annotations.append(
+        _annotation(
+            "image-a-contaminated",
+            "image-a",
+            "labels/image-a-contaminated.png",
+            digest,
+            "expert-3",
+            "independent",
+            blinded=False,
+            used_for_model_selection=True,
+        )
+    )
+    payload = _manifest(images, annotations, protocol_complete=True)
+    summary = run_external_validation_intake(
+        load_intake_manifest(_write_manifest(tmp_path / "manifest.json", payload)),
+        root,
+        tmp_path / "out",
+    )
+    assert summary["decision"]["status"] == ANNOTATION_INCOMPLETE
+    assert not summary["evidence_gates"]["independent_annotations_complete"]
+    assert not summary["decision"]["model_inference_allowed_now"]
+    assert not summary["evidence_gates"]["annotation_completion_by_image"]["image-a"][
+        "all_annotations_blinded_and_model_development_nonuse"
+    ]
+
+
+def test_duplicate_annotation_file_path_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    images = _two_images(root)
+    digest = _write_file(root, "labels/shared.png", b"shared-label")
+    annotations = [
+        _annotation(
+            "image-a-expert-1",
+            "image-a",
+            "labels/shared.png",
+            digest,
+            "expert-1",
+            "independent",
+        ),
+        _annotation(
+            "image-a-expert-2",
+            "image-a",
+            "labels/shared.png",
+            digest,
+            "expert-2",
+            "independent",
+        ),
+    ]
+    with pytest.raises(IntakeContractError, match="duplicate annotation relative_path"):
+        load_intake_manifest(
+            _write_manifest(tmp_path / "manifest.json", _manifest(images, annotations))
+        )
