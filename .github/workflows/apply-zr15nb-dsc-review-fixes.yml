@@ -25,6 +25,24 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Repair generated-test newline escaping
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/apply_zr15nb_dsc_review_fixes.py")
+          text = path.read_text(encoding="utf-8")
+          for start_marker, end_marker in (
+              ("append_candidate_tests = r'''", "text = candidate_tests.read_text"),
+              ("append_source_tests = r'''", "text = source_tests.read_text"),
+          ):
+              start = text.index(start_marker)
+              end = text.index(end_marker, start)
+              segment = text[start:end].replace("\\\\n", "\\n")
+              text = text[:start] + segment + text[end:]
+          path.write_text(text, encoding="utf-8")
+          PY
+
       - name: Apply deterministic patch
         run: python scripts/apply_zr15nb_dsc_review_fixes.py
 
