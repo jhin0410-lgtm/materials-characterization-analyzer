@@ -35,7 +35,6 @@ jobs:
           python -m pip install -e ".[dev]" tifffile hyperspy
 
       - name: Run focused source-audit tests
-        continue-on-error: true
         run: python -m pytest -q tests/test_datacore_saed_candidate_audit.py
 
       - name: Audit public DataCORE DM4 and TIFF source
@@ -44,20 +43,25 @@ jobs:
             --source-url "https://datacore.iu.edu/downloads/37720f05n?locale=en" \
             --output outputs/datacore-saed-source-audit
 
-      - name: Print audit decision
+      - name: Print audit evidence
         if: always()
         run: |
-          if [ -f outputs/datacore-saed-source-audit/source_audit_summary.json ]; then
-            python - <<'PY'
+          python - <<'PY'
           import json
           from pathlib import Path
-          path = Path("outputs/datacore-saed-source-audit/source_audit_summary.json")
-          summary = json.loads(path.read_text(encoding="utf-8"))
-          print(json.dumps(summary["counts"], indent=2, sort_keys=True))
-          print(json.dumps(summary["evidence_gates"], indent=2, sort_keys=True))
-          print(json.dumps(summary["decision"], indent=2, sort_keys=True))
+
+          root = Path("outputs/datacore-saed-source-audit")
+          summary_path = root / "source_audit_summary.json"
+          diagnostic_path = root / "source_download_diagnostic.json"
+          if summary_path.exists():
+              summary = json.loads(summary_path.read_text(encoding="utf-8"))
+              print(json.dumps(summary["counts"], indent=2, sort_keys=True))
+              print(json.dumps(summary["evidence_gates"], indent=2, sort_keys=True))
+              print(json.dumps(summary["decision"], indent=2, sort_keys=True))
+          elif diagnostic_path.exists():
+              diagnostic = json.loads(diagnostic_path.read_text(encoding="utf-8"))
+              print(json.dumps(diagnostic, indent=2, sort_keys=True))
           PY
-          fi
 
       - name: Remove raw source payloads before artifact upload
         if: always()
@@ -73,6 +77,7 @@ jobs:
           path: |
             outputs/datacore-saed-source-audit/archive_inventory.csv
             outputs/datacore-saed-source-audit/source_audit_summary.json
+            outputs/datacore-saed-source-audit/source_download_diagnostic.json
             outputs/datacore-saed-source-audit/source_audit_manifest.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
