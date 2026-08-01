@@ -8,13 +8,15 @@ The best current candidate is Indiana University DataCORE dataset `10.5967/ct7n-
 
 The related publication adds two useful facts: TEM was performed using a 120 kV JEOL JEM 1400plus, and the authors state that the main diffraction spots in both patterns can be indexed by `Cr1+deltaTe2` with `delta` approximately `0.5`. These are source claims, not analyzer ground truth, and they must not be used for parameter tuning.
 
-The candidate is **not yet eligible for external validation**. Camera length or a traceable camera constant, detector metadata, immutable sample/acquisition identities, pattern-center provenance, acquisition independence, archive/member checksums, and the relationship between each DM4 and TIFF representation remain unresolved.
+The candidate is **not yet eligible for external validation**. The `Diffraction_Pattern.zip` file is currently archived. Its official file-set page exposes a retrieval form, and an anonymous request was attempted on 2026-08-01 through the published endpoint. The endpoint returned HTTP 200 but resolved back to the file-set page; a separate queue-acceptance message was not verified, and the direct download still returned HTML rather than a ZIP immediately afterward.
+
+Because the archive is unavailable, camera length or a traceable camera constant, detector metadata, immutable sample/acquisition identities, pattern-center provenance, acquisition independence, archive/member checksums, and the relationship between each DM4 and TIFF representation remain unresolved.
 
 The existing FINDS SAED case remains useful for real-image software integration and sensitivity testing, but its lossy JPEG and unresolved material/acquisition provenance do not satisfy the raw calibrated validation contract.
 
 ## Automated source audit
 
-Run the executable audit with:
+Run:
 
 ```bash
 python scripts/audit_datacore_saed_candidate.py \
@@ -26,18 +28,23 @@ The audit:
 
 1. requests the official DataCORE file endpoint;
 2. records a checksum-bound, fail-closed diagnostic when the response is not a ZIP archive;
-3. rejects unsafe, duplicate, encrypted, or oversized ZIP members;
-4. records archive/member SHA-256 values;
-5. reads DM4 and TIFF arrays without changing pixels;
-6. extracts only relevant instrument/acquisition metadata;
-7. compares deterministically matched DM4/TIFF representations;
-8. deletes downloaded source files before evidence upload.
+3. never persists HTML response text, authentication tokens, raw non-ZIP payloads, or signed query strings;
+4. rejects unsafe, duplicate, encrypted, symbolic-link, or oversized ZIP members;
+5. records archive/member SHA-256 values when the archive is available;
+6. reads DM4 and TIFF arrays without changing pixels;
+7. extracts only relevant instrument/acquisition metadata;
+8. compares deterministically matched DM4/TIFF representations;
+9. deletes downloaded source files before evidence upload.
 
-Only inventory, summary/diagnostic, and artifact-manifest files may be persisted. Raw microscopy files remain external and untracked.
+The companion `scripts/probe_datacore_file_page.py` records only same-origin links, form actions, non-secret input names, response metadata, and HTML SHA-256. It does not persist the raw HTML or hidden form values.
+
+Only inventory, summary/diagnostic, file-page probe, and artifact-manifest files may be persisted. Raw microscopy files remain external and untracked.
 
 ## Required acquisition audit
 
-1. Download `Diffraction_Pattern.zip` from the official DataCORE file panel without renaming or modifying the archive.
+After the archive becomes available:
+
+1. Download `Diffraction_Pattern.zip` from the official DataCORE file panel without renaming or modifying it.
 2. Record the source URL, DOI, download date, archive byte size, and SHA-256.
 3. Record every archive member path, byte size, and SHA-256.
 4. Read DM4 metadata without altering image arrays. Preserve dtype, shape, intensity range, and relevant acquisition tags.
@@ -66,4 +73,4 @@ A later real-data case may proceed only when all of the following are supported 
 
 Reported `[001]` and `[112]` zone axes and the publication-level `Cr1+deltaTe2` indexing statement must not be used to tune center, smoothing, prominence, minimum distance, radius bounds, or candidate count. Until the raw-file audit, lineage audit, calibration verification, and protocol freeze pass, this registry supports only source triage. It does not support phase identification, reflection indexing, zone-axis accuracy, calibrated `d_nm` accuracy, generalization, or engineering release.
 
-See `case_config.json` for the machine-readable search snapshot, confirmed evidence, unresolved fields, and next action.
+See `case_config.json` for the machine-readable search snapshot, confirmed evidence, unresolved fields, retrieval status, and next action.
