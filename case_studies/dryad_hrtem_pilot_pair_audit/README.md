@@ -12,6 +12,8 @@ The source is Dryad dataset `10.7941/D1SP93`, published on 2023-07-31 under CC0.
 
 The live Dryad metadata endpoints are publicly accessible and have been verified. The three pilot files directly resolve to Dryad source version `247105`; they must not be rebound to the DOI's later metadata-only version merely because it is current.
 
+Dataset identity is bound through each file's explicit `stash:dataset` link and the dataset endpoint's canonical DOI fields. Related article, repository, or Foundry-ML identifiers that may appear elsewhere in the version payload are preserved as provenance but are not reinterpreted as the Dryad dataset DOI.
+
 The current source-version inventory reports SHA-256 digests:
 
 - images: `e00d7ac5326dadd3e4abac8147544b8afa35433a5bad694806c8062373d14c09`
