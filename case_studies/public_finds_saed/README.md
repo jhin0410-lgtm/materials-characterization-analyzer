@@ -88,18 +88,40 @@ not automatically accepted or rejected.
 
 ## Source d-values
 
-The source file contains four contextual d-values:
+The source file contains five contextual d-values:
 
 - `2.022 Å`;
 - `1.431 Å`;
 - `1.167 Å`;
-- `1.011 Å`.
+- `1.011 Å`;
+- `0.902 Å`.
 
 These values are converted to nanometres and compared with primary detected
 candidates only after detection. They are not used to choose or tune the center,
 calibration, radius range, smoothing, prominence, candidate distance, or
 candidate count. No d-value is assigned to a material, phase, reflection, or
 zone axis.
+
+## Verified diagnostic result
+
+The primary run detected four automatic ring candidates:
+
+| Ring | Radius (px) | Calibrated d spacing (nm) | Maximum seven-run radius spread (px) |
+|---:|---:|---:|---:|
+| 1 | `108.45621` | `0.541693` | `0.98920` |
+| 2 | `289.46752` | `0.202959` | `0.00000` |
+| 3 | `410.46660` | `0.143130` | `0.99340` |
+| 4 | `502.46939` | `0.116923` | `1.98866` |
+
+All four primary candidates matched one-to-one in all six sensitivity runs. No
+unmatched sensitivity candidate remained. This demonstrates parameter-level
+radius stability for this rendered example only; it does not validate the ring
+as a reflection or phase.
+
+The first three in-range source d-values have nearby detected candidates after
+detection. The `1.011 Å` and `0.902 Å` references imply radii beyond the declared
+`570 pixel` analyzed limit and are retained as out-of-range context rather than
+forcing a larger radius or a match.
 
 ## Run
 
