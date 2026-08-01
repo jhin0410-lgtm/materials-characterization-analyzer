@@ -348,19 +348,18 @@ def test_automatic_resolution_follows_pinned_version_and_sends_token(
     )
     version_url = f"https://datadryad.org/api/v2/versions/{config.source_version_id}"
     files_url = version_url + "/files"
+    dataset_url = "https://datadryad.org/api/v2/datasets/doi%3A10.7941%2FD1SP93"
     individual = {
         "id": config.processed_metadata_file.file_id,
         "path": config.processed_metadata_file.name,
         "size": payload_path.stat().st_size,
         "_links": {
+            "stash:dataset": {"href": dataset_url},
             "stash:version": {"href": version_url},
             "stash:download": {"href": api_url + "/download"},
         },
     }
-    version = {
-        "doi": config.doi,
-        "_links": {"stash:files": {"href": files_url}},
-    }
+    version = {"_links": {"stash:files": {"href": files_url}}}
     files = {
         "files": [
             {
@@ -371,7 +370,12 @@ def test_automatic_resolution_follows_pinned_version_and_sends_token(
             }
         ]
     }
-    responses = {api_url: individual, version_url: version, files_url: files}
+    responses = {
+        api_url: individual,
+        version_url: version,
+        dataset_url: {"identifier": "doi:10.7941/D1SP93"},
+        files_url: files,
+    }
     monkeypatch.setattr(
         "mca.tem_external_validation_pilot_io.fetch_json",
         lambda url, attempts=5, headers=None: responses[url],
@@ -407,17 +411,20 @@ def test_automatic_download_requires_token(tmp_path: Path, monkeypatch: pytest.M
     api_url = config.api_file_endpoint_template.format(file_id=config.image_file.file_id)
     version_url = f"https://datadryad.org/api/v2/versions/{config.source_version_id}"
     files_url = version_url + "/files"
+    dataset_url = "https://datadryad.org/api/v2/datasets/doi%3A10.7941%2FD1SP93"
     responses = {
         api_url: {
             "id": config.image_file.file_id,
             "path": config.image_file.name,
             "size": 1,
             "_links": {
+                "stash:dataset": {"href": dataset_url},
                 "stash:version": {"href": version_url},
                 "stash:download": {"href": api_url + "/download"},
             },
         },
-        version_url: {"doi": config.doi, "_links": {"stash:files": {"href": files_url}}},
+        version_url: {"_links": {"stash:files": {"href": files_url}}},
+        dataset_url: {"identifier": "doi:10.7941/D1SP93"},
         files_url: {
             "files": [
                 {

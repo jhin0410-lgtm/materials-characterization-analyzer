@@ -17,12 +17,21 @@ def _module():
     return module
 
 
-def _raw(path: Path, file_id: int, name: str, version_id: int = 247105) -> Path:
+def _raw(
+    path: Path,
+    file_id: int,
+    name: str,
+    version_id: int = 247105,
+    dataset_doi: str = "10.7941/D1SP93",
+) -> Path:
     payload = {
         "id": file_id,
         "path": name,
         "size": 3,
         "_links": {
+            "stash:dataset": {
+                "href": "/api/v2/datasets/doi%3A" + dataset_doi.replace("/", "%2F")
+            },
             "stash:version": {"href": f"https://datadryad.org/api/v2/versions/{version_id}"},
             "stash:download": {"href": f"https://datadryad.org/api/v2/files/{file_id}/download"},
         },
@@ -43,12 +52,14 @@ def test_resolver_preserves_raw_responses_and_writes_separate_enriched_files(
     originals = {path: path.read_bytes() for _, path in bindings}
     version_url = "https://datadryad.org/api/v2/versions/247105"
     files_url = version_url + "/files"
+    dataset_url = "https://datadryad.org/api/v2/datasets/doi%3A10.7941%2FD1SP93"
     records = [
         {"id": file_id, "path": json.loads(path.read_text())["path"], "digest": "sha256:" + str(file_id).zfill(64)[-64:], "size": 3}
         for file_id, path in bindings
     ]
     responses = {
-        version_url: {"doi": "10.7941/D1SP93", "_links": {"stash:files": {"href": files_url}}},
+        version_url: {"_links": {"stash:files": {"href": files_url}}},
+        dataset_url: {"identifier": "doi:10.7941/D1SP93"},
         files_url: {"files": records},
     }
     monkeypatch.setattr(module, "_fetch", lambda url, attempts=5: responses[url])
@@ -73,8 +84,14 @@ def test_resolver_rejects_wrong_dataset_doi(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     module = _module()
-    binding = (2451485, _raw(tmp_path / "image.json", 2451485, "image.h5"))
-    version_url = "https://datadryad.org/api/v2/versions/247105"
-    monkeypatch.setattr(module, "_fetch", lambda url, attempts=5: {"doi": "10.0000/WRONG"})
-    with pytest.raises(ValueError, match="dataset DOI mismatch"):
+    binding = (
+        2451485,
+        _raw(
+            tmp_path / "image.json",
+            2451485,
+            "image.h5",
+            dataset_doi="10.0000/WRONG",
+        ),
+    )
+    with pytest.raises(ValueError, match="dataset-link DOI mismatch"):
         module.resolve("10.7941/D1SP93", 247105, [binding], tmp_path / "out")

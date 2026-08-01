@@ -122,10 +122,27 @@ def _normalize_doi(value: str) -> str:
     return text.upper()
 
 
+def _doi_from_dataset_url(url: str) -> str:
+    path_token = urllib.parse.unquote(
+        urllib.parse.urlsplit(url).path.rstrip("/").rsplit("/", 1)[-1]
+    )
+    normalized = _normalize_doi(path_token)
+    if not normalized.startswith("10.") or "/" not in normalized:
+        raise ValueError(f"Dryad dataset link does not encode a DOI: {url}")
+    return normalized
+
+
 def _find_doi(value: Any) -> str | None:
+    if isinstance(value, str):
+        normalized = _normalize_doi(value)
+        return value if normalized.startswith("10.") and "/" in normalized else None
     if isinstance(value, Mapping):
         for key, item in value.items():
-            if "doi" in str(key).lower() and isinstance(item, str) and "10." in item:
+            if (
+                str(key).lower() in {"doi", "identifier"}
+                and isinstance(item, str)
+                and _find_doi(item) is not None
+            ):
                 return item
         for item in value.values():
             found = _find_doi(item)
@@ -140,18 +157,26 @@ def _find_doi(value: Any) -> str | None:
 
 
 def _verify_dataset_identity(
-    version_payload: Mapping[str, Any], version_url: str, doi: str
-) -> Mapping[str, Any] | None:
-    observed = _find_doi(version_payload)
-    dataset_payload: Mapping[str, Any] | None = None
-    if observed is None:
-        dataset_url = _link(version_payload, version_url, "stash:dataset", "dataset")
-        if dataset_url is None:
-            raise ValueError("Dryad source version lacks verifiable dataset DOI identity.")
-        dataset_payload = _fetch(dataset_url)
-        observed = _find_doi(dataset_payload)
-    if observed is None or _normalize_doi(observed) != _normalize_doi(doi):
-        raise ValueError(f"Dryad dataset DOI mismatch: {observed!r} != {doi!r}")
+    version_payload: Mapping[str, Any],
+    version_url: str,
+    dataset_url: str,
+    doi: str,
+) -> Mapping[str, Any]:
+    expected = _normalize_doi(doi)
+    linked = _doi_from_dataset_url(dataset_url)
+    if linked != expected:
+        raise ValueError(f"Dryad dataset-link DOI mismatch: {linked!r} != {expected!r}")
+    version_observed = _find_doi(version_payload)
+    if version_observed is not None and _normalize_doi(version_observed) != expected:
+        raise ValueError(
+            f"Dryad source-version DOI mismatch: {version_observed!r} != {doi!r}"
+        )
+    dataset_payload = _fetch(dataset_url)
+    dataset_observed = _find_doi(dataset_payload)
+    if dataset_observed is not None and _normalize_doi(dataset_observed) != expected:
+        raise ValueError(
+            f"Dryad dataset API DOI mismatch: {dataset_observed!r} != {doi!r}"
+        )
     return dataset_payload
 
 
@@ -178,14 +203,23 @@ def resolve(
     }
     if None in version_urls or len(version_urls) != 1:
         raise ValueError(f"pilot files do not resolve to one source version: {version_urls}")
+    dataset_urls = {
+        _link(payload, f"{BASE_URL}/api/v2/files/{file_id}", "stash:dataset", "dataset")
+        for (file_id, _), payload in zip(source_bindings, payloads)
+    }
+    if None in dataset_urls or len(dataset_urls) != 1:
+        raise ValueError(f"pilot files do not resolve to one dataset: {dataset_urls}")
     version_url = next(iter(version_urls))
+    dataset_url = next(iter(dataset_urls))
     version_id = int(version_url.rstrip("/").rsplit("/", 1)[-1])
     if version_id != expected_version_id:
         raise ValueError(
             f"Dryad source-version mismatch: {version_id} != {expected_version_id}"
         )
     version_payload = _fetch(version_url)
-    dataset_payload = _verify_dataset_identity(version_payload, version_url, doi)
+    dataset_payload = _verify_dataset_identity(
+        version_payload, version_url, dataset_url, doi
+    )
     files_url = _link(version_payload, version_url, "stash:files", "files")
     if files_url is None:
         files_url = version_url.rstrip("/") + "/files"
