@@ -112,27 +112,14 @@ def _doi_from_dataset_url(url: str) -> str:
     return normalized
 
 
-def _find_doi(value: Any) -> str | None:
-    if isinstance(value, str):
-        normalized = _normalize_doi(value)
-        return value if normalized.startswith("10.") and "/" in normalized else None
-    if isinstance(value, Mapping):
-        for key, item in value.items():
-            if (
-                str(key).lower() in {"doi", "identifier"}
-                and isinstance(item, str)
-                and _find_doi(item) is not None
-            ):
-                return item
-        for item in value.values():
-            found = _find_doi(item)
-            if found is not None:
-                return found
-    elif isinstance(value, list):
-        for item in value:
-            found = _find_doi(item)
-            if found is not None:
-                return found
+def _explicit_dataset_doi(payload: Mapping[str, Any]) -> str | None:
+    """Return only an explicit canonical DOI from a dataset endpoint."""
+    for key in ("doi", "identifier"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            normalized = _normalize_doi(value)
+            if normalized.startswith("10.") and "/" in normalized:
+                return normalized
     return None
 
 
@@ -161,18 +148,35 @@ def _source_version_context(
         )
     if version_url not in cache:
         version_payload = fetch_json(version_url)
-        version_doi = _find_doi(version_payload)
-        if version_doi is not None and _normalize_doi(version_doi) != expected_doi:
-            raise ValueError(
-                f"Dryad source-version DOI mismatch for source version {version_id}."
-            )
+        version_dataset_url = _dryad_link(
+            version_payload, version_url, "stash:dataset", "dataset"
+        )
+        if version_dataset_url is not None:
+            version_linked_doi = _doi_from_dataset_url(version_dataset_url)
+            if version_linked_doi != expected_doi:
+                raise ValueError(
+                    "Dryad source-version dataset-link DOI mismatch for "
+                    f"source version {version_id}."
+                )
+            if version_dataset_url != dataset_url:
+                raise ValueError(
+                    "Dryad file and source-version metadata resolve to different datasets."
+                )
         dataset_payload = fetch_json(dataset_url)
-        dataset_doi = _find_doi(dataset_payload)
-        if dataset_doi is not None and _normalize_doi(dataset_doi) != expected_doi:
+        dataset_doi = _explicit_dataset_doi(dataset_payload)
+        if dataset_doi is not None and dataset_doi != expected_doi:
             raise ValueError(
                 f"Dryad dataset API DOI mismatch for source version {version_id}."
             )
-        files_url = _dryad_link(version_payload, version_url, "stash:files", "files")
+        dataset_self = _dryad_link(dataset_payload, dataset_url, "self")
+        if (
+            dataset_self is not None
+            and _doi_from_dataset_url(dataset_self) != expected_doi
+        ):
+            raise ValueError("Dryad dataset self link DOI mismatch.")
+        files_url = _dryad_link(
+            version_payload, version_url, "stash:files", "files"
+        )
         if files_url is None:
             files_url = version_url.rstrip("/") + "/files"
         records: list[Mapping[str, Any]] = []

@@ -359,7 +359,13 @@ def test_automatic_resolution_follows_pinned_version_and_sends_token(
             "stash:download": {"href": api_url + "/download"},
         },
     }
-    version = {"_links": {"stash:files": {"href": files_url}}}
+    version = {
+        "identifier": "https://doi.org/10.18126/z4mr-xwk5",
+        "_links": {
+            "stash:dataset": {"href": dataset_url},
+            "stash:files": {"href": files_url},
+        },
+    }
     files = {
         "files": [
             {
