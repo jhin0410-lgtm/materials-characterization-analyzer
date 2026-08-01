@@ -44,6 +44,57 @@ jobs:
             --url "https://datacore.iu.edu/concern/file_sets/37720f05n" \
             --output outputs/datacore-saed-source-audit/file_page_probe.json
 
+      - name: Submit official archive retrieval request once
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          base = "https://datacore.iu.edu/sda/request/datacore/4j03d088v_Diffraction_Pattern.zip"
+          query = urllib.parse.urlencode(
+              {
+                  "user_email": "",
+                  "request": "Request file retrieval from archives",
+              }
+          )
+          request = urllib.request.Request(
+              f"{base}?{query}",
+              headers={
+                  "User-Agent": "materials-characterization-analyzer-datacore-retrieval/1.0",
+                  "Accept": "text/html,application/xhtml+xml",
+                  "Referer": "https://datacore.iu.edu/concern/file_sets/37720f05n",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=120) as response:
+              payload = response.read()
+              result = {
+                  "schema_version": "1.0",
+                  "case_id": "datacore_saed_archive_retrieval_request",
+                  "request_endpoint": base,
+                  "email_supplied": False,
+                  "status": int(getattr(response, "status", 200)),
+                  "resolved_url": response.geturl().split("?", 1)[0],
+                  "content_type": response.headers.get_content_type(),
+                  "response_bytes": len(payload),
+                  "response_sha256": hashlib.sha256(payload).hexdigest(),
+                  "sanitized_text_prefix": re.sub(
+                      r"\s+", " ", payload[:512].decode("utf-8", errors="replace")
+                  ).strip()[:300],
+                  "raw_response_persisted": False,
+              }
+          output = Path("outputs/datacore-saed-source-audit")
+          output.mkdir(parents=True, exist_ok=True)
+          (output / "retrieval_request_result.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+
       - name: Audit public DataCORE DM4 and TIFF source
         run: |
           python scripts/audit_datacore_saed_candidate.py \
@@ -58,10 +109,11 @@ jobs:
           from pathlib import Path
 
           root = Path("outputs/datacore-saed-source-audit")
-          probe = root / "file_page_probe.json"
-          if probe.exists():
-              print("FILE PAGE PROBE")
-              print(probe.read_text(encoding="utf-8"))
+          for filename in ("file_page_probe.json", "retrieval_request_result.json"):
+              path = root / filename
+              if path.exists():
+                  print(filename.upper())
+                  print(path.read_text(encoding="utf-8"))
           audit_root = root / "source-audit"
           summary_path = audit_root / "source_audit_summary.json"
           diagnostic_path = audit_root / "source_download_diagnostic.json"
@@ -88,6 +140,7 @@ jobs:
           name: datacore-saed-source-audit-evidence
           path: |
             outputs/datacore-saed-source-audit/file_page_probe.json
+            outputs/datacore-saed-source-audit/retrieval_request_result.json
             outputs/datacore-saed-source-audit/source-audit/archive_inventory.csv
             outputs/datacore-saed-source-audit/source-audit/source_audit_summary.json
             outputs/datacore-saed-source-audit/source-audit/source_download_diagnostic.json
