@@ -1,32 +1,92 @@
 {
   "case_id": "public_finds_saed_source_audit",
+  "analysis_case_id": "public_finds_saed_diagnostic_case",
   "dataset": {
     "repository": "Zenodo",
     "record_id": 13748483,
     "doi": "10.5281/zenodo.13748483",
     "version": "v1",
-    "title": "FINDS: an ImageJ script for rapid non-matrix diffraction spot identification in selected area electron diffraction patterns"
+    "title": "FINDS: an ImageJ script for rapid non-matrix diffraction spot identification in selected area electron diffraction patterns",
+    "license": "gpl-3.0-or-later"
   },
   "archive": {
     "filename": "FINDS v0.5 2024-09-11.zip",
-    "expected_size_bytes": null,
+    "expected_size_bytes": 425297,
     "checksum_algorithm": "md5",
-    "checksum": "d340ef34015b024320d38c5de9549f9b"
+    "checksum": "d340ef34015b024320d38c5de9549f9b",
+    "verified_sha256": "3bd91d96469dbedd9f780292fc248fa6ce94e391f63d6d7a12c4e75738d1a7d6"
+  },
+  "selected_project": {
+    "project_path": "Project SAED A.txt",
+    "project_sha256": "370224653bebbad7877eb8eed04d8c86b2dcf9d75c9b5d916c4ee6becec2cec2",
+    "image_path": "SAED A.jpg",
+    "image_bytes": 420749,
+    "image_sha256": "6e805e78fe3a0dbcac07e3304a25ae9ffc32277f9c62c9f5d30053e2615d87ac",
+    "d_values_path": "SAED A d-values.txt",
+    "d_values_sha256": "0fb3e781f4e524ca67c38f42a91fad59553ffc4943e1d20c8b445b9f85b08a83",
+    "camera_constant_angstrom_pixel": 587.5,
+    "camera_constant_nm_pixel": 58.75,
+    "reciprocal_nm_inv_per_pixel": 0.01702127659574468,
+    "center_x_px": 586.0,
+    "center_y_px": 575.0,
+    "source_image_width_px": 1170,
+    "source_image_height_px": 1152,
+    "source_image_dtype": "uint8",
+    "source_image_channels": 3,
+    "source_representation": "lossy_jpeg_rendered_image"
+  },
+  "canonical_adapter": {
+    "operation": "decode_source_jpeg_then_bgr_to_grayscale_and_write_lossless_png",
+    "normalization_allowed": false,
+    "contrast_adjustment_allowed": false,
+    "cropping_allowed": false,
+    "resizing_allowed": false,
+    "denoising_allowed": false,
+    "decoded_pixel_equality_after_png_roundtrip_required": true
+  },
+  "analysis": {
+    "sample_id": "finds_saed_example_material_unresolved",
+    "measurement_id": "zenodo_13748483_saed_a",
+    "bin_width_px": 1.0,
+    "minimum_radius_px": 5.0,
+    "maximum_radius_px": 570.0,
+    "ring_contrast": "bright",
+    "primary_smoothing_window": 7,
+    "sensitivity_smoothing_windows": [5, 11],
+    "smoothing_polyorder": 2,
+    "prominence_fraction": 0.05,
+    "minimum_candidate_distance_px": 5.0,
+    "center_sensitivity_offsets_px": [[-2.0, 0.0], [2.0, 0.0], [0.0, -2.0], [0.0, 2.0]],
+    "candidate_match_tolerance_px": 5.0,
+    "parameter_selection_status": "existing_saed_defaults_and_source_geometry_not_fitted_to_reference_d_values"
   },
   "project_contract": {
     "camera_constant_source_unit": "angstrom_pixel",
     "camera_constant_canonical_unit": "nm_pixel",
     "angstrom_to_nm_factor": 0.1,
+    "reciprocal_space_convention": "g_equals_1_over_d",
     "project_line_1": "image_filename",
     "project_line_2": "camera_constant_angstrom_pixel",
     "project_line_3": "center_x_px",
     "project_line_4": "center_y_px",
     "project_line_5": "optional_d_spacing_filename"
   },
+  "unresolved_metadata": {
+    "material_identity": null,
+    "sample_id_from_source": null,
+    "acquisition_id": null,
+    "accelerating_voltage_kv": null,
+    "camera_length_mm": null,
+    "detector_pixel_size_um": null,
+    "raw_detector_intensity_provenance": null,
+    "source_d_values_phase_identity": null
+  },
   "scientific_boundary": {
     "source_image_is_assumed_raw_detector_data": false,
     "material_identity_inferred_from_filename": false,
+    "source_d_values_used_to_tune_detection": false,
     "phase_or_zone_axis_assignment_allowed": false,
-    "source_images_committed": false
+    "source_images_committed": false,
+    "generated_overlay_is_measurement_data": false
   }
 }
