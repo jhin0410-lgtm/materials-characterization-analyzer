@@ -1,0 +1,87 @@
+name: TEM external-validation candidate registry
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/tem_external_validation_candidate_registry/**"
+      - "src/mca/tem_external_validation_candidate_registry.py"
+      - "src/mca/tem_external_validation_candidate_registry_cli.py"
+      - "src/mca/tem_candidate_registry_readiness.py"
+      - "src/mca/tem_segmentation_readiness_cli.py"
+      - "src/mca/cli_entry.py"
+      - "tests/test_tem_external_validation_candidate_registry.py"
+      - "tests/test_tem_candidate_registry_readiness_integration.py"
+      - ".github/workflows/tem-external-validation-candidate-registry.yml"
+
+jobs:
+  registry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused regression tests
+        run: >-
+          pytest -q
+          tests/test_tem_external_validation_candidate_registry.py
+          tests/test_tem_candidate_registry_readiness_integration.py
+
+      - name: Build pinned candidate registry
+        run: |
+          mca tem-candidates \
+            --config case_studies/tem_external_validation_candidate_registry/case_config.json \
+            --output outputs/tem_external_validation_candidate_registry
+
+      - name: Verify fail-closed scientific result
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/tem_external_validation_candidate_registry")
+          summary = json.loads(
+              (output / "tem_external_validation_candidate_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert summary["readiness"]["status"] == (
+              "no_public_candidate_ready_for_in_domain_external_validation"
+          )
+          assert not summary["readiness"][
+              "independent_in_domain_external_validation_available"
+          ]
+          assert summary["result_counts"][
+              "in_domain_external_validation_ready_count"
+          ] == 0
+          assert summary["readiness"]["recommended_candidate_id"] == (
+              "mendeley_8w66synjmx_cop_co2p_co3o4"
+          )
+          manifest = json.loads(
+              (output / "tem_external_validation_candidate_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert manifest["artifact_count"] == 4
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert record["bytes"] == path.stat().st_size
+              assert record["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+          PY
+
+      - name: Upload candidate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: tem-external-validation-candidate-registry-evidence
+          path: outputs/tem_external_validation_candidate_registry
+          if-no-files-found: error
+          retention-days: 30
