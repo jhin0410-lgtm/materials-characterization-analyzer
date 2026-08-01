@@ -160,15 +160,24 @@ def verify(audit_output: Path, result_output: Path) -> dict[str, Any]:
     )
     _require(not review["raw_analyzer_candidate_tables_modified"], "candidate table modified")
     _require(not review["candidate_acceptance_or_rejection_performed"], "candidate accepted")
+    source_context = summary["source_d_value_context"]
     _require(
-        summary["source_d_value_context"]["used_for_detection_tuning"] is False,
+        source_context["used_for_detection_tuning"] is False,
         "source d-values used for tuning",
     )
     _require(
-        summary["source_d_value_context"]["used_for_phase_or_material_assignment"] is False,
+        source_context["used_for_phase_or_material_assignment"] is False,
         "source d-values used for assignment",
     )
-    _require(len(references) == 4, "source d-value count")
+    parsed_d_values = source_context.get("d_spacing_nm")
+    _require(
+        isinstance(parsed_d_values, list) and len(parsed_d_values) > 0,
+        "parsed source d-values",
+    )
+    _require(
+        len(references) == len(parsed_d_values),
+        "source d-value comparison count",
+    )
     _require(not references["reference_used_for_detection_tuning"].any(), "reference tuning flag")
     _require(not references["material_or_phase_identity_assigned"].any(), "reference assignment flag")
     _require(set(candidates["run_id"]) == EXPECTED_RUN_IDS, "candidate run IDs")
@@ -180,6 +189,7 @@ def verify(audit_output: Path, result_output: Path) -> dict[str, Any]:
     return {
         "status": readiness["status"],
         "source_counts": counts,
+        "source_d_spacing_nm": parsed_d_values,
         "primary_candidate_count": int(len(primary)),
         "primary_candidate_radii_px": [round(value, 5) for value in primary["radius_px"].tolist()],
         "primary_candidate_d_nm": [round(value, 7) for value in primary["d_spacing_nm"].tolist()],
