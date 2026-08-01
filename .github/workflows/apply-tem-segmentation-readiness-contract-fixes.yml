@@ -62,6 +62,34 @@ jobs:
       - name: Apply deterministic patch
         run: python scripts/apply_tem_segmentation_readiness_contract_fixes.py
 
+      - name: Bind integration fixtures to one training artifact
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/test_tem_candidate_registry_readiness_integration.py")
+          text = path.read_text(encoding="utf-8")
+          training_anchor = '        "software_version": "0.9.3",\n        "value_contract": {'
+          parent_anchor = '        "software_version": "0.9.3",\n        "external_validation_readiness": {'
+          if text.count(training_anchor) != 1 or text.count(parent_anchor) != 1:
+              raise SystemExit("unexpected readiness integration fixture structure")
+          text = text.replace(
+              training_anchor,
+              '        "software_version": "0.9.3",\n'
+              '        "source": {"training_images": {"sha256": "a" * 64}},\n'
+              '        "value_contract": {',
+              1,
+          )
+          text = text.replace(
+              parent_anchor,
+              '        "software_version": "0.9.3",\n'
+              '        "source": {"training_images": {"sha256": "a" * 64}},\n'
+              '        "external_validation_readiness": {',
+              1,
+          )
+          path.write_text(text, encoding="utf-8")
+          PY
+
       - name: Install package and development dependencies
         run: python -m pip install -e ".[dev]"
 
@@ -85,6 +113,7 @@ jobs:
           git add \
             src/mca/tem_segmentation_readiness.py \
             tests/test_tem_segmentation_readiness.py \
+            tests/test_tem_candidate_registry_readiness_integration.py \
             case_studies/tem_segmentation_readiness/README.md
           git commit -m "Fix TEM segmentation readiness contracts [readiness-contracts-applied]"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
