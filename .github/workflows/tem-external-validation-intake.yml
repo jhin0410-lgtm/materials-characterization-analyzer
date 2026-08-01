@@ -1,0 +1,153 @@
+name: TEM external-validation intake
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/mca/tem_external_validation_intake.py"
+      - "src/mca/tem_external_validation_intake_cli.py"
+      - "src/mca/cli_entry.py"
+      - "tests/test_tem_external_validation_intake.py"
+      - "case_studies/tem_external_validation_intake/**"
+      - ".github/workflows/tem-external-validation-intake.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused regression tests
+        run: pytest -q tests/test_tem_external_validation_intake.py
+
+      - name: Generate synthetic software fixture
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/tem-validation-intake-fixture")
+          images = root / "data" / "images"
+          images.mkdir(parents=True)
+          payloads = {
+              "image-a.tif": b"synthetic-software-fixture-image-a",
+              "image-b.tif": b"synthetic-software-fixture-image-b",
+          }
+          records = []
+          for index, (name, content) in enumerate(payloads.items(), start=1):
+              path = images / name
+              path.write_bytes(content)
+              records.append({
+                  "image_id": f"image-{index}",
+                  "relative_path": f"images/{name}",
+                  "sha256": hashlib.sha256(content).hexdigest(),
+                  "sample_id": f"sample-{index}",
+                  "acquisition_id": f"acquisition-{index}",
+                  "modality": "HRTEM",
+                  "representation": "raw_detector",
+                  "original_detector_intensity_available": True,
+                  "nm_per_pixel": None,
+                  "calibration_source": None,
+                  "used_for_training": False,
+                  "used_for_threshold_selection": False,
+                  "used_for_hyperparameter_tuning": False,
+                  "used_for_model_selection": False,
+                  "excluded": False,
+                  "exclusion_reason": None,
+              })
+          manifest = {
+              "schema_version": "1.0",
+              "case_id": "tem_external_validation_intake",
+              "dataset": {
+                  "dataset_id": "synthetic-software-fixture",
+                  "dataset_version": "v1",
+                  "source_type": "new_acquisition",
+                  "material_domain": "cobalt oxide",
+                  "license": "synthetic software fixture only",
+                  "reuse_authorized": True,
+                  "identity_provenance": "operator_assigned_at_acquisition",
+                  "target_training_nonuse_attested": True,
+                  "target_creator_overlap": False,
+                  "cross_dataset_lineage_independence_attested": True,
+                  "minimum_independent_blinded_labelers": 2,
+              },
+              "images": records,
+              "annotations": [],
+              "evaluation_protocol": {
+                  "source_metadata_review_status": "not_run",
+                  "image_content_audit_status": "not_run",
+                  "label_content_audit_status": "not_run",
+                  "content_overlap_audit_status": "not_run",
+                  "test_manifest_checksum_frozen": False,
+                  "metrics_frozen": False,
+                  "confidence_interval_method_frozen": False,
+                  "exclusion_rules_frozen": False,
+                  "frozen_protocol_id": None,
+              },
+          }
+          (root / "manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+          )
+          (root / "SOFTWARE_VALIDATION_ONLY.txt").write_text(
+              "Synthetic bytes validate software behavior only. They are not TEM measurements or scientific evidence.\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run intake CLI
+        run: |
+          mca tem-validation-intake \
+            --manifest outputs/tem-validation-intake-fixture/manifest.json \
+            --data-root outputs/tem-validation-intake-fixture/data \
+            --output outputs/tem-validation-intake-result
+
+      - name: Verify software result and artifact hashes
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/tem-validation-intake-result")
+          summary = json.loads((output / "tem_validation_intake_summary.json").read_text())
+          manifest = json.loads(
+              (output / "tem_validation_intake_artifact_manifest.json").read_text()
+          )
+          assert summary["decision"]["status"] == "ready_for_blinded_annotation_pilot"
+          assert summary["decision"]["blinded_annotation_pilot_ready"]
+          assert not summary["decision"][
+              "predeclared_external_model_evaluation_ready"
+          ]
+          assert not summary["decision"]["independent_performance_claim_ready"]
+          assert summary["result_counts"]["active_image_count"] == 2
+          assert summary["result_counts"]["sample_count"] == 2
+          assert summary["result_counts"]["acquisition_count"] == 2
+          assert manifest["artifact_count"] == 3
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert path.stat().st_size == record["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+          PY
+
+      - name: Upload software-validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: tem-external-validation-intake-software-evidence
+          path: |
+            outputs/tem-validation-intake-fixture/SOFTWARE_VALIDATION_ONLY.txt
+            outputs/tem-validation-intake-result
+          if-no-files-found: error
+          retention-days: 14
