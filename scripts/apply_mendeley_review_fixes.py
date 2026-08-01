@@ -6,9 +6,13 @@ from pathlib import Path
 def replace_exact(path: Path, old: str, new: str, expected_count: int = 1) -> None:
     text = path.read_text(encoding="utf-8")
     count = text.count(old)
+    marker = old.splitlines()[0] if old.splitlines() else repr(old)
     if count != expected_count:
-        raise SystemExit(f"{path}: expected {expected_count} occurrence(s), found {count}")
+        raise SystemExit(
+            f"{path}: marker {marker!r}: expected {expected_count} occurrence(s), found {count}"
+        )
     path.write_text(text.replace(old, new), encoding="utf-8")
+    print(f"patched {path}: {marker}")
 
 
 audit = Path("src/mca/tem_mendeley_candidate_audit_engine.py")
