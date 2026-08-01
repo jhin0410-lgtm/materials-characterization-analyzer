@@ -64,7 +64,8 @@
       "file_inventory_status": "landing_page_only",
       "reported_archive_filename": "Diffraction_Pattern.zip",
       "reported_dataset_file_count": 3,
-      "reported_dataset_size_bytes": 19293798,
+      "reported_dataset_size_bytes": null,
+      "reported_dataset_size_display": "18.4 MB",
       "raw_or_lossless_diffraction_files_reported": true,
       "reported_file_formats": [
         "DM4",
@@ -89,7 +90,7 @@
         "The official DataCORE landing page reports raw TEM diffraction data for chromium telluride nanoplates.",
         "The methodology states that SAED patterns were recorded along [001] and [112] zone axes.",
         "The description states that diffraction data are supplied as TIFF images and original Gatan DM4 files.",
-        "The record has DOI 10.5967/ct7n-8275, reports three dataset files totaling 18.4 MB, and uses a CC BY 4.0 license.",
+        "The record has DOI 10.5967/ct7n-8275, reports three dataset files with a displayed total size of 18.4 MB, and uses a CC BY 4.0 license.",
         "The related publication reports TEM studies using a 120 kV JEOL JEM 1400plus.",
         "The related publication states that the main spots in both SAED patterns can be indexed by Cr1+deltaTe2 with delta approximately 0.5."
       ],
