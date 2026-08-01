@@ -1,0 +1,37 @@
+{
+  "case_id": "phaset3m_co3o4_tilt_series_candidate_audit",
+  "source": {
+    "record_id": 17336678,
+    "doi": "10.5281/zenodo.17336678",
+    "record_url": "https://zenodo.org/records/17336678",
+    "title": "PhaseT3M: 3D Imaging at 1.6 Å Resolution via Electron Cryo-Tomography with Nonlinear Phase Retrieval",
+    "archive_name": "raw_tilt_data.zip",
+    "archive_md5": "efb1e487aedbafa7c0822e0d31968d05",
+    "target_member_basename": "Co3O4_denoised_tilt_series.h5",
+    "source_material": "Co3O4",
+    "source_particle_count": 1,
+    "source_processing": [
+      "motion_corrected",
+      "tilt_aligned",
+      "denoised"
+    ],
+    "target_training_creator_overlap": true,
+    "reuse_license": "dataset record does not explicitly declare a data reuse licence; GPL-3.0 is stated for code only",
+    "reuse_license_verified": false
+  },
+  "scientific_contract": {
+    "minimum_independent_samples": 2,
+    "minimum_independent_acquisitions": 2,
+    "raw_or_demonstrably_lossless_required": true,
+    "independent_labels_required": true
+  },
+  "archive_safety": {
+    "max_member_count": 1000,
+    "max_single_member_bytes": 2147483648,
+    "max_total_uncompressed_bytes": 4294967296,
+    "max_compression_ratio": 500.0
+  },
+  "inspection": {
+    "max_sample_values_per_dataset": 1000000
+  }
+}
