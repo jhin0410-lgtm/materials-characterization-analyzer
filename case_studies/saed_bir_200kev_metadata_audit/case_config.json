@@ -1,0 +1,69 @@
+{
+  "case_id": "saed_bir_200kev_metadata_audit",
+  "search_date": "2026-08-03",
+  "source": {
+    "record_id": "10999587",
+    "doi": "10.5281/zenodo.10999587",
+    "record_url": "https://zenodo.org/records/10999587",
+    "title": "BIR-MicroED: selected area electron diffraction datasets from static microcrystals (AVAAGA, thiostrepton, proteinase K) at 200 keV",
+    "publication_doi": "10.1107/S2052252524012132",
+    "expected_files": [
+      {
+        "name": "AVAAGA_200kV_100K.zip",
+        "md5": "5550d6e7fa1db57c70dcc35ade92135e",
+        "material_group": "AVAAGA",
+        "temperature_k": 100
+      },
+      {
+        "name": "AVAAGA_200kV_293K.zip",
+        "md5": "f800d8b28b1b93f074b8a1d7c19dc930",
+        "material_group": "AVAAGA",
+        "temperature_k": 293
+      },
+      {
+        "name": "proK_200kV_100K.zip",
+        "md5": "c172f50d6c4d9db984354e84b64d36fe",
+        "material_group": "proteinase K",
+        "temperature_k": 100
+      },
+      {
+        "name": "thiostrepton_200kV_100K.zip",
+        "md5": "2094a5a07d233fe0f6c04f6955e97009",
+        "material_group": "thiostrepton",
+        "temperature_k": 100
+      }
+    ]
+  },
+  "publication_evidence": {
+    "microscope": "Talos F200C",
+    "detector": "DE Apollo direct electron detector",
+    "detector_native_frame_rate_hz": 60,
+    "integrated_native_frames_per_output": 30,
+    "output_frame_rate_hz": 2.0,
+    "output_shape": [
+      2048,
+      2048
+    ],
+    "output_format": "MRC",
+    "stage_rotation_during_stationary_series": false,
+    "selected_area_aperture_um": 100,
+    "projected_selected_area_diameter_um": 2.0,
+    "illuminated_area_diameter_um": 5.0,
+    "small_molecule_duration_s": 300,
+    "macromolecule_duration_s": 150,
+    "source_preprocessing": [
+      "native_frame_integration",
+      "spatial_binning"
+    ]
+  },
+  "readiness_contract": {
+    "minimum_independent_series": 2,
+    "require_raw_or_demonstrably_lossless": true,
+    "require_immutable_sample_ids": true,
+    "require_immutable_acquisition_ids": true,
+    "require_traceable_pattern_center": true,
+    "require_traceable_reciprocal_calibration": true,
+    "require_explicit_reuse_terms": true,
+    "require_analyzer_development_nonuse": true
+  }
+}
