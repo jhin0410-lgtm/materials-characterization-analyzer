@@ -8,6 +8,7 @@ from . import __version__
 from .cli import main as legacy_main
 from .ftir_cli import main as ftir_main
 from .raman_cli import main as raman_main
+from .saed_bir_metadata_audit import cli_main as saed_bir_metadata_audit_main
 from .saed_cli import main as saed_main
 from .saed_external_validation_candidate_registry_cli import (
     main as saed_candidates_main,
@@ -45,6 +46,8 @@ def main(argv: list[str] | None = None) -> int:
         return saed_main(args[1:])
     if args and args[0] == "saed-candidates":
         return saed_candidates_main(args[1:])
+    if args and args[0] == "saed-bir-metadata-audit":
+        return saed_bir_metadata_audit_main(args[1:])
     if args and args[0] == "saed-validation-intake":
         return saed_validation_intake_main(args[1:])
     if args and args[0] == "xps":
@@ -57,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "Additional commands: raman, tem, tem-candidates, tem-mendeley-audit, "
             "tem-readiness, tem-validation-intake, saed, saed-candidates, "
-            "saed-validation-intake, xps, ftir, thermal "
+            "saed-bir-metadata-audit, saed-validation-intake, xps, ftir, thermal "
             "(run 'mca <command> --help' for options).\n"
             "Version: mca --version"
         )
