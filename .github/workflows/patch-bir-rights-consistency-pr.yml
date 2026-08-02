@@ -30,14 +30,13 @@ jobs:
           python -m pip install -e ".[dev]"
           pytest -q tests/test_saed_bir_metadata_audit.py
 
-      - name: Commit patch
+      - name: Commit non-workflow patch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             src/mca/saed_bir_metadata_audit.py \
             tests/test_saed_bir_metadata_audit.py \
-            .github/workflows/saed-bir-200kev-metadata-audit.yml \
             case_studies/saed_bir_200kev_metadata_audit/README.md
           git commit -m "Align BIR reuse evidence with live Zenodo metadata"
           git push origin HEAD:agent/audit-bir-200kev-metadata
