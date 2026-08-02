@@ -89,14 +89,16 @@ jobs:
               )
           )
           assert summary["result"] == (
-              "metadata_resolved_but_source_not_ready_for_saed_evaluation"
+              "record_inventory_verified_but_source_not_ready_for_saed_evaluation"
           )
           assert summary["source"]["archive_count"] == 4
           assert summary["source"]["total_archive_bytes"] > 30_000_000_000
+          assert summary["source"]["rights"] == ["cc-by-4.0"]
           gates = summary["evidence_gates"]
           assert gates["record_identity_verified"]
           assert gates["archive_level_md5_values_verified"]
           assert gates["static_selected_area_acquisition_supported_by_publication"]
+          assert gates["explicit_reuse_terms_verified"]
           assert not gates["native_detector_frames_released"]
           assert not gates[
               "released_representation_is_demonstrably_lossless_to_native_frames"
@@ -104,6 +106,9 @@ jobs:
           assert not gates["ready_for_bounded_archive_download"]
           assert not gates["ready_for_saed_validation_intake"]
           assert not gates["ready_for_predeclared_external_evaluation"]
+          assert "reuse terms" not in summary["scientific_closeout"][
+              "primary_limitation"
+          ]
 
           plan = json.loads(
               (output / "bir_bounded_subset_plan.json").read_text(
@@ -113,6 +118,12 @@ jobs:
           assert plan["selected_archive"] == "AVAAGA_200kV_293K.zip"
           assert not plan["download_authorized_now"]
           assert plan["full_record_download_prohibited"]
+          assert "reuse terms" not in plan["selection_basis"]
+
+          request = (output / "bir_author_metadata_request.md").read_text(
+              encoding="utf-8"
+          )
+          assert "Provide explicit data reuse terms" not in request
 
           manifest = json.loads(
               (output / "bir_metadata_audit_manifest.json").read_text(
