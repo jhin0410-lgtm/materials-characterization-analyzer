@@ -1,0 +1,106 @@
+name: Patch SAED candidate pixel-size contract
+
+on:
+  push:
+    branches:
+      - agent/add-saed-candidate-registry
+    paths:
+      - ".github/workflows/patch-saed-candidate-pixel-size.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/add-saed-candidate-registry
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Align optional pixel-size evidence with readiness
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source_path = Path("src/mca/saed_external_validation_candidate_registry.py")
+          source = source_path.read_text(encoding="utf-8")
+          blocker = '''        (candidate.detector_pixel_size_available, "detector_pixel_size_unavailable"),
+          '''
+          blocker = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in blocker.splitlines()
+          )
+          if source.count(blocker) != 1:
+              raise SystemExit("pixel-size blocker marker mismatch")
+          source_path.write_text(source.replace(blocker, ""), encoding="utf-8")
+
+          test_path = Path("tests/test_saed_external_validation_candidate_registry.py")
+          tests = test_path.read_text(encoding="utf-8")
+          marker = '''def test_ready_candidate_requires_minimum_independent_series(
+              tmp_path: Path,
+          ) -> None:
+          '''
+          marker = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in marker.splitlines()
+          )
+          addition = '''def test_traceable_reciprocal_calibration_does_not_require_pixel_size(
+              tmp_path: Path,
+          ) -> None:
+              payload = _ready_payload()
+              payload["candidates"][-1]["detector_pixel_size_available"] = False
+              output = tmp_path / "out"
+              summary = run_candidate_registry(
+                  _load_payload(tmp_path, payload), output
+              )
+              assert summary["result_counts"]["dedicated_source_audit_ready_count"] == 1
+              with (output / "saed_candidate_inventory.csv").open(
+                  encoding="utf-8", newline=""
+              ) as handle:
+                  rows = list(csv.DictReader(handle))
+              candidate = next(
+                  row
+                  for row in rows
+                  if row["candidate_id"] == "independent_static_saed_ready"
+              )
+              assert candidate["dedicated_source_audit_ready"] == "True"
+              assert "detector_pixel_size_unavailable" not in candidate["blockers"]
+          
+          
+          def test_ready_candidate_requires_minimum_independent_series(
+              tmp_path: Path,
+          ) -> None:
+          '''
+          addition = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in addition.splitlines()
+          )
+          if tests.count(marker) != 1:
+              raise SystemExit("test insertion marker mismatch")
+          test_path.write_text(tests.replace(marker, addition), encoding="utf-8")
+          PY
+
+      - name: Validate focused and full behavior
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m compileall -q src/mca
+          pytest -q tests/test_saed_external_validation_candidate_registry.py
+          pytest -q
+          python -m build
+
+      - name: Commit validated permanent changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/mca/saed_external_validation_candidate_registry.py \
+            tests/test_saed_external_validation_candidate_registry.py
+          git commit -m "Clarify optional SAED detector pixel-size evidence"
+          git push origin HEAD:agent/add-saed-candidate-registry
