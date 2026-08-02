@@ -258,6 +258,29 @@ def test_ready_status_is_derived_from_all_candidate_gates(
     assert not summary["readiness"]["public_search_supports_saed_evaluation_now"]
 
 
+def test_traceable_reciprocal_calibration_does_not_require_pixel_size(
+    tmp_path: Path,
+) -> None:
+    payload = _ready_payload()
+    payload["candidates"][-1]["detector_pixel_size_available"] = False
+    output = tmp_path / "out"
+    summary = run_candidate_registry(
+        _load_payload(tmp_path, payload), output
+    )
+    assert summary["result_counts"]["dedicated_source_audit_ready_count"] == 1
+    with (output / "saed_candidate_inventory.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+    candidate = next(
+        row
+        for row in rows
+        if row["candidate_id"] == "independent_static_saed_ready"
+    )
+    assert candidate["dedicated_source_audit_ready"] == "True"
+    assert "detector_pixel_size_unavailable" not in candidate["blockers"]
+
+
 def test_ready_candidate_requires_minimum_independent_series(
     tmp_path: Path,
 ) -> None:

@@ -511,7 +511,7 @@ def _candidate_row(
         (candidate.immutable_acquisition_ids_available, "immutable_acquisition_ids_unavailable"),
         (candidate.accelerating_voltage_available, "accelerating_voltage_unavailable"),
         (candidate.detector_metadata_available, "detector_metadata_unavailable"),
-        (candidate.detector_pixel_size_available, "detector_pixel_size_unavailable"),
+
         (candidate.pattern_center_traceable, "pattern_center_untraceable"),
         (candidate.reciprocal_calibration_traceable, "reciprocal_calibration_untraceable"),
         (reference_available, "reference_assignments_or_structures_unavailable"),
