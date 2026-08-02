@@ -38,8 +38,10 @@ text = replace_once(
 )
 text = replace_once(
     text,
-    """                "until member count, sample/acquisition lineage, centre, calibration, "
-                "reuse terms, and analyzer-development non-use are resolved"""",
+    (
+        '                "until member count, sample/acquisition lineage, centre, calibration, "\n'
+        '                "reuse terms, and analyzer-development non-use are resolved"'
+    ),
     '                f"until {unresolved_download_text} are resolved"',
     "selection basis",
 )
