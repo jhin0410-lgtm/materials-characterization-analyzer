@@ -266,6 +266,17 @@ def test_explicit_rights_do_not_bypass_calibration_and_lineage_gates(
     assert not summary["evidence_gates"]["ready_for_bounded_archive_download"]
     assert "pattern_center_not_traceable" in summary["blockers"]
     assert "reciprocal_calibration_not_traceable" in summary["blockers"]
+    assert "reuse terms" not in summary["scientific_closeout"]["primary_limitation"]
+    request = (tmp_path / "out" / "bir_author_metadata_request.md").read_text(
+        encoding="utf-8"
+    )
+    assert "Provide explicit data reuse terms" not in request
+    plan = json.loads(
+        (tmp_path / "out" / "bir_bounded_subset_plan.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "reuse terms" not in plan["selection_basis"]
 
 
 def test_legacy_zenodo_file_list_schema_is_supported(tmp_path: Path) -> None:

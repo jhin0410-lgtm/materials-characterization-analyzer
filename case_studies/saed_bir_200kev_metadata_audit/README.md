@@ -40,7 +40,7 @@ These are publication-level acquisition facts. They are not yet bound to individ
 
 ## Current decision
 
-The candidate remains **not ready** for bounded archive download or SAED validation intake.
+The candidate remains **not ready** for bounded archive download or SAED validation intake. The live record explicitly declares `CC BY 4.0`, so reuse authorization is supported and is no longer a blocker.
 
 The released MRC arrays are acquisition-derived outputs after native-frame integration and spatial binning. The record does not establish:
 
@@ -50,7 +50,6 @@ The released MRC arrays are acquisition-derived outputs after native-frame integ
 - direct-beam position or a reproducible pattern-centre procedure;
 - camera length or another traceable reciprocal calibration for the released arrays;
 - detector pixel geometry and coordinate transformations after binning;
-- explicit reuse terms for the record files;
 - non-use of the proposed series during analyzer development or parameter selection.
 
 The first archive proposed for a later bounded audit is `AVAAGA_200kV_293K.zip` because it is the smallest checksum-bound archive in the record. This is a planning result, not download authorization.

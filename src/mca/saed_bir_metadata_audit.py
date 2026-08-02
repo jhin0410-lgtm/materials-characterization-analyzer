@@ -21,7 +21,7 @@ from . import __version__
 
 CASE_ID = "saed_bir_200kev_metadata_audit"
 SCHEMA_VERSION = "1.0"
-RESULT = "metadata_resolved_but_source_not_ready_for_saed_evaluation"
+RESULT = "record_inventory_verified_but_source_not_ready_for_saed_evaluation"
 EXPECTED_RECORD_ID = "10999587"
 EXPECTED_DOI = "10.5281/zenodo.10999587"
 EXPECTED_PUBLICATION_DOI = "10.1107/S2052252524012132"
@@ -388,7 +388,19 @@ def audit_bir_metadata(
             for item in sorted(files, key=lambda item: item.name)
         ]
         gap_rows = _gap_rows(gates)
-        request_items = _author_request_items(config)
+        request_items = _author_request_items(
+            config, rights_verified=bool(rights)
+        )
+        unresolved_download_gates = [
+            "member count",
+            "sample/acquisition lineage",
+            "centre",
+            "calibration",
+            "analyzer-development non-use",
+        ]
+        if not rights:
+            unresolved_download_gates.insert(-1, "reuse terms")
+        unresolved_download_text = ", ".join(unresolved_download_gates)
         subset_plan = {
             "schema_version": SCHEMA_VERSION,
             "case_id": CASE_ID,
@@ -396,8 +408,7 @@ def audit_bir_metadata(
             "selected_archive_bytes": smallest.bytes,
             "selection_basis": (
                 "smallest checksum-bound 200 keV archive; download remains prohibited "
-                "until member count, sample/acquisition lineage, centre, calibration, "
-                "reuse terms, and analyzer-development non-use are resolved"
+                f"until {unresolved_download_text} are resolved"
             ),
             "download_authorized_now": False,
             "required_pre_download_evidence": request_items,
@@ -467,13 +478,15 @@ def audit_bir_metadata(
                 "primary_limitation": (
                     "The released MRC series are integrated and binned acquisition-derived "
                     "frames, while archive members, immutable lineage, centre, reciprocal "
-                    "calibration, reuse terms, and analyzer-development non-use remain unresolved."
+                    f"calibration, {'reuse terms, ' if not rights else ''}and "
+                    "analyzer-development non-use remain unresolved."
                 ),
                 "evidence_that_would_change_conclusion": (
                     "Authoritative series-to-crystal lineage, archive member inventory, "
-                    "direct-beam/centre procedure, reciprocal calibration, explicit data "
-                    "reuse terms, and analyzer-development non-use, followed by a checksum-bound "
-                    "bounded archive audit."
+                    "direct-beam/centre procedure, reciprocal calibration, "
+                    f"{'explicit data reuse terms, ' if not rights else ''}and "
+                    "analyzer-development non-use, followed by a checksum-bound bounded "
+                    "archive audit."
                 ),
                 "suitable_for": [
                     "source metadata triage",
@@ -698,8 +711,10 @@ def _gap_rows(gates: Mapping[str, bool]) -> list[dict[str, Any]]:
     ]
 
 
-def _author_request_items(config: AuditConfig) -> list[str]:
-    return [
+def _author_request_items(
+    config: AuditConfig, *, rights_verified: bool
+) -> list[str]:
+    items = [
         "Confirm whether the released MRC arrays are integer sums or averages of the 30 native Apollo frames and document any spatial-binning operation.",
         "Provide an archive member inventory or identify at least two independent stationary series within AVAAGA_200kV_293K.zip before download.",
         "Bind every proposed series filename to an immutable crystal/sample identifier and acquisition identifier.",
@@ -707,9 +722,13 @@ def _author_request_items(config: AuditConfig) -> list[str]:
         "Provide the direct-beam position or the exact reproducible centre-calibration procedure used for the released arrays.",
         "Confirm detector pixel geometry after integration and binning, including any crop, transpose, flip, or coordinate convention.",
         "State whether the proposed series or their derived outputs were used to develop, tune, or select the current analyzer.",
-        "Provide explicit data reuse terms for the Zenodo record files.",
-        f"Confirm that at least {config.minimum_independent_series} proposed series represent independent acquisitions rather than exports or repeated processing of one acquisition.",
     ]
+    if not rights_verified:
+        items.append("Provide explicit data reuse terms for the Zenodo record files.")
+    items.append(
+        f"Confirm that at least {config.minimum_independent_series} proposed series represent independent acquisitions rather than exports or repeated processing of one acquisition."
+    )
+    return items
 
 
 def _build_author_request(config: AuditConfig, items: Sequence[str]) -> str:
@@ -760,7 +779,11 @@ def _build_report(
             "",
             f"- Selected first archive: `{subset_plan['selected_archive']}`",
             f"- Download authorized now: `{str(subset_plan['download_authorized_now']).lower()}`",
-            "- Reason: smallest checksum-bound archive, but member inventory, lineage, centre, calibration, reuse, and non-use remain unresolved.",
+            (
+                "- Reason: smallest checksum-bound archive, but member inventory, "
+                "lineage, centre, calibration, "
+                f"{'reuse, ' if not source['rights'] else ''}and non-use remain unresolved."
+            ),
             "",
             "## Scientific boundary",
             "",
