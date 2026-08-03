@@ -15,7 +15,7 @@ jobs:
       - name: Install inspection tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full
+          sudo apt-get install -y unar
           python -m pip install pillow
 
       - name: Resolve, verify, and summarize archive
@@ -43,26 +43,34 @@ jobs:
               files = json.load(response)
           if isinstance(files, dict):
               files = files.get("results") or files.get("files") or files.get("items") or []
-          selected = None
+          normalized = []
           for item in files:
-              name = item.get("filename") or item.get("name") or ""
-              if name.lower().endswith(".rar"):
-                  content = item.get("content_details") or {}
-                  selected = {
+              content = item.get("content_details") or {}
+              normalized.append(
+                  {
                       "file_id": item.get("id") or item.get("file_id"),
-                      "filename": name,
+                      "filename": item.get("filename") or item.get("name") or "",
                       "bytes": content.get("size", item.get("size")),
                       "sha256": content.get("sha256_hash") or content.get("sha256")
                       or item.get("sha256_hash") or item.get("sha256"),
+                      "last_modified_date": item.get("last_modified_date"),
                   }
-          if not selected or not all(selected.values()):
+              )
+          selected = next(
+              (item for item in normalized if item["filename"].lower().endswith(".rar")),
+              None,
+          )
+          if not selected or not all(
+              selected.get(key) for key in ("file_id", "filename", "bytes", "sha256")
+          ):
               raise SystemExit("bounded archive identity unresolved")
           selected["url"] = (
               "https://data.mendeley.com/public-files/datasets/"
               f"{dataset_id}/files/{selected['file_id']}/file_downloaded"
           )
           Path("selected.json").write_text(json.dumps(selected), encoding="utf-8")
-          print(json.dumps(selected, indent=2))
+          print("FILE_API_RESPONSE=" + json.dumps(normalized, ensure_ascii=False))
+          print("SELECTED_ARCHIVE=" + json.dumps(selected, ensure_ascii=False))
           PY
           endpoint="$(python -c 'import json; print(json.load(open("selected.json"))["url"])')"
           curl --fail --location --silent --show-error --retry 5 --retry-all-errors \
@@ -77,7 +85,7 @@ jobs:
           assert hashlib.sha256(payload).hexdigest() == expected["sha256"]
           PY
           mkdir extracted
-          7z x -y -oextracted candidate.rar >/dev/null
+          unar -quiet -output-directory extracted candidate.rar
           python - <<'PY'
           import json
           from collections import Counter
