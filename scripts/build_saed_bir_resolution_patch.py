@@ -7,9 +7,10 @@ PARTS = ROOT / 'scripts' / '_patch_parts'
 
 
 def concatenate(names: list[str], target: Path) -> None:
-    text = ''.join((PARTS / name).read_text(encoding='utf-8') for name in names)
-    if not text.endswith('\n'):
-        text += '\n'
+    text = '\n'.join(
+        (PARTS / name).read_text(encoding='utf-8').rstrip('\n')
+        for name in names
+    ) + '\n'
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding='utf-8')
 
@@ -74,8 +75,8 @@ checksum-bound output of `mca saed-bir-metadata-audit`.
 ## Generate the request package
 
 ```bash
-mca saed-bir-metadata-resolution \\
-  --audit-output outputs/saed_bir_200kev_metadata_audit \\
+mca saed-bir-metadata-resolution \
+  --audit-output outputs/saed_bir_200kev_metadata_audit \
   --output outputs/saed_bir_metadata_resolution
 ```
 
@@ -87,9 +88,9 @@ detector geometry, and analyzer-development non-use evidence.
 ## Assess a completed response
 
 ```bash
-mca saed-bir-metadata-resolution \\
-  --audit-output outputs/saed_bir_200kev_metadata_audit \\
-  --response completed_author_response.json \\
+mca saed-bir-metadata-resolution \
+  --audit-output outputs/saed_bir_200kev_metadata_audit \
+  --response completed_author_response.json \
   --output outputs/saed_bir_author_response_assessment
 ```
 
