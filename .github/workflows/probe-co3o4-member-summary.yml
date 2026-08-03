@@ -1,0 +1,126 @@
+name: Summarize Co3O4 candidate archive members
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/probe-co3o4-member-summary.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full
+          python -m pip install pillow
+
+      - name: Resolve, verify, and summarize archive
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          dataset_id = "kkk76z8g8z"
+          version = 1
+          url = (
+              f"https://data.mendeley.com/public-api/datasets/{dataset_id}/files?"
+              + urllib.parse.urlencode({"folder_id": "root", "version": version})
+          )
+          request = urllib.request.Request(
+              url,
+              headers={
+                  "Accept": "application/vnd.mendeley-public-dataset.1+json, application/json",
+                  "User-Agent": "materials-characterization-analyzer-source-audit/1.0",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=120) as response:
+              files = json.load(response)
+          if isinstance(files, dict):
+              files = files.get("results") or files.get("files") or files.get("items") or []
+          selected = None
+          for item in files:
+              name = item.get("filename") or item.get("name") or ""
+              if name.lower().endswith(".rar"):
+                  content = item.get("content_details") or {}
+                  selected = {
+                      "file_id": item.get("id") or item.get("file_id"),
+                      "filename": name,
+                      "bytes": content.get("size", item.get("size")),
+                      "sha256": content.get("sha256_hash") or content.get("sha256")
+                      or item.get("sha256_hash") or item.get("sha256"),
+                  }
+          if not selected or not all(selected.values()):
+              raise SystemExit("bounded archive identity unresolved")
+          selected["url"] = (
+              "https://data.mendeley.com/public-files/datasets/"
+              f"{dataset_id}/files/{selected['file_id']}/file_downloaded"
+          )
+          Path("selected.json").write_text(json.dumps(selected), encoding="utf-8")
+          print(json.dumps(selected, indent=2))
+          PY
+          endpoint="$(python -c 'import json; print(json.load(open("selected.json"))["url"])')"
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors \
+            --connect-timeout 15 --max-time 180 "$endpoint" --output candidate.rar
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          expected = json.loads(Path("selected.json").read_text())
+          payload = Path("candidate.rar").read_bytes()
+          assert len(payload) == int(expected["bytes"])
+          assert hashlib.sha256(payload).hexdigest() == expected["sha256"]
+          PY
+          mkdir extracted
+          7z x -y -oextracted candidate.rar >/dev/null
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          from PIL import Image
+
+          files = sorted(p for p in Path("extracted").rglob("*") if p.is_file())
+          suffix_counts = Counter(p.suffix.lower() or "<none>" for p in files)
+          image_rows = []
+          for path in files:
+              try:
+                  with Image.open(path) as image:
+                      image_rows.append({
+                          "path": path.relative_to("extracted").as_posix(),
+                          "format": image.format,
+                          "mode": image.mode,
+                          "width": image.width,
+                          "height": image.height,
+                          "frames": getattr(image, "n_frames", 1),
+                          "compression": image.info.get("compression"),
+                      })
+              except Exception:
+                  pass
+          summary = {
+              "member_count": len(files),
+              "suffix_counts": dict(sorted(suffix_counts.items())),
+              "image_count": len(image_rows),
+              "image_formats": dict(sorted(Counter(row["format"] for row in image_rows).items())),
+              "image_modes": dict(sorted(Counter(row["mode"] for row in image_rows).items())),
+              "minimum_dimensions": [
+                  min(row["width"] for row in image_rows),
+                  min(row["height"] for row in image_rows),
+              ],
+              "maximum_dimensions": [
+                  max(row["width"] for row in image_rows),
+                  max(row["height"] for row in image_rows),
+              ],
+              "members": [p.relative_to("extracted").as_posix() for p in files],
+              "images": image_rows,
+          }
+          print("COMPACT_AUDIT_SUMMARY=" + json.dumps(summary, ensure_ascii=False))
+          PY
+
+      - name: Remove source bytes
+        if: always()
+        run: rm -rf candidate.rar extracted selected.json
