@@ -45,13 +45,30 @@ jobs:
                       "restricted": item.get("restricted"),
                   }
               )
+
+          hits = []
+          def walk(value, path="$"):
+              if isinstance(value, dict):
+                  for key, item in value.items():
+                      walk(item, f"{path}.{key}")
+              elif isinstance(value, list):
+                  for index, item in enumerate(value):
+                      walk(item, f"{path}[{index}]")
+              elif isinstance(value, str) and any(
+                  token in value.casefold() for token in ("cc0", "creative commons", "license", "licence")
+              ):
+                  hits.append({"path": path, "value": value})
+          walk(latest)
+
           summary = {
               "status": payload.get("status"),
-              "persistentId": latest.get("datasetPersistentId"),
               "versionNumber": latest.get("versionNumber"),
               "versionMinorNumber": latest.get("versionMinorNumber"),
               "versionState": latest.get("versionState"),
+              "latestVersionKeys": sorted(latest),
               "license": latest.get("license"),
+              "termsOfUse": latest.get("termsOfUse"),
+              "license_hits": hits,
               "file_count": len(rows),
               "files": sorted(rows, key=lambda row: row["filename"]),
           }
