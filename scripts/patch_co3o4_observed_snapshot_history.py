@@ -47,7 +47,7 @@ candidate = next(
 )
 candidate['source_evidence'] = [
     'A checksum-bound version-1 snapshot of Data.rar was verified at 16250421 bytes with SHA-256 e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9; the API file UUID is download-routing metadata only.',
-    'A later checksum-bound audit of the same DOI/version verified the same byte count but SHA-256 e3afceb4e3b6cebabb16c19129d1959ec2620ac8b86d4e1bcc4cbccb413e4984 and routing UUID 251dd224-6e9e-4c25-810b-cc7c24702685. The changed UUID and SHA-256 demonstrate unstable public source identity.',
+    'A later checksum-bound audit of the same DOI/version verified the same byte count but SHA-256 e3afceb4e3b6cebabb16c19129d1959ec2620ac8b86d4e1bcc4cbccb413e4984 and routing UUID 251dd224-6e9e-4c25-810b-cc7c24702685. The changed file UUID and SHA-256 demonstrate unstable public source identity, so stable immutable archive identity is unavailable.',
     'The first directly extracted snapshot contained 760 file members and only three 1536 x 1103 16-bit SEM PNG images: Data/SEM/2.png, Data/SEM/3.png, and Data/SEM/4.png.',
     'The later directly extracted snapshot also contained 760 file members and only three 1536 x 1103 16-bit SEM PNG images: Data/SEM/1_001.png, Data/SEM/4_019.png, and Data/SEM/B_010.png.',
     'Neither inspected snapshot contained a TEM, HRTEM, STEM, DM3, DM4, EMD, SER, TIFF, or TIF source file.',
