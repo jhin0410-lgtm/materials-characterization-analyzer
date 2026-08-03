@@ -94,7 +94,7 @@ def test_new_co3o4_public_records_are_wrong_modality_exclusions(
     assert mendeley["candidate_status"] == WRONG_MODALITY
     assert mendeley["reported_tem_file_count"] == "0"
     assert mendeley["raw_or_lossless_tem_images_available"] == "False"
-    assert "251b0061-cc22-48b4-bc3d-8bba56f8a030" in mendeley["source_evidence"]
+    assert "download-routing metadata" in mendeley["source_evidence"]
     assert "e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9" in mendeley["source_evidence"]
     assert "760 file members" in mendeley["source_evidence"]
     assert "Data/SEM/2.png" in mendeley["source_evidence"]

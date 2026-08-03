@@ -159,7 +159,7 @@ def _mendeley_inventory(config: dict[str, Any]) -> tuple[dict[str, Any], str]:
     )
     if archive is None:
         raise RuntimeError("Mendeley archive missing")
-    for key in ("file_id", "bytes", "sha256"):
+    for key in ("bytes", "sha256"):
         if archive[key] != archive_expected[key]:
             raise RuntimeError(f"Mendeley archive {key} mismatch")
     endpoint = (
@@ -173,6 +173,15 @@ def _mendeley_inventory(config: dict[str, Any]) -> tuple[dict[str, Any], str]:
             "doi": expected["doi"],
             "title": snapshot.get("name") or snapshot.get("title"),
             "license_verified": True,
+            "source_identity_basis": [
+                "dataset_id",
+                "version",
+                "archive filename",
+                "archive byte count",
+                "archive SHA-256",
+            ],
+            "observed_download_file_id": archive["file_id"],
+            "file_id_used_only_for_download_routing": True,
             "files": observed_files,
         },
         endpoint,

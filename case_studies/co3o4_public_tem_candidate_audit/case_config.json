@@ -33,10 +33,14 @@
       "doi": "10.17632/kkk76z8g8z.1",
       "license": "CC BY 4.0",
       "archive": {
-        "file_id": "251b0061-cc22-48b4-bc3d-8bba56f8a030",
         "name": "Data.rar",
         "bytes": 16250421,
-        "sha256": "e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9"
+        "sha256": "e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9",
+        "identity_basis": [
+          "name",
+          "bytes",
+          "sha256"
+        ]
       },
       "expected_member_count": 760,
       "expected_image_members": [

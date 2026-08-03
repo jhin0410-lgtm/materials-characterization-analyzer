@@ -378,7 +378,7 @@
       "reuse_license_verified": true,
       "target_training_source": false,
       "source_evidence": [
-        "The current version-1 Mendeley public API resolves Data.rar as file UUID 251b0061-cc22-48b4-bc3d-8bba56f8a030, 16250421 bytes, SHA-256 e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9.",
+        "The current version-1 Mendeley public API resolves Data.rar at 16250421 bytes with SHA-256 e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9. The API file UUID is treated only as mutable download-routing metadata, not as source identity.",
         "Checksum-bound extraction contains 760 file members. The only image-decodable files are Data/SEM/2.png, Data/SEM/3.png, and Data/SEM/4.png; all are 1536 x 1103 16-bit PNG images.",
         "No archive member path or decodable image provides TEM or HRTEM source data despite the associated article describing TEM observations."
       ],

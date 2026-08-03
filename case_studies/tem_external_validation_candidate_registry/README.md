@@ -30,6 +30,8 @@ The registry was refreshed on 2026-08-03 from official records and checksum-boun
 
 ## Current conclusion
 
+Mendeley file UUIDs are treated as mutable download-routing metadata; archive content identity is bound to filename, bytes, SHA-256, and extracted representation.
+
 No assessed public candidate is ready for in-domain external validation. PhaseT3M is the best exact-material processed diagnostic source, not an evaluation set. It may support checksum/HDF5 ingestion and processed-representation robustness checks only.
 
 Readiness still requires raw or demonstrably lossless TEM/HRTEM from at least two independent samples/acquisitions, immutable lineage, explicit reuse terms, verified target-model non-use and content disjointness, and at least two blinded independent labels plus adjudication.

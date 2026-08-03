@@ -9,6 +9,8 @@ This case study verifies two public records that appear relevant to independent 
 
 The audit distinguishes microscopy described in a publication from microscopy arrays actually deposited in the public data record.
 
+Mendeley file UUIDs are treated as download-routing metadata. Reproducible source identity is bound to the versioned dataset, archive filename, byte count, SHA-256, and extracted representation.
+
 ## Reproducibility contract
 
 `case_config.json` pins the source identities, repository checksums, byte counts, expected archive-member count, and the three observed SEM image paths. The GitHub workflow:
