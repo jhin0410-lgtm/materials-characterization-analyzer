@@ -169,7 +169,7 @@ def _verify_registry(output: Path, candidate_id: str) -> None:
     candidate = rows.get(candidate_id)
     if candidate is None:
         raise RepodAuditError("RepOD candidate is missing from registry")
-    if candidate["candidate_status"] != "excluded_rendered_or_non_raw_representation":
+    if candidate["candidate_status"] != "excluded_rendered_figure_representation":
         raise RepodAuditError("RepOD candidate status mismatch")
     if candidate["raw_or_lossless_tem_images_available"] != "False":
         raise RepodAuditError("registry incorrectly marks raw/lossless TEM available")
