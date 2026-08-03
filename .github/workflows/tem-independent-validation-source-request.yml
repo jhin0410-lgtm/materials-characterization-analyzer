@@ -1,0 +1,165 @@
+name: TEM independent validation source request
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/tem_independent_validation_source_request/**"
+      - "case_studies/tem_external_validation_candidate_registry/**"
+      - "scripts/tem_independent_validation_source_request.py"
+      - "tests/test_tem_independent_validation_source_request.py"
+      - "src/mca/tem_external_validation_candidate_registry*.py"
+      - ".github/workflows/tem-independent-validation-source-request.yml"
+
+jobs:
+  request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused contract regressions
+        run: |
+          python -m py_compile scripts/tem_independent_validation_source_request.py
+          pytest -q \
+            tests/test_tem_independent_validation_source_request.py \
+            tests/test_tem_external_validation_candidate_registry.py \
+            tests/test_tem_candidate_registry_readiness_integration.py
+
+      - name: Reproduce checksum-bound TEM candidate registry
+        run: |
+          mca tem-candidates \
+            --config case_studies/tem_external_validation_candidate_registry/case_config.json \
+            --output outputs/tem_external_validation_candidate_registry
+
+      - name: Build send-ready request package
+        run: |
+          python scripts/tem_independent_validation_source_request.py build \
+            --registry-output outputs/tem_external_validation_candidate_registry \
+            --output outputs/tem_independent_validation_source_request
+
+      - name: Verify request decision boundary and manifest
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/tem_independent_validation_source_request")
+          summary = json.loads(
+              (output / "tem_independent_source_request_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert summary["status"] == "independent_source_request_package_ready"
+          assert summary["request_ready_for_correspondence"] is True
+          assert summary["email_sent"] is False
+          assert summary["source_download_authorized"] is False
+          assert summary["bounded_source_verification_ready"] is False
+          assert summary["tem_validation_intake_ready"] is False
+          assert summary["external_evaluation_ready"] is False
+
+          request = json.loads(
+              (output / "tem_independent_source_request.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert request["current_evidence_state"]["assessed_candidate_count"] == 11
+          assert request["current_evidence_state"]["ready_candidate_count"] == 0
+          assert request["target_contract"]["modalities"] == ["TEM", "HRTEM"]
+          assert request["target_contract"]["minimum_independent_samples"] == 2
+          assert request["target_contract"]["minimum_independent_acquisitions"] == 2
+          assert request["decision_boundary"]["email_sent_by_software"] is False
+          assert request["decision_boundary"]["source_download_authorized"] is False
+          assert request["decision_boundary"]["model_inference_authorized"] is False
+          assert request["decision_boundary"]["model_retraining_authorized"] is False
+
+          correspondence = (
+              output / "tem_independent_source_correspondence.md"
+          ).read_text(encoding="utf-8")
+          assert "Suggested subject" in correspondence
+          assert "at least `2` independent samples" in correspondence
+          assert "does not authorize a download" in correspondence
+
+          manifest = json.loads(
+              (output / "tem_independent_source_request_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert manifest["artifact_count"] == 4
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert record["bytes"] == path.stat().st_size
+              assert record["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+          PY
+
+      - name: Verify a referral remains fail closed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = {
+              "schema_version": "1.0",
+              "request_case_id": "tem_independent_validation_source_request",
+              "response_status": "referral_only",
+              "respondent": {
+                  "name": "Repository Curator",
+                  "affiliation": "Microscopy Repository",
+                  "email": "curator@example.org",
+                  "authority": "repository_curator",
+                  "authority_basis": "Repository record custodian",
+              },
+              "candidate": None,
+              "referrals": [{
+                  "name": "Independent Collector",
+                  "affiliation": "External Facility",
+                  "email": "collector@example.org",
+                  "reason": "Holds original detector exports",
+              }],
+              "notes": "No candidate files are held by this repository.",
+          }
+          Path("outputs/referral_response.json").write_text(
+              json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+          python scripts/tem_independent_validation_source_request.py assess \
+            --registry-output outputs/tem_external_validation_candidate_registry \
+            --response outputs/referral_response.json \
+            --output outputs/tem_independent_validation_referral_assessment
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/tem_independent_validation_referral_assessment")
+          assessment = json.loads(
+              (output / "tem_independent_source_response_assessment.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert assessment["status"] == "no_candidate_source_declared"
+          assert assessment["source_download_authorized"] is False
+          assert assessment["ready_for_bounded_source_verification"] is False
+          assert assessment["tem_validation_intake_ready"] is False
+          assert assessment["external_evaluation_ready"] is False
+          assert not (output / "tem_bounded_source_verification_plan.json").exists()
+          PY
+          rm -rf \
+            outputs/referral_response.json \
+            outputs/tem_independent_validation_referral_assessment
+
+      - name: Upload request evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: tem-independent-validation-source-request-evidence
+          path: outputs/tem_independent_validation_source_request
+          if-no-files-found: error
+          retention-days: 30
