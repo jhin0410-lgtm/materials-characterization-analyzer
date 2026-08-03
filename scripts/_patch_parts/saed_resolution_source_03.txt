@@ -1,0 +1,274 @@
+        "- SAED validation intake ready: `false`",
+        "- Predeclared external evaluation ready: `false`",
+        "",
+        "## Evidence gates",
+        "",
+    ]
+    lines.extend(
+        f"- `{key}`: `{str(value).lower()}`"
+        for key, value in assessment["evidence_gates"].items()
+    )
+    if assessment["blockers"]:
+        lines.extend(["", "## Blockers", ""])
+        lines.extend(f"- `{item}`" for item in assessment["blockers"])
+    lines.extend(
+        [
+            "",
+            "## Scientific boundary",
+            "",
+            "This assessment validates metadata and declared lineage only. Archive and MRC bytes remain unverified, and no analyzer or crystallographic result is authorized.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _read_inventory(path: Path) -> list[dict[str, Any]]:
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+    except OSError as exc:
+        raise BIRResolutionContractError("could not read archive inventory") from exc
+    if not rows:
+        raise BIRResolutionContractError("archive inventory is empty")
+    for index, row in enumerate(rows):
+        if not {"name", "bytes", "md5"}.issubset(row):
+            raise BIRResolutionContractError(f"archive inventory row {index} is incomplete")
+        try:
+            row["bytes"] = int(row["bytes"])
+        except (TypeError, ValueError) as exc:
+            raise BIRResolutionContractError(f"archive inventory row {index} has invalid bytes") from exc
+        if row["bytes"] <= 0 or not re.fullmatch(r"[0-9a-fA-F]{32}", str(row["md5"])):
+            raise BIRResolutionContractError(f"archive inventory row {index} is invalid")
+    return rows
+
+
+def _load_json(path: Path, label: str) -> Mapping[str, Any]:
+    try:
+        payload = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_pairs,
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BIRResolutionContractError(f"could not read {label}: {path}") from exc
+    if not isinstance(payload, Mapping):
+        raise BIRResolutionContractError(f"{label} root must be an object")
+    return payload
+
+
+def _artifact_manifest(output: Path, paths: Sequence[Path]) -> dict[str, Any]:
+    artifacts = [
+        {
+            "path": path.relative_to(output).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": _hash_file(path),
+        }
+        for path in paths
+    ]
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "case_id": CASE_ID,
+        "artifact_count": len(artifacts),
+        "artifacts": artifacts,
+    }
+
+
+def _prepare_output(path: str | Path) -> tuple[Path, bool]:
+    output = Path(path)
+    if output.exists():
+        if not output.is_dir() or output.is_symlink() or any(output.iterdir()):
+            raise FileExistsError("output must be an absent or empty directory")
+        return output, False
+    output.mkdir(parents=True)
+    return output, True
+
+
+def _cleanup_output(output: Path, created: bool) -> None:
+    if not output.exists() or not output.is_dir() or output.is_symlink():
+        return
+    if created:
+        shutil.rmtree(output, ignore_errors=True)
+        return
+    for child in output.iterdir():
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink(missing_ok=True)
+
+
+def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _hash_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _reject_duplicate_pairs(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise BIRResolutionContractError(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_unknown(payload: Mapping[str, Any], allowed: set[str], context: str) -> None:
+    unknown = sorted(set(payload) - allowed)
+    if unknown:
+        raise BIRResolutionContractError(f"unknown {context} field: {unknown[0]}")
+
+
+def _mapping(payload: Mapping[str, Any], key: str) -> Mapping[str, Any]:
+    value = payload.get(key)
+    if not isinstance(value, Mapping):
+        raise BIRResolutionContractError(f"{key} must be an object")
+    return value
+
+
+def _mapping_value(value: Any, context: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise BIRResolutionContractError(f"{context} must be an object")
+    return value
+
+
+def _text(payload: Mapping[str, Any], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise BIRResolutionContractError(f"{key} must be a non-empty string")
+    return value.strip()
+
+
+def _identifier(payload: Mapping[str, Any], key: str) -> str:
+    value = _text(payload, key)
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value):
+        raise BIRResolutionContractError(f"{key} is not a stable identifier")
+    return value
+
+
+def _boolean(payload: Mapping[str, Any], key: str) -> bool:
+    value = payload.get(key)
+    if not isinstance(value, bool):
+        raise BIRResolutionContractError(f"{key} must be boolean")
+    return value
+
+
+def _positive_int(payload: Mapping[str, Any], key: str) -> int:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise BIRResolutionContractError(f"{key} must be a positive integer")
+    return value
+
+
+def _positive_float(payload: Mapping[str, Any], key: str) -> float:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        raise BIRResolutionContractError(f"{key} must be a positive number")
+    return float(value)
+
+
+def _optional_positive(value: Any, key: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        raise BIRResolutionContractError(f"{key} must be null or positive")
+    return float(value)
+
+
+def _optional_nonnegative(value: Any, key: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        raise BIRResolutionContractError(f"{key} must be null or non-negative")
+    return float(value)
+
+
+def _texts(payload: Mapping[str, Any], key: str) -> tuple[str, ...]:
+    value = payload.get(key)
+    if not isinstance(value, list) or not value:
+        raise BIRResolutionContractError(f"{key} must be a non-empty string array")
+    cleaned: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            raise BIRResolutionContractError(f"{key} must contain non-empty strings")
+        cleaned.append(item.strip())
+    if len(cleaned) != len(set(cleaned)):
+        raise BIRResolutionContractError(f"{key} must not contain duplicates")
+    return tuple(cleaned)
+
+
+def _relative_path(payload: Mapping[str, Any], key: str) -> str:
+    value = _text(payload, key)
+    if "\\" in value:
+        raise BIRResolutionContractError(f"{key} must use POSIX separators")
+    path = PurePosixPath(value)
+    if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts):
+        raise BIRResolutionContractError(f"{key} must be a safe relative path")
+    return path.as_posix()
+
+
+def _sha256(payload: Mapping[str, Any], key: str) -> str:
+    value = _text(payload, key).casefold()
+    if not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise BIRResolutionContractError(f"{key} must be 64 hexadecimal characters")
+    return value
+
+
+def _md5(payload: Mapping[str, Any], key: str) -> str:
+    value = _text(payload, key).casefold()
+    if not re.fullmatch(r"[0-9a-f]{32}", value):
+        raise BIRResolutionContractError(f"{key} must be 32 hexadecimal characters")
+    return value
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate or assess the BIR-MicroED 200 keV metadata-resolution "
+            "contract without downloading diffraction arrays."
+        )
+    )
+    parser.add_argument(
+        "--audit-output",
+        required=True,
+        help="Output directory from mca saed-bir-metadata-audit",
+    )
+    parser.add_argument(
+        "--response",
+        help="Completed authoritative response JSON; omit to generate request package",
+    )
+    parser.add_argument("--output", required=True, help="Absent or empty output directory")
+    return parser
+
+
+def cli_main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    bundle = load_audit_bundle(args.audit_output)
+    result = (
+        assess_author_response(bundle, args.response, args.output)
+        if args.response
+        else build_request_package(bundle, args.output)
+    )
+    print(
+        json.dumps(
+            {
+                "status": result["status"],
+                "archive_download_authorized": result["archive_download_authorized"],
+                "saed_validation_intake_ready": result["saed_validation_intake_ready"],
+                "predeclared_external_evaluation_ready": result[
+                    "predeclared_external_evaluation_ready"
+                ],
+                "recommended_next_action": result["recommended_next_action"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
