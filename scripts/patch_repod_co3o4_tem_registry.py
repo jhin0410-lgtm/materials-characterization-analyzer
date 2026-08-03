@@ -35,7 +35,7 @@ candidate = {
     "verified_not_used_for_target_training_or_model_selection": False,
     "target_creator_name_overlap": False,
     "target_material_relation": "exact_cobalt_oxide",
-    "imaging_domain_relation": "rendered_multi_panel_publication_figures",
+    "imaging_domain_relation": "rendered_mixed_heterojunction_figure_images",
     "reuse_license": "CC0-1.0",
     "reuse_license_verified": True,
     "target_training_source": False,
