@@ -1,12 +1,7 @@
-name: Probe Co3O4 ALD TEM candidate metadata
+name: Probe independent Co3O4 TEM candidates
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - agent/audit-co3o4-ald-tem-candidate
-    paths:
-      - ".github/workflows/probe-co3o4-ald-tem-candidate.yml"
   pull_request:
     paths:
       - ".github/workflows/probe-co3o4-ald-tem-candidate.yml"
@@ -18,58 +13,271 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch official Zenodo metadata
+      - name: Install bounded archive inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full unar
+          python -m pip install pillow
+
+      - name: Fetch official Zenodo and Mendeley metadata
         run: |
           python - <<'PY'
           import json
+          import urllib.parse
           import urllib.request
           from pathlib import Path
 
-          url = "https://zenodo.org/api/records/14160831"
-          request = urllib.request.Request(
-              url,
-              headers={"User-Agent": "materials-characterization-analyzer-source-audit/1.0"},
-          )
-          with urllib.request.urlopen(request, timeout=120) as response:
-              payload = json.load(response)
+          output = Path("probe-output")
+          output.mkdir()
 
-          metadata = payload.get("metadata", {})
-          files = payload.get("files", [])
-          summary = {
-              "record_id": str(payload.get("id")),
-              "doi": payload.get("doi"),
-              "title": metadata.get("title"),
-              "publication_date": metadata.get("publication_date"),
-              "resource_type": metadata.get("resource_type"),
-              "rights": metadata.get("rights"),
-              "license": metadata.get("license"),
-              "creators": metadata.get("creators", []),
-              "description": metadata.get("description"),
-              "file_count": len(files),
-              "total_bytes": sum(int(item.get("size", 0)) for item in files),
+          def fetch_json(url: str, accept: str = "application/json"):
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "Accept": accept,
+                      "User-Agent": "materials-characterization-analyzer-source-audit/1.0",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  return json.load(response)
+
+          zenodo = fetch_json("https://zenodo.org/api/records/14160831")
+          zmeta = zenodo.get("metadata", {})
+          zfiles = zenodo.get("files", [])
+          zenodo_summary = {
+              "record_id": str(zenodo.get("id")),
+              "doi": zenodo.get("doi"),
+              "title": zmeta.get("title"),
+              "publication_date": zmeta.get("publication_date"),
+              "resource_type": zmeta.get("resource_type"),
+              "license": zmeta.get("license"),
+              "creators": zmeta.get("creators", []),
+              "file_count": len(zfiles),
+              "total_bytes": sum(int(item.get("size", 0)) for item in zfiles),
               "files": [
                   {
                       "key": item.get("key"),
                       "size": item.get("size"),
                       "checksum": item.get("checksum"),
                       "mimetype": item.get("mimetype"),
-                      "links": item.get("links", {}),
                   }
-                  for item in files
+                  for item in zfiles
               ],
           }
-          Path("probe-output").mkdir()
-          Path("probe-output/record-summary.json").write_text(
+          (output / "zenodo-14160831-summary.json").write_text(
+              json.dumps(zenodo_summary, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+
+          dataset_id = "kkk76z8g8z"
+          version = 1
+          base = "https://data.mendeley.com/public-api"
+          snapshot = fetch_json(f"{base}/datasets/{dataset_id}/snapshot/{version}")
+          files = fetch_json(
+              f"{base}/datasets/{dataset_id}/files?"
+              + urllib.parse.urlencode({"folder_id": "root", "version": version}),
+              "application/vnd.mendeley-public-dataset.1+json, application/json",
+          )
+          if isinstance(files, dict):
+              files = files.get("results") or files.get("files") or files.get("items") or []
+          if not isinstance(files, list):
+              raise SystemExit("Mendeley root-file response is not a list")
+
+          normalized = []
+          download = None
+          for item in files:
+              content = item.get("content_details") or {}
+              filename = item.get("filename") or item.get("name") or ""
+              row = {
+                  "file_id": item.get("id") or item.get("file_id"),
+                  "content_id": content.get("id"),
+                  "filename": filename,
+                  "description": item.get("description"),
+                  "size": content.get("size", item.get("size")),
+                  "sha256": content.get("sha256_hash") or content.get("sha256")
+                  or item.get("sha256_hash") or item.get("sha256"),
+                  "content_type": content.get("content_type"),
+              }
+              normalized.append(row)
+              if filename.lower().endswith(".rar"):
+                  download_url = (
+                      content.get("download_url")
+                      or item.get("download_url")
+                      or content.get("view_url")
+                  )
+                  if download_url:
+                      download = {**row, "download_url": download_url}
+
+          summary = {
+              "dataset_id": dataset_id,
+              "version": version,
+              "doi": snapshot.get("doi"),
+              "title": snapshot.get("name") or snapshot.get("title"),
+              "description": snapshot.get("description"),
+              "license": snapshot.get("licence") or snapshot.get("license"),
+              "contributors": snapshot.get("contributors") or snapshot.get("creators") or [],
+              "file_count": len(normalized),
+              "files": normalized,
+          }
+          (output / "mendeley-kkk76z8g8z-summary.json").write_text(
               json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
               encoding="utf-8",
           )
-          print(json.dumps(summary, indent=2, ensure_ascii=False))
+          if download is None:
+              raise SystemExit("No downloadable RAR file resolved")
+          (output / "mendeley-download.json").write_text(
+              json.dumps(download, indent=2) + "\n", encoding="utf-8"
+          )
+          Path("download-url.txt").write_text(download["download_url"], encoding="utf-8")
+          print(json.dumps({"zenodo": zenodo_summary, "mendeley": summary}, indent=2, ensure_ascii=False))
           PY
 
-      - name: Upload metadata probe
+      - name: Download and checksum-verify bounded Mendeley archive
+        run: |
+          curl \
+            --fail \
+            --location \
+            --silent \
+            --show-error \
+            --retry 5 \
+            --retry-all-errors \
+            --connect-timeout 15 \
+            --max-time 180 \
+            "$(cat download-url.txt)" \
+            --output candidate.rar
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          expected = json.loads(Path("probe-output/mendeley-download.json").read_text())
+          data = Path("candidate.rar").read_bytes()
+          observed = hashlib.sha256(data).hexdigest()
+          if observed != expected["sha256"]:
+              raise SystemExit(f"SHA-256 mismatch: {observed} != {expected['sha256']}")
+          if len(data) != int(expected["size"]):
+              raise SystemExit(f"byte-size mismatch: {len(data)} != {expected['size']}")
+          Path("probe-output/archive-identity.json").write_text(
+              json.dumps(
+                  {
+                      "filename": expected["filename"],
+                      "bytes": len(data),
+                      "sha256": observed,
+                  },
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Inventory archive and inspect microscopy-like members
+        run: |
+          7z l -slt candidate.rar > probe-output/archive-members.slt
+          python - <<'PY'
+          import json
+          import re
+          import subprocess
+          from pathlib import Path, PurePosixPath
+
+          text = Path("probe-output/archive-members.slt").read_text(encoding="utf-8", errors="replace")
+          entries = []
+          current = {}
+          for line in text.splitlines():
+              if not line.strip():
+                  if current.get("Path"):
+                      entries.append(current)
+                  current = {}
+                  continue
+              if " = " in line:
+                  key, value = line.split(" = ", 1)
+                  current[key] = value
+          if current.get("Path"):
+              entries.append(current)
+
+          members = []
+          for entry in entries:
+              raw = entry.get("Path", "").replace("\\", "/")
+              if raw == "candidate.rar":
+                  continue
+              path = PurePosixPath(raw)
+              unsafe = path.is_absolute() or ".." in path.parts
+              members.append(
+                  {
+                      "path": raw,
+                      "bytes": int(entry.get("Size", "0") or 0),
+                      "packed_bytes": int(entry.get("Packed Size", "0") or 0),
+                      "attributes": entry.get("Attributes", ""),
+                      "crc": entry.get("CRC", ""),
+                      "unsafe_path": unsafe,
+                      "suffix": path.suffix.lower(),
+                  }
+              )
+          if any(item["unsafe_path"] for item in members):
+              raise SystemExit("archive contains unsafe member paths")
+          Path("probe-output/archive-member-inventory.json").write_text(
+              json.dumps({"member_count": len(members), "members": members}, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps({"member_count": len(members), "members": members}, indent=2))
+          PY
+          mkdir extracted
+          7z x -y -oextracted candidate.rar >/dev/null
+          python - <<'PY'
+          import hashlib
+          import json
+          import subprocess
+          from pathlib import Path
+          from PIL import Image
+
+          microscopy_suffixes = {
+              ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp",
+              ".dm3", ".dm4", ".emd", ".ser", ".h5", ".hdf5",
+          }
+          rows = []
+          for path in sorted(p for p in Path("extracted").rglob("*") if p.is_file()):
+              suffix = path.suffix.lower()
+              if suffix not in microscopy_suffixes:
+                  continue
+              row = {
+                  "path": path.relative_to("extracted").as_posix(),
+                  "bytes": path.stat().st_size,
+                  "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                  "suffix": suffix,
+                  "file_identification": subprocess.run(
+                      ["file", "-b", str(path)], capture_output=True, text=True, check=True
+                  ).stdout.strip(),
+                  "image": None,
+              }
+              try:
+                  with Image.open(path) as image:
+                      row["image"] = {
+                          "format": image.format,
+                          "mode": image.mode,
+                          "size": list(image.size),
+                          "frames": getattr(image, "n_frames", 1),
+                          "compression": image.info.get("compression"),
+                          "dpi": image.info.get("dpi"),
+                      }
+              except Exception as exc:
+                  row["image_error"] = type(exc).__name__
+              rows.append(row)
+          Path("probe-output/microscopy-member-audit.json").write_text(
+              json.dumps({"microscopy_member_count": len(rows), "members": rows}, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps({"microscopy_member_count": len(rows), "members": rows}, indent=2))
+          PY
+
+      - name: Remove downloaded and extracted source files
+        if: always()
+        run: |
+          rm -rf candidate.rar extracted download-url.txt
+          rm -f probe-output/mendeley-download.json
+
+      - name: Upload metadata-only probe
         uses: actions/upload-artifact@v7
         with:
-          name: co3o4-ald-tem-metadata-probe
-          path: probe-output/record-summary.json
+          name: independent-co3o4-tem-candidate-probe
+          path: probe-output/
           if-no-files-found: error
           retention-days: 7
