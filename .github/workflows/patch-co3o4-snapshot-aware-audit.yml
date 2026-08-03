@@ -6,6 +6,7 @@ on:
       - "scripts/patch_co3o4_snapshot_aware_audit.py"
       - "scripts/fix_snapshot_patch_main_boundary.py"
       - "scripts/fix_snapshot_patch_inventory_status.py"
+      - "scripts/fix_snapshot_patch_member_phrase.py"
       - ".github/workflows/patch-co3o4-snapshot-aware-audit.yml"
 
 permissions:
@@ -21,10 +22,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - name: Fix patch boundaries and registry status
+      - name: Fix patch boundaries, registry status, and evidence wording
         run: |
           python scripts/fix_snapshot_patch_main_boundary.py
           python scripts/fix_snapshot_patch_inventory_status.py
+          python scripts/fix_snapshot_patch_member_phrase.py
       - name: Apply permanent snapshot-aware changes
         run: python scripts/patch_co3o4_snapshot_aware_audit.py
       - name: Validate syntax and focused registry
