@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/patch_co3o4_snapshot_aware_audit.py"
+      - "scripts/fix_snapshot_patch_main_boundary.py"
       - ".github/workflows/patch-co3o4-snapshot-aware-audit.yml"
 
 permissions:
@@ -19,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
+      - name: Fix patch boundary
+        run: python scripts/fix_snapshot_patch_main_boundary.py
       - name: Apply permanent snapshot-aware changes
         run: python scripts/patch_co3o4_snapshot_aware_audit.py
       - name: Validate syntax and focused registry
