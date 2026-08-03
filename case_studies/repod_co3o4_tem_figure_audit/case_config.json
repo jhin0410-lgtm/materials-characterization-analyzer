@@ -1,0 +1,52 @@
+{
+  "case_id": "repod_co3o4_tem_figure_audit",
+  "audit_date": "2026-08-03",
+  "source": {
+    "repository": "RepOD",
+    "persistent_id": "doi:10.18150/SAU9QX",
+    "doi": "10.18150/SAU9QX",
+    "record_url": "https://repod.icm.edu.pl/dataset.xhtml?persistentId=doi:10.18150/SAU9QX",
+    "api_base": "https://repod.icm.edu.pl",
+    "version_number": 1,
+    "version_minor_number": 0,
+    "version_state": "RELEASED",
+    "file_license_name": "CC0 Creative Commons Zero 1.0 Waiver",
+    "expected_files": [
+      {"id": 55824, "name": "Figure_1.jpg", "bytes": 170326, "md5": "1f8da9a1ac9cf562102ef70caf4237f2", "content_type": "image/jpeg"},
+      {"id": 55825, "name": "Figure_2.jpg", "bytes": 496538, "md5": "f2dbf4eae85e7e2546526bda8bd0b69f", "content_type": "image/jpeg"},
+      {"id": 55826, "name": "Figure_3.jpg", "bytes": 142147, "md5": "c7196e63e968b2d7bab239d408d6170e", "content_type": "image/jpeg"},
+      {"id": 55831, "name": "Figure_4.jpg", "bytes": 402819, "md5": "3888a98057582b78a66d2146f9900390", "content_type": "image/jpeg"},
+      {"id": 55832, "name": "Figure_5.jpg", "bytes": 133506, "md5": "dfefcddf8e5ecd684ddfeb483e91be97", "content_type": "image/jpeg"},
+      {"id": 55833, "name": "Figure_6.jpg", "bytes": 111955, "md5": "c5d0534d273fbe248c7f886dd331e307", "content_type": "image/jpeg"}
+    ],
+    "tem_containing_figures": [
+      {
+        "name": "Figure_2.jpg",
+        "description_contains": ["Figure 2.", "(a-c) SEM", "(d-f) TEM", "(g-i) SEM"],
+        "image_format": "JPEG",
+        "mode": "RGB",
+        "size": [1430, 1117],
+        "frames": 1,
+        "dpi": [220, 220]
+      },
+      {
+        "name": "Figure_6.jpg",
+        "description_contains": ["Figure 6.", "Nyquist", "ToF-SIMs", "(g) Post cycling TEM", "(h-m) elemental mapping"],
+        "image_format": "JPEG",
+        "mode": "RGB",
+        "size": [925, 614],
+        "frames": 1,
+        "dpi": [144, 144]
+      }
+    ]
+  },
+  "expected_registry_candidate_id": "repod_sau9qx_co3o4_rendered_tem_figures",
+  "scientific_boundary": {
+    "source_figures_may_be_downloaded_transiently": true,
+    "source_figures_may_be_uploaded_as_artifacts": false,
+    "panel_cropping_authorized": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "external_validation_claim_authorized": false
+  }
+}
