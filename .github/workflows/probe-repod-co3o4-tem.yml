@@ -1,0 +1,59 @@
+name: Probe RepOD Co3O4 TEM figure source
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/probe-repod-co3o4-tem.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch official Dataverse inventory
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.parse
+          import urllib.request
+
+          persistent_id = "doi:10.18150/SAU9QX"
+          url = (
+              "https://repod.icm.edu.pl/api/datasets/:persistentId/?"
+              + urllib.parse.urlencode({"persistentId": persistent_id})
+          )
+          request = urllib.request.Request(
+              url,
+              headers={"Accept": "application/json", "User-Agent": "materials-characterization-analyzer-source-audit/1.0"},
+          )
+          with urllib.request.urlopen(request, timeout=120) as response:
+              payload = json.load(response)
+          latest = payload["data"]["latestVersion"]
+          rows = []
+          for item in latest["files"]:
+              data_file = item["dataFile"]
+              rows.append(
+                  {
+                      "id": data_file["id"],
+                      "filename": data_file["filename"],
+                      "contentType": data_file.get("contentType"),
+                      "filesize": data_file["filesize"],
+                      "checksum": data_file.get("checksum"),
+                      "description": item.get("description"),
+                      "restricted": item.get("restricted"),
+                  }
+              )
+          summary = {
+              "status": payload.get("status"),
+              "persistentId": latest.get("datasetPersistentId"),
+              "versionNumber": latest.get("versionNumber"),
+              "versionMinorNumber": latest.get("versionMinorNumber"),
+              "versionState": latest.get("versionState"),
+              "license": latest.get("license"),
+              "file_count": len(rows),
+              "files": sorted(rows, key=lambda row: row["filename"]),
+          }
+          print("REPOD_INVENTORY=" + json.dumps(summary, ensure_ascii=False, sort_keys=True))
+          PY
