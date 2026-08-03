@@ -12,65 +12,76 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch official Dataverse inventory
+      - name: Install image reader
+        run: python -m pip install pillow
+      - name: Fetch official inventory and inspect TEM-containing JPEGs
         run: |
           python - <<'PY'
+          import hashlib
           import json
           import urllib.parse
           import urllib.request
+          from io import BytesIO
+          from PIL import Image
 
           persistent_id = "doi:10.18150/SAU9QX"
           url = (
               "https://repod.icm.edu.pl/api/datasets/:persistentId/?"
               + urllib.parse.urlencode({"persistentId": persistent_id})
           )
-          request = urllib.request.Request(
-              url,
-              headers={"Accept": "application/json", "User-Agent": "materials-characterization-analyzer-source-audit/1.0"},
-          )
+          request = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "materials-characterization-analyzer-source-audit/1.0"})
           with urllib.request.urlopen(request, timeout=120) as response:
               payload = json.load(response)
           latest = payload["data"]["latestVersion"]
           rows = []
+          inspected = []
           for item in latest["files"]:
               data_file = item["dataFile"]
-              rows.append(
-                  {
-                      "id": data_file["id"],
-                      "filename": data_file["filename"],
-                      "contentType": data_file.get("contentType"),
-                      "filesize": data_file["filesize"],
-                      "checksum": data_file.get("checksum"),
-                      "description": item.get("description"),
-                      "restricted": item.get("restricted"),
-                  }
+              row = {
+                  "id": data_file["id"],
+                  "filename": data_file["filename"],
+                  "contentType": data_file.get("contentType"),
+                  "filesize": data_file["filesize"],
+                  "checksum": data_file.get("checksum"),
+                  "description": item.get("description"),
+                  "restricted": item.get("restricted"),
+                  "licenseName": item.get("licenseName"),
+              }
+              rows.append(row)
+              if row["filename"] not in {"Figure_2.jpg", "Figure_6.jpg"}:
+                  continue
+              download = urllib.request.Request(
+                  f"https://repod.icm.edu.pl/api/access/datafile/{row['id']}",
+                  headers={"User-Agent": "materials-characterization-analyzer-source-audit/1.0"},
               )
-
-          hits = []
-          def walk(value, path="$"):
-              if isinstance(value, dict):
-                  for key, item in value.items():
-                      walk(item, f"{path}.{key}")
-              elif isinstance(value, list):
-                  for index, item in enumerate(value):
-                      walk(item, f"{path}[{index}]")
-              elif isinstance(value, str) and any(
-                  token in value.casefold() for token in ("cc0", "creative commons", "license", "licence")
-              ):
-                  hits.append({"path": path, "value": value})
-          walk(latest)
-
+              with urllib.request.urlopen(download, timeout=120) as response:
+                  blob = response.read()
+              observed_md5 = hashlib.md5(blob).hexdigest()
+              if len(blob) != row["filesize"] or observed_md5 != row["checksum"]["value"]:
+                  raise SystemExit("RepOD file content identity mismatch")
+              with Image.open(BytesIO(blob)) as image:
+                  inspected.append(
+                      {
+                          "filename": row["filename"],
+                          "bytes": len(blob),
+                          "md5": observed_md5,
+                          "format": image.format,
+                          "mode": image.mode,
+                          "size": list(image.size),
+                          "frames": getattr(image, "n_frames", 1),
+                          "progressive": bool(image.info.get("progressive") or image.info.get("progression")),
+                          "exif_bytes": len(image.info.get("exif", b"")),
+                          "icc_profile_bytes": len(image.info.get("icc_profile", b"")),
+                          "dpi": image.info.get("dpi"),
+                      }
+                  )
           summary = {
               "status": payload.get("status"),
-              "versionNumber": latest.get("versionNumber"),
-              "versionMinorNumber": latest.get("versionMinorNumber"),
+              "version": [latest.get("versionNumber"), latest.get("versionMinorNumber")],
               "versionState": latest.get("versionState"),
-              "latestVersionKeys": sorted(latest),
-              "license": latest.get("license"),
-              "termsOfUse": latest.get("termsOfUse"),
-              "license_hits": hits,
               "file_count": len(rows),
               "files": sorted(rows, key=lambda row: row["filename"]),
+              "inspected": inspected,
           }
-          print("REPOD_INVENTORY=" + json.dumps(summary, ensure_ascii=False, sort_keys=True))
+          print("REPOD_AUDIT_PROBE=" + json.dumps(summary, ensure_ascii=False, sort_keys=True))
           PY
