@@ -378,11 +378,11 @@
       "reuse_license_verified": true,
       "target_training_source": false,
       "source_evidence": [
-        "The current version-1 Mendeley public API resolves Data.rar at 16250421 bytes with SHA-256 e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9. The API file UUID is treated only as mutable download-routing metadata, not as source identity.",
-        "Checksum-bound extraction contains 760 file members. The only image-decodable files are Data/SEM/2.png, Data/SEM/3.png, and Data/SEM/4.png; all are 1536 x 1103 16-bit PNG images.",
-        "No archive member path or decodable image provides TEM or HRTEM source data despite the associated article describing TEM observations."
+        "A checksum-bound version-1 snapshot of Data.rar was verified at 16250421 bytes with SHA-256 e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9; the API file UUID is download-routing metadata only.",
+        "Subsequent direct audits of the same DOI and version returned changed file UUID and SHA-256 values, so the public source does not currently provide stable immutable archive identity.",
+        "The directly extracted known snapshot contained 760 file members and only three decodable images: Data/SEM/2.png, Data/SEM/3.png, and Data/SEM/4.png. All were 1536 x 1103 16-bit PNG images, with no deposited TEM, HRTEM, STEM, DM3, DM4, EMD, SER, TIFF, or TIF source file."
       ],
-      "next_validation_step": "Exclude the current public archive from TEM segmentation validation. Reopen only if a versioned repository release explicitly deposits checksum-bound TEM/HRTEM files with immutable sample/acquisition lineage."
+      "next_validation_step": "Exclude from TEM segmentation validation. Reconsider only after an immutable repository release provides stable archive identity and checksum-bound TEM/HRTEM source files with sample/acquisition lineage and target-model non-use evidence."
     }
   ]
 }

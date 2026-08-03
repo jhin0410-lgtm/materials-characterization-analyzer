@@ -113,6 +113,7 @@ def _zenodo_inventory(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+
 def _mendeley_inventory(config: dict[str, Any]) -> tuple[dict[str, Any], str]:
     expected = config["sources"]["mendeley_palygorskite_co3o4"]
     dataset_id = expected["dataset_id"]
@@ -152,16 +153,37 @@ def _mendeley_inventory(config: dict[str, Any]) -> tuple[dict[str, Any], str]:
                 "last_modified_date": item.get("last_modified_date"),
             }
         )
-    archive_expected = expected["archive"]
+
+    archive_name = expected["archive_name"]
     archive = next(
-        (item for item in observed_files if item["name"] == archive_expected["name"]),
+        (item for item in observed_files if item["name"] == archive_name),
         None,
     )
     if archive is None:
         raise RuntimeError("Mendeley archive missing")
-    for key in ("bytes", "sha256"):
-        if archive[key] != archive_expected[key]:
-            raise RuntimeError(f"Mendeley archive {key} mismatch")
+    if not isinstance(archive["file_id"], str) or not archive["file_id"].strip():
+        raise RuntimeError("Mendeley archive routing file_id missing")
+    if archive["bytes"] <= 0:
+        raise RuntimeError("Mendeley archive byte count must be positive")
+    if re.fullmatch(r"[0-9a-f]{64}", archive["sha256"]) is None:
+        raise RuntimeError("Mendeley archive SHA-256 is invalid")
+
+    known_snapshots = expected.get("known_snapshots", [])
+    matching_snapshot = next(
+        (
+            item
+            for item in known_snapshots
+            if item["name"] == archive["name"]
+            and item["bytes"] == archive["bytes"]
+            and item["sha256"] == archive["sha256"]
+        ),
+        None,
+    )
+    provenance = expected["provenance_policy"]
+    identity_stable = (
+        matching_snapshot is not None
+        and not provenance["same_version_identity_drift_observed"]
+    )
     endpoint = (
         "https://data.mendeley.com/public-files/datasets/"
         f"{dataset_id}/files/{archive['file_id']}/file_downloaded"
@@ -179,6 +201,13 @@ def _mendeley_inventory(config: dict[str, Any]) -> tuple[dict[str, Any], str]:
                 "archive filename",
                 "archive byte count",
                 "archive SHA-256",
+                "extracted representation",
+            ],
+            "observed_archive": archive,
+            "known_snapshot_match": matching_snapshot is not None,
+            "source_identity_stable_for_version": identity_stable,
+            "same_version_identity_drift_observed": provenance[
+                "same_version_identity_drift_observed"
             ],
             "observed_download_file_id": archive["file_id"],
             "file_id_used_only_for_download_routing": True,
@@ -194,6 +223,7 @@ def _inspect_archive(
     config: dict[str, Any],
 ) -> dict[str, Any]:
     expected = config["sources"]["mendeley_palygorskite_co3o4"]
+    baseline = expected["known_wrong_modality_representation"]
     extracted.mkdir(parents=True, exist_ok=False)
     subprocess.run(
         ["unar", "-quiet", "-output-directory", str(extracted), str(archive_path)],
@@ -201,8 +231,6 @@ def _inspect_archive(
     )
     members = sorted(path for path in extracted.rglob("*") if path.is_file())
     relative = [path.relative_to(extracted).as_posix() for path in members]
-    if len(members) != expected["expected_member_count"]:
-        raise RuntimeError(f"archive member-count mismatch: {len(members)}")
     if any(name.startswith("/") or ".." in Path(name).parts for name in relative):
         raise RuntimeError("archive contains unsafe member paths")
 
@@ -221,29 +249,31 @@ def _inspect_archive(
                 )
         except Exception:
             continue
-    observed_paths = sorted(item["path"] for item in images)
-    if observed_paths != sorted(expected["expected_image_members"]):
-        raise RuntimeError(f"image-member mismatch: {observed_paths}")
-    for image in images:
-        if image["format"] != expected["expected_image_format"]:
-            raise RuntimeError("image-format mismatch")
-        if image["mode"] != expected["expected_image_mode"]:
-            raise RuntimeError("image-mode mismatch")
-        if image["size"] != expected["expected_image_size"]:
-            raise RuntimeError("image-size mismatch")
-        if image["frames"] != 1:
-            raise RuntimeError("unexpected multi-frame image")
 
     tem_pattern = re.compile(r"(^|[/_. -])(hrtem|tem)([/_. -]|$)", re.IGNORECASE)
+    stem_pattern = re.compile(r"(^|[/_. -])stem([/_. -]|$)", re.IGNORECASE)
     tem_paths = [name for name in relative if tem_pattern.search(name)]
-    if tem_paths:
-        raise RuntimeError(f"unexpected TEM/HRTEM paths: {tem_paths}")
+    stem_paths = [name for name in relative if stem_pattern.search(name)]
     detector_suffixes = {".dm3", ".dm4", ".emd", ".ser", ".tif", ".tiff"}
     detector_members = [
         name for name in relative if Path(name).suffix.casefold() in detector_suffixes
     ]
-    if detector_members:
-        raise RuntimeError(f"unexpected microscopy detector files: {detector_members}")
+
+    observed_paths = sorted(item["path"] for item in images)
+    baseline_images_match = (
+        observed_paths == sorted(baseline["image_members"])
+        and all(item["format"] == baseline["image_format"] for item in images)
+        and all(item["mode"] == baseline["image_mode"] for item in images)
+        and all(item["size"] == baseline["image_size"] for item in images)
+        and all(item["frames"] == 1 for item in images)
+    )
+    baseline_match = (
+        len(members) == baseline["member_count"]
+        and baseline_images_match
+        and not tem_paths
+        and not stem_paths
+        and not detector_members
+    )
     return {
         "archive_member_count": len(members),
         "suffix_counts": dict(
@@ -252,7 +282,11 @@ def _inspect_archive(
         "decodable_image_count": len(images),
         "decodable_images": images,
         "tem_or_hrtem_member_count": len(tem_paths),
+        "stem_member_count": len(stem_paths),
         "microscopy_detector_file_count": len(detector_members),
+        "tem_or_stem_candidate_paths": sorted(set(tem_paths + stem_paths)),
+        "microscopy_detector_members": detector_members,
+        "known_wrong_modality_representation_match": baseline_match,
     }
 
 
@@ -266,15 +300,30 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
         config = json.loads(config_path.read_text(encoding="utf-8"))
         zenodo = _zenodo_inventory(config)
         mendeley, endpoint = _mendeley_inventory(config)
-        archive_expected = config["sources"]["mendeley_palygorskite_co3o4"]["archive"]
-        archive_path = transient / archive_expected["name"]
+        observed_archive = mendeley["observed_archive"]
+        archive_path = transient / observed_archive["name"]
         _download(
             endpoint,
             archive_path,
-            archive_expected["bytes"],
-            archive_expected["sha256"],
+            observed_archive["bytes"],
+            observed_archive["sha256"],
         )
         representation = _inspect_archive(archive_path, transient / "extracted", config)
+        candidate_tem_content = bool(
+            representation["tem_or_hrtem_member_count"]
+            or representation["stem_member_count"]
+            or representation["microscopy_detector_file_count"]
+        )
+        if candidate_tem_content:
+            result = "source_representation_changed_manual_review_required"
+        elif (
+            mendeley["source_identity_stable_for_version"]
+            and representation["known_wrong_modality_representation_match"]
+        ):
+            result = "assessed_public_records_do_not_expose_tem_validation_arrays"
+        else:
+            result = "source_identity_changed_but_current_archive_remains_wrong_modality"
+
         inventory = {
             "schema_version": "1.0",
             "case_id": config["case_id"],
@@ -285,21 +334,32 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
         summary = {
             "schema_version": "1.0",
             "case_id": config["case_id"],
-            "result": "assessed_public_records_do_not_expose_tem_validation_arrays",
+            "result": result,
             **representation,
+            "mendeley_known_snapshot_match": mendeley["known_snapshot_match"],
+            "mendeley_source_identity_stable_for_version": mendeley[
+                "source_identity_stable_for_version"
+            ],
+            "mendeley_same_version_identity_drift_observed": mendeley[
+                "same_version_identity_drift_observed"
+            ],
+            "mendeley_observed_archive_bytes": observed_archive["bytes"],
+            "mendeley_observed_archive_sha256": observed_archive["sha256"],
             "source_binaries_retained": False,
             "model_inference_performed": False,
             "annotation_performed": False,
+            "manual_review_required": candidate_tem_content,
             "external_validation_ready": False,
             "scientific_closeout": {
-                "status": "Supported",
+                "status": "Supported" if not candidate_tem_content else "Inconclusive",
                 "strongest_evidence": (
-                    "The Zenodo record exposes only one spreadsheet and the checksum-bound "
-                    "Mendeley archive contains 760 members with only three SEM PNG images."
+                    "The Zenodo record exposes only one spreadsheet. The current Mendeley "
+                    "archive was verified against its API-declared byte count and SHA-256, "
+                    "then inspected after extraction."
                 ),
                 "primary_limitation": (
-                    "The audit establishes public-file absence for the pinned snapshots, not "
-                    "that the original investigators never acquired TEM data."
+                    "The same Mendeley DOI/version has exhibited archive-identity drift, and "
+                    "the audit establishes only what is present in the current public snapshot."
                 ),
                 "not_suitable_for": [
                     "TEM segmentation inference",
@@ -320,7 +380,6 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
         return summary
     finally:
         shutil.rmtree(transient, ignore_errors=True)
-
 
 def _verify_registry(registry_output: Path) -> None:
     summary = json.loads(
@@ -361,8 +420,7 @@ def main() -> int:
     if args.registry_output is not None:
         _verify_registry(args.registry_output)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
-    return 0
-
+    return 2 if summary["manual_review_required"] else 0
 
 if __name__ == "__main__":
     raise SystemExit(main())

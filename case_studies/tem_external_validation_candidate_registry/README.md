@@ -30,7 +30,7 @@ The registry was refreshed on 2026-08-03 from official records and checksum-boun
 
 ## Current conclusion
 
-Mendeley file UUIDs are treated as mutable download-routing metadata; archive content identity is bound to filename, bytes, SHA-256, and extracted representation.
+Mendeley file UUIDs are treated as mutable download-routing metadata. Repeated direct audits also observed SHA-256 drift for the same DOI/version, so stable source identity remains unresolved and independently blocks external validation.
 
 No assessed public candidate is ready for in-domain external validation. PhaseT3M is the best exact-material processed diagnostic source, not an evaluation set. It may support checksum/HDF5 ingestion and processed-representation robustness checks only.
 

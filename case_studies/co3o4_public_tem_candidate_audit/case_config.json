@@ -32,30 +32,39 @@
       "version": 1,
       "doi": "10.17632/kkk76z8g8z.1",
       "license": "CC BY 4.0",
-      "archive": {
-        "name": "Data.rar",
-        "bytes": 16250421,
-        "sha256": "e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9",
-        "identity_basis": [
-          "name",
-          "bytes",
-          "sha256"
-        ]
-      },
-      "expected_member_count": 760,
-      "expected_image_members": [
-        "Data/SEM/2.png",
-        "Data/SEM/3.png",
-        "Data/SEM/4.png"
-      ],
-      "expected_image_format": "PNG",
-      "expected_image_mode": "I;16",
-      "expected_image_size": [
-        1536,
-        1103
-      ],
       "expected_tem_file_count": 0,
-      "expected_registry_candidate_id": "mendeley_kkk76z8g8z_current_public_archive"
+      "expected_registry_candidate_id": "mendeley_kkk76z8g8z_current_public_archive",
+      "archive_name": "Data.rar",
+      "known_snapshots": [
+        {
+          "observed_date": "2026-08-03",
+          "name": "Data.rar",
+          "bytes": 16250421,
+          "sha256": "e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9",
+          "observed_file_id": "251b0061-cc22-48b4-bc3d-8bba56f8a030",
+          "file_id_role": "download_routing_only"
+        }
+      ],
+      "provenance_policy": {
+        "same_version_identity_drift_observed": true,
+        "file_id_is_download_routing_only": true,
+        "current_api_declared_bytes_and_sha256_must_match_download": true,
+        "identity_drift_blocks_external_validation": true
+      },
+      "known_wrong_modality_representation": {
+        "member_count": 760,
+        "image_members": [
+          "Data/SEM/2.png",
+          "Data/SEM/3.png",
+          "Data/SEM/4.png"
+        ],
+        "image_format": "PNG",
+        "image_mode": "I;16",
+        "image_size": [
+          1536,
+          1103
+        ]
+      }
     }
   },
   "scientific_boundary": {
