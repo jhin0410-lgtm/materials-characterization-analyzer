@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: agent/audit-co3o4-ald-tem-candidate
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -47,7 +48,7 @@ jobs:
               if "tem_hrtem_stem_member_count" in item
           )
           PY
-      - name: Commit permanent files
+      - name: Commit permanent files on latest branch head
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -60,5 +61,7 @@ jobs:
             echo "No permanent changes to commit"
           else
             git commit -m "Record Co3O4 public archive identity drift"
+            git fetch origin agent/audit-co3o4-ald-tem-candidate
+            git rebase origin/agent/audit-co3o4-ald-tem-candidate
             git push origin HEAD:agent/audit-co3o4-ald-tem-candidate
           fi
