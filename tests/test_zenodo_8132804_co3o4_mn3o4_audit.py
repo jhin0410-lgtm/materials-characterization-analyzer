@@ -135,7 +135,7 @@ def test_source_contract_declares_single_mixed_material_stem_experiment() -> Non
     config = _config()
     context = config["published_context"]
     assert context["material"] == "Co3O4-Mn3O4 core-shell nanocrystal"
-    assert context["microscopy"] == ["HAADF-STEM tomography", "EELS tmography"]
+    assert context["microscopy"] == ["HAADF-STEM tomography", "EELS tomography"]
     assert context["source_assigned_experiment_id"] == "Exp_1"
     assert context["reported_independent_sample_count"] == 1
     assert context["reported_independent_acquisition_count"] == 1
