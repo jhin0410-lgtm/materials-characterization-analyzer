@@ -1,0 +1,181 @@
+name: BIR-MicroED metadata resolution contract
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/mca/saed_bir_metadata_resolution.py"
+      - "src/mca/saed_bir_metadata_audit.py"
+      - "src/mca/cli_entry.py"
+      - "tests/test_saed_bir_metadata_resolution.py"
+      - "case_studies/saed_bir_metadata_resolution/**"
+      - "case_studies/saed_bir_200kev_metadata_audit/**"
+      - ".github/workflows/saed-bir-metadata-resolution.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/mca/saed_bir_metadata_resolution.py"
+      - "src/mca/saed_bir_metadata_audit.py"
+      - "src/mca/cli_entry.py"
+      - "tests/test_saed_bir_metadata_resolution.py"
+      - "case_studies/saed_bir_metadata_resolution/**"
+      - "case_studies/saed_bir_200kev_metadata_audit/**"
+      - ".github/workflows/saed-bir-metadata-resolution.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: saed-bir-metadata-resolution-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  metadata-resolution:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused regressions
+        run: pytest -q tests/test_saed_bir_metadata_resolution.py
+
+      - name: Fetch official Zenodo record metadata
+        run: |
+          mkdir -p outputs/bir-resolution-source
+          curl \
+            --fail \
+            --location \
+            --silent \
+            --show-error \
+            --retry 5 \
+            --retry-all-errors \
+            --connect-timeout 15 \
+            --max-time 120 \
+            "https://zenodo.org/api/records/10999587" \
+            --output outputs/bir-resolution-source/record.json
+
+      - name: Reproduce checksum-bound BIR audit
+        run: |
+          mca saed-bir-metadata-audit \
+            --config case_studies/saed_bir_200kev_metadata_audit/case_config.json \
+            --record-json outputs/bir-resolution-source/record.json \
+            --output outputs/saed_bir_200kev_metadata_audit
+
+      - name: Generate metadata-resolution request
+        run: |
+          mca saed-bir-metadata-resolution \
+            --audit-output outputs/saed_bir_200kev_metadata_audit \
+            --output outputs/saed_bir_metadata_resolution
+
+      - name: Assess generated unresolved response
+        run: |
+          cp \
+            outputs/saed_bir_metadata_resolution/bir_author_response_template.json \
+            outputs/bir-unresolved-author-response.json
+          mca saed-bir-metadata-resolution \
+            --audit-output outputs/saed_bir_200kev_metadata_audit \
+            --response outputs/bir-unresolved-author-response.json \
+            --output outputs/saed_bir_author_response_assessment
+
+      - name: Verify fail-closed evidence
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          audit = Path("outputs/saed_bir_200kev_metadata_audit")
+          request = Path("outputs/saed_bir_metadata_resolution")
+          assessment = Path("outputs/saed_bir_author_response_assessment")
+
+          audit_summary = json.loads(
+              (audit / "bir_metadata_audit_summary.json").read_text(encoding="utf-8")
+          )
+          assert audit_summary["source"]["record_id"] == "10999587"
+          assert audit_summary["source"]["rights"] == ["cc-by-4.0"]
+          assert not audit_summary["evidence_gates"]["ready_for_bounded_archive_download"]
+
+          request_summary = json.loads(
+              (request / "bir_metadata_resolution_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert request_summary["status"] == "metadata_resolution_request_package_ready"
+          assert request_summary["request_ready_for_correspondence"]
+          assert not request_summary["archive_download_authorized"]
+          assert not request_summary["saed_validation_intake_ready"]
+          assert not request_summary["predeclared_external_evaluation_ready"]
+
+          response_assessment = json.loads(
+              (assessment / "bir_author_response_assessment.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert response_assessment["status"] == (
+              "metadata_response_received_but_source_not_ready"
+          )
+          assert response_assessment["response_contract_valid"]
+          assert not response_assessment[
+              "ready_for_bounded_archive_download_and_member_verification"
+          ]
+          assert not response_assessment["archive_download_authorized"]
+          assert not response_assessment["saed_validation_intake_ready"]
+          assert not response_assessment["predeclared_external_evaluation_ready"]
+          expected_blockers = {
+              "respondent_authority_confirmed",
+              "representation_eligible",
+              "minimum_two_source_assigned_samples",
+              "minimum_two_source_assigned_acquisitions",
+              "all_series_independence_flags_true",
+              "all_member_checksums_declared",
+              "all_centres_traceable",
+              "all_reciprocal_calibrations_traceable",
+          }
+          assert expected_blockers.issubset(set(response_assessment["blockers"]))
+          assert not (assessment / "saed_validation_intake_handoff_template.json").exists()
+
+          for root, manifest_name in (
+              (request, "bir_metadata_resolution_manifest.json"),
+              (assessment, "bir_author_response_manifest.json"),
+          ):
+              manifest = json.loads((root / manifest_name).read_text(encoding="utf-8"))
+              assert manifest["artifact_count"] == len(manifest["artifacts"])
+              for item in manifest["artifacts"]:
+                  path = root / item["path"]
+                  assert path.stat().st_size == item["bytes"]
+                  assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+
+          forbidden = [
+              path
+              for root in (audit, request, assessment)
+              for path in root.rglob("*")
+              if path.suffix.lower()
+              in {".zip", ".mrc", ".tvips", ".tif", ".tiff", ".dm3", ".dm4"}
+          ]
+          assert not forbidden
+          PY
+
+      - name: Delete fetched and transient source metadata
+        run: |
+          rm -rf outputs/bir-resolution-source
+          rm -f outputs/bir-unresolved-author-response.json
+
+      - name: Upload metadata-only evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: saed-bir-metadata-resolution-evidence
+          path: |
+            outputs/saed_bir_200kev_metadata_audit
+            outputs/saed_bir_metadata_resolution
+            outputs/saed_bir_author_response_assessment
+          if-no-files-found: error
+          retention-days: 30
