@@ -1,0 +1,69 @@
+name: Probe Co3O4 ALD TEM candidate metadata
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/audit-co3o4-ald-tem-candidate
+    paths:
+      - ".github/workflows/probe-co3o4-ald-tem-candidate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch official Zenodo metadata
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+          from pathlib import Path
+
+          url = "https://zenodo.org/api/records/14160831"
+          request = urllib.request.Request(url, headers={"User-Agent": "materials-characterization-analyzer-source-audit/1.0"})
+          with urllib.request.urlopen(request, timeout=120) as response:
+              payload = json.load(response)
+
+          metadata = payload.get("metadata", {})
+          files = payload.get("files", [])
+          summary = {
+              "record_id": str(payload.get("id")),
+              "doi": payload.get("doi"),
+              "title": metadata.get("title"),
+              "publication_date": metadata.get("publication_date"),
+              "resource_type": metadata.get("resource_type"),
+              "rights": metadata.get("rights"),
+              "license": metadata.get("license"),
+              "creators": metadata.get("creators", []),
+              "description": metadata.get("description"),
+              "file_count": len(files),
+              "total_bytes": sum(int(item.get("size", 0)) for item in files),
+              "files": [
+                  {
+                      "key": item.get("key"),
+                      "size": item.get("size"),
+                      "checksum": item.get("checksum"),
+                      "mimetype": item.get("mimetype"),
+                      "links": item.get("links", {}),
+                  }
+                  for item in files
+              ],
+          }
+          Path("probe-output").mkdir()
+          Path("probe-output/record-summary.json").write_text(
+              json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(summary, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Upload metadata probe
+        uses: actions/upload-artifact@v7
+        with:
+          name: co3o4-ald-tem-metadata-probe
+          path: probe-output/record-summary.json
+          if-no-files-found: error
+          retention-days: 7
