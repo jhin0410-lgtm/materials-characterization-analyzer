@@ -393,11 +393,11 @@ def _verify_registry(registry_output: Path) -> None:
         .read_text(encoding="utf-8")
     )
     counts = summary["result_counts"]
-    if counts["candidate_count"] != 10:
+    if counts["candidate_count"] != 11:
         raise RuntimeError("registry candidate count mismatch")
     if counts["in_domain_external_validation_ready_count"] != 0:
         raise RuntimeError("registry unexpectedly reports a ready candidate")
-    if counts["excluded_control_count"] != 5:
+    if counts["excluded_control_count"] != 6:
         raise RuntimeError("registry exclusion count mismatch")
     with (registry_output / "tem_external_validation_candidate_inventory.csv").open(
         encoding="utf-8", newline=""
