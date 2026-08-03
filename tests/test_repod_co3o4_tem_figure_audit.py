@@ -105,7 +105,7 @@ def _registry_output(tmp_path: Path) -> Path:
         writer.writerow(
             {
                 "candidate_id": "repod_sau9qx_co3o4_rendered_tem_figures",
-                "candidate_status": "excluded_rendered_or_non_raw_representation",
+                "candidate_status": "excluded_rendered_figure_representation",
                 "raw_or_lossless_tem_images_available": "False",
                 "evaluation_ready": "False",
             }
