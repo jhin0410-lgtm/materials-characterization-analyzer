@@ -68,7 +68,7 @@ jobs:
           assert summary["result_counts"]["processed_in_domain_diagnostic_count"] == 1
           assert summary["result_counts"][
               "rendered_representation_exclusion_count"
-          ] == 1
+          ] == 2
           assert summary["readiness"]["recommended_candidate_id"] == (
               "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
           )

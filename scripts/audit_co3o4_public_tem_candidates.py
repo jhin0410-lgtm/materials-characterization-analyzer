@@ -393,7 +393,7 @@ def _verify_registry(registry_output: Path) -> None:
         .read_text(encoding="utf-8")
     )
     counts = summary["result_counts"]
-    if counts["candidate_count"] != 9:
+    if counts["candidate_count"] != 10:
         raise RuntimeError("registry candidate count mismatch")
     if counts["in_domain_external_validation_ready_count"] != 0:
         raise RuntimeError("registry unexpectedly reports a ready candidate")
