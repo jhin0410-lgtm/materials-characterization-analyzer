@@ -19,6 +19,23 @@ concatenate(
     [f'saed_resolution_source_{index:02d}.txt' for index in range(4)],
     ROOT / 'src' / 'mca' / 'saed_bir_metadata_resolution.py',
 )
+source_path = ROOT / 'src' / 'mca' / 'saed_bir_metadata_resolution.py'
+source = source_path.read_text(encoding='utf-8')
+duplicate_boundary = (
+    '            "md5": bundle["archive_md5"],\n'
+    '        },\n'
+    '        },\n'
+    '        "requested_evidence": ['
+)
+if duplicate_boundary in source:
+    source = source.replace(
+        duplicate_boundary,
+        '            "md5": bundle["archive_md5"],\n'
+        '        },\n'
+        '        "requested_evidence": [',
+        1,
+    )
+source_path.write_text(source, encoding='utf-8')
 concatenate(
     [f'saed_resolution_test_{index:02d}.txt' for index in range(2)],
     ROOT / 'tests' / 'test_saed_bir_metadata_resolution.py',
