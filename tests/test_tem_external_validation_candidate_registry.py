@@ -12,6 +12,7 @@ from mca.tem_external_validation_candidate_registry import (
     EXCLUDED_REPRESENTATION,
     PROCESSED_IN_DOMAIN,
     RESULT,
+    WRONG_MODALITY,
     CandidateContractError,
     load_registry_config,
     run_candidate_registry,
@@ -35,7 +36,7 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
     ]
     assert not summary["readiness"]["public_search_supports_model_evaluation_now"]
     assert summary["result_counts"] == {
-        "candidate_count": 7,
+        "candidate_count": 9,
         "in_domain_external_validation_ready_count": 0,
         "metadata_resolution_candidate_count": 0,
         "annotation_pilot_candidate_count": 0,
@@ -43,7 +44,7 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
         "rendered_representation_exclusion_count": 1,
         "cross_phase_candidate_count": 1,
         "diagnostic_cross_material_candidate_count": 1,
-        "excluded_control_count": 3,
+        "excluded_control_count": 5,
     }
     assert summary["readiness"]["recommended_candidate_id"] == (
         "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
@@ -70,6 +71,34 @@ def test_resolved_mendeley_rendered_files_are_explicitly_excluded(
     assert f",{EXCLUDED_REPRESENTATION}," in row
     assert "rendered_figure_representation_not_raw_validation_data" in row
     assert "db3204100545fe3a152c0a545d29ab7f" in row
+
+
+def test_new_co3o4_public_records_are_wrong_modality_exclusions(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out"
+    run_candidate_registry(load_registry_config(CONFIG), output)
+    with (output / "tem_external_validation_candidate_inventory.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = {row["candidate_id"]: row for row in csv.DictReader(handle)}
+
+    zenodo = rows["zenodo_14160831_co3o4_nio_replication_package"]
+    assert zenodo["candidate_status"] == WRONG_MODALITY
+    assert zenodo["reported_tem_file_count"] == "0"
+    assert zenodo["raw_or_lossless_tem_images_available"] == "False"
+    assert "replication_package.xlsx" in zenodo["source_evidence"]
+    assert "862e64d9ebeba6fb34da16e89d5c19c4" in zenodo["source_evidence"]
+
+    mendeley = rows["mendeley_kkk76z8g8z_current_public_archive"]
+    assert mendeley["candidate_status"] == WRONG_MODALITY
+    assert mendeley["reported_tem_file_count"] == "0"
+    assert mendeley["raw_or_lossless_tem_images_available"] == "False"
+    assert "251b0061-cc22-48b4-bc3d-8bba56f8a030" in mendeley["source_evidence"]
+    assert "e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9" in mendeley["source_evidence"]
+    assert "760 file members" in mendeley["source_evidence"]
+    assert "Data/SEM/2.png" in mendeley["source_evidence"]
+
 
 
 def test_phaset3m_processed_exact_material_is_diagnostic_only(
@@ -181,7 +210,7 @@ def test_cli_writes_registry_outputs(
     assert result == 0
     printed = json.loads(capsys.readouterr().out)
     assert printed["status"] == RESULT
-    assert printed["candidate_count"] == 7
+    assert printed["candidate_count"] == 9
     assert printed["in_domain_external_validation_ready_count"] == 0
     assert printed["recommended_candidate_id"] == (
         "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
