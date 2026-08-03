@@ -9,14 +9,14 @@ This case study verifies two public records that appear relevant to independent 
 
 The audit distinguishes microscopy described in a publication from microscopy arrays actually deposited in the public data record.
 
-Mendeley file UUIDs are treated as download-routing metadata. Reproducible source identity is bound to the versioned dataset, archive filename, byte count, SHA-256, and extracted representation.
+Mendeley file UUIDs are treated as mutable download-routing metadata, not scientific source identity. Reproducible source identity is bound to the versioned dataset, archive filename, byte count, SHA-256, and extracted representation.
 
 ## Reproducibility contract
 
-`case_config.json` pins the source identities, repository checksums, byte counts, expected archive-member count, and the three observed SEM image paths. The GitHub workflow:
+`case_config.json` pins the source records, archive content identity, expected archive-member count, and the three observed SEM image paths. The GitHub workflow:
 
 1. retrieves official Zenodo and Mendeley metadata;
-2. fails if record, licence, file identity, byte count, or checksum changes;
+2. fails if the record, licence, archive filename, byte count, SHA-256, or extracted representation changes;
 3. downloads only the bounded 16.25 MB Mendeley archive;
 4. verifies its SHA-256 before extraction;
 5. checks the member count and image representation;
