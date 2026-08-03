@@ -123,8 +123,8 @@ jobs:
           if not selected.get("sha256") or not selected.get("size"):
               raise SystemExit("RAR checksum or byte size unresolved")
           selected["download_endpoint"] = (
-              "https://api.data.mendeley.com/datasets/"
-              f"{dataset_id}/files/{selected['file_id']}/file_downloaded?version={version}"
+              "https://data.mendeley.com/public-files/datasets/"
+              f"{dataset_id}/files/{selected['file_id']}/file_downloaded"
           )
           (output / "mendeley-download.json").write_text(
               json.dumps(selected, indent=2) + "\n", encoding="utf-8"
