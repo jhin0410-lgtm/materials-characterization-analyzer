@@ -41,8 +41,8 @@ candidate = {
     "target_training_source": False,
     "source_evidence": [
         "Official RepOD Dataverse version 1.0 exposes exactly six public image/jpeg files with immutable data-file IDs, byte counts and MD5 values; every file declares CC0 Creative Commons Zero 1.0 Waiver.",
-        "Figure_2.jpg is checksum-bound at 496538 bytes with MD5 f2dbf4eae85e7e2546526bda8bd0b69f and decodes as a single-frame 1430 x 1117 RGB JPEG. Its official description combines SEM panels (a-c), TEM panels (d-f), and SEM panels (g-i).",
-        "Figure_6.jpg is checksum-bound at 111955 bytes with MD5 c5d0534d273fbe248c7f886dd331e307 and decodes as a single-frame 925 x 614 RGB JPEG. Its official description combines Nyquist, ToF-SIMS, one TEM panel, and elemental-map panels.",
+        "Figure_2.jpg is checksum-bound at 496538 bytes with MD5 f2dbf4eae85e7e2546526bda8bd0b69f and decodes as a single-frame 1430 x 1117 RGB JPEG. Its official description identifies a multi-panel publication figure combining SEM panels (a-c), TEM panels (d-f), and SEM panels (g-i).",
+        "Figure_6.jpg is checksum-bound at 111955 bytes with MD5 c5d0534d273fbe248c7f886dd331e307 and decodes as a single-frame 925 x 614 RGB JPEG. Its official description identifies a multi-panel publication figure combining Nyquist, ToF-SIMS, one TEM panel, and elemental-map panels.",
         "No individual TEM micrograph, detector file, demonstrably lossless image, pixel calibration, immutable acquisition ID or independent segmentation label is deposited."
     ],
     "next_validation_step": "Exclude the deposited publication figures from segmentation validation. Request checksum-bound individual TEM micrographs or detector files with pixel calibration, sample/acquisition lineage, independent labels and target-model non-use evidence.",
