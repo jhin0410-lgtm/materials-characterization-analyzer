@@ -1,0 +1,110 @@
+name: Zenodo 8132804 Co3O4-Mn3O4 audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_8132804_co3o4_mn3o4_audit/**"
+      - "scripts/audit_zenodo_8132804_co3o4_mn3o4.py"
+      - "tests/test_zenodo_8132804_co3o4_mn3o4_audit.py"
+      - "case_studies/tem_external_validation_candidate_registry/**"
+      - "tests/test_tem_external_validation_candidate_registry.py"
+      - ".github/workflows/zenodo-8132804-co3o4-mn3o4-audit.yml"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and audit dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused regression tests
+        run: |
+          pytest -q \
+            tests/test_zenodo_8132804_co3o4_mn3o4_audit.py \
+            tests/test_tem_external_validation_candidate_registry.py
+
+      - name: Run live bounded source audit
+        run: |
+          python scripts/audit_zenodo_8132804_co3o4_mn3o4.py \
+            --config case_studies/zenodo_8132804_co3o4_mn3o4_audit/case_config.json \
+            --output outputs/zenodo_8132804_co3o4_mn3o4_audit
+
+      - name: Verify fail-closed metadata-only evidence
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/zenodo_8132804_co3o4_mn3o4_audit")
+          summary = json.loads(
+              (output / "zenodo_8132804_co3o4_mn3o4_audit_summary.json")
+              .read_text(encoding="utf-8")
+          )
+          assert summary["status"] == (
+              "raw_stem_tomography_verified_but_not_tem_segmentation_validation_ready"
+          )
+          assert summary["registry_candidate_status"] == (
+              "excluded_wrong_microscopy_modality"
+          )
+          assert summary["verified_raw_stem_tomography_arrays"] is True
+          assert summary["target_tem_or_hrtem_arrays_available"] is False
+          assert summary["independent_sample_count"] == 1
+          assert summary["independent_acquisition_count"] == 1
+          assert summary["external_validation_ready"] is False
+          assert summary["annotation_ready"] is False
+          assert summary["model_inference_permitted"] is False
+          assert summary["model_inference_performed"] is False
+          assert summary["annotation_performed"] is False
+          assert summary["model_training_performed"] is False
+          assert summary["source_members_retained"] is False
+          assert summary["full_archive_downloaded"] is False
+          assert summary["observed_range_transfer_bytes"] < 80 * 1024 * 1024
+
+          hdf5 = json.loads(
+              (output / "bounded_hdf5_member_inventory.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert hdf5["member_count"] == 2
+          members = {record["path"]: record for record in hdf5["members"]}
+          raw = next(record for path, record in members.items() if path.endswith("raw_tilt_series.h5"))
+          datasets = {record["path"]: record for record in raw["hdf5"]["datasets"]}
+          assert datasets["haadf/tiltSeries"]["shape"] == [400, 400, 31]
+          assert datasets["eels/tiltSeries"]["shape"] == [400, 400, 9]
+          assert raw["hdf5"]["root_attributes"] == {}
+          assert all(record["attributes"] == {} for record in raw["hdf5"]["datasets"])
+
+          manifest = json.loads(
+              (output / "zenodo_8132804_co3o4_mn3o4_audit_manifest.json")
+              .read_text(encoding="utf-8")
+          )
+          assert manifest["artifact_count"] == 5
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert record["bytes"] == path.stat().st_size
+              assert record["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+
+          forbidden = {".h5", ".hdf5", ".zip", ".dm3", ".dm4", ".emd", ".ser"}
+          assert not any(
+              path.is_file() and path.suffix.casefold() in forbidden
+              for path in output.rglob("*")
+          )
+          PY
+
+      - name: Upload metadata-only audit evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-8132804-co3o4-mn3o4-audit-evidence
+          path: outputs/zenodo_8132804_co3o4_mn3o4_audit
+          if-no-files-found: error
+          retention-days: 30
