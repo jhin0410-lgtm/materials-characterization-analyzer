@@ -36,12 +36,12 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
     ]
     assert not summary["readiness"]["public_search_supports_model_evaluation_now"]
     assert summary["result_counts"] == {
-        "candidate_count": 9,
+        "candidate_count": 10,
         "in_domain_external_validation_ready_count": 0,
         "metadata_resolution_candidate_count": 0,
         "annotation_pilot_candidate_count": 0,
         "processed_in_domain_diagnostic_count": 1,
-        "rendered_representation_exclusion_count": 1,
+        "rendered_representation_exclusion_count": 2,
         "cross_phase_candidate_count": 1,
         "diagnostic_cross_material_candidate_count": 1,
         "excluded_control_count": 5,
@@ -71,6 +71,27 @@ def test_resolved_mendeley_rendered_files_are_explicitly_excluded(
     assert f",{EXCLUDED_REPRESENTATION}," in row
     assert "rendered_figure_representation_not_raw_validation_data" in row
     assert "db3204100545fe3a152c0a545d29ab7f" in row
+
+
+def test_repod_exact_material_figures_are_rendered_representation_exclusion(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out"
+    run_candidate_registry(load_registry_config(CONFIG), output)
+    with (output / "tem_external_validation_candidate_inventory.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = {row["candidate_id"]: row for row in csv.DictReader(handle)}
+    candidate = rows["repod_sau9qx_co3o4_rendered_tem_figures"]
+    assert candidate["candidate_status"] == EXCLUDED_REPRESENTATION
+    assert candidate["reported_tem_file_count"] == "2"
+    assert candidate["raw_or_lossless_tem_images_available"] == "False"
+    assert candidate["target_material_relation"] == "exact_cobalt_oxide"
+    assert "f2dbf4eae85e7e2546526bda8bd0b69f" in candidate["source_evidence"]
+    assert "c5d0534d273fbe248c7f886dd331e307" in candidate["source_evidence"]
+    assert "multi-panel" in candidate["source_evidence"]
+    assert candidate["evaluation_ready"] == "False"
+
 
 
 def test_new_co3o4_public_records_are_wrong_modality_exclusions(
@@ -224,7 +245,7 @@ def test_cli_writes_registry_outputs(
     assert result == 0
     printed = json.loads(capsys.readouterr().out)
     assert printed["status"] == RESULT
-    assert printed["candidate_count"] == 9
+    assert printed["candidate_count"] == 10
     assert printed["in_domain_external_validation_ready_count"] == 0
     assert printed["recommended_candidate_id"] == (
         "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
