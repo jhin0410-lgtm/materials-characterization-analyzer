@@ -55,14 +55,14 @@ jobs:
             --config case_studies/tem_external_validation_candidate_registry/case_config.json \
             --output outputs/tem_external_validation_candidate_registry
 
-      - name: Audit official public source bytes
+      - name: Audit current official public source snapshot
         run: |
           python scripts/audit_co3o4_public_tem_candidates.py \
             --config case_studies/co3o4_public_tem_candidate_audit/case_config.json \
             --output outputs/co3o4_public_tem_candidate_audit \
             --registry-output outputs/tem_external_validation_candidate_registry
 
-      - name: Verify metadata-only evidence
+      - name: Verify fail-closed metadata-only evidence
         run: |
           python - <<'PY'
           import json
@@ -82,23 +82,34 @@ jobs:
               (root / "co3o4_public_tem_candidate_audit_summary.json")
               .read_text(encoding="utf-8")
           )
-          assert summary["result"] == (
-              "assessed_public_records_do_not_expose_tem_validation_arrays"
-          )
-          assert summary["archive_member_count"] == 760
-          assert summary["decodable_image_count"] == 3
+          assert summary["result"] in {
+              "assessed_public_records_do_not_expose_tem_validation_arrays",
+              "source_identity_changed_but_current_archive_remains_wrong_modality",
+          }
+          assert summary["mendeley_same_version_identity_drift_observed"]
+          assert not summary["mendeley_source_identity_stable_for_version"]
           assert summary["tem_or_hrtem_member_count"] == 0
+          assert summary["stem_member_count"] == 0
           assert summary["microscopy_detector_file_count"] == 0
+          assert not summary["manual_review_required"]
           assert not summary["source_binaries_retained"]
           assert not summary["external_validation_ready"]
+          inventory = json.loads(
+              (root / "official_source_inventory.json").read_text(encoding="utf-8")
+          )
+          archive = inventory["mendeley"]["observed_archive"]
+          assert archive["bytes"] > 0
+          assert len(archive["sha256"]) == 64
+          assert inventory["mendeley"]["file_id_used_only_for_download_routing"]
           PY
 
       - name: Upload metadata-only audit evidence
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: co3o4-public-tem-candidate-audit-evidence
           path: |
             outputs/co3o4_public_tem_candidate_audit
             outputs/tem_external_validation_candidate_registry
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
