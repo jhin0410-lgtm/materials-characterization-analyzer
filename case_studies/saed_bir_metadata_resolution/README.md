@@ -7,7 +7,9 @@ checksum-bound output of `mca saed-bir-metadata-audit`.
 ## Generate the request package
 
 ```bash
-mca saed-bir-metadata-resolution   --audit-output outputs/saed_bir_200kev_metadata_audit   --output outputs/saed_bir_metadata_resolution
+mca saed-bir-metadata-resolution \
+  --audit-output outputs/saed_bir_200kev_metadata_audit \
+  --output outputs/saed_bir_metadata_resolution
 ```
 
 The output includes a correspondence-ready Markdown request and a JSON response
@@ -18,7 +20,10 @@ detector geometry, and analyzer-development non-use evidence.
 ## Assess a completed response
 
 ```bash
-mca saed-bir-metadata-resolution   --audit-output outputs/saed_bir_200kev_metadata_audit   --response completed_author_response.json   --output outputs/saed_bir_author_response_assessment
+mca saed-bir-metadata-resolution \
+  --audit-output outputs/saed_bir_200kev_metadata_audit \
+  --response completed_author_response.json \
+  --output outputs/saed_bir_author_response_assessment
 ```
 
 A structurally valid unresolved or negative response is preserved as
