@@ -1,0 +1,165 @@
+    if not decompressor.eof:
+        raise RuntimeError("deflate stream did not terminate cleanly")
+    if compressed != compressed_bytes:
+        raise RuntimeError("compressed member byte-count mismatch")
+    if uncompressed != int(member["uncompressed_bytes"]):
+        raise RuntimeError("uncompressed member byte-count mismatch")
+    if f"{crc & 0xFFFFFFFF:08x}" != str(member["crc32"]).casefold():
+        raise RuntimeError("uncompressed member CRC32 mismatch")
+    if digest.hexdigest() != str(member["uncompressed_sha256"]).casefold():
+        raise RuntimeError("uncompressed member SHA-256 mismatch")
+    return (
+        {
+            "path": member["path"],
+            "compressed_bytes": compressed,
+            "uncompressed_bytes": uncompressed,
+            "crc32": f"{crc & 0xFFFFFFFF:08x}",
+            "uncompressed_sha256": digest.hexdigest(),
+            "hdf5": inspect_hdf5(target),
+        },
+        4096 + compressed,
+    )
+
+
+def _verify_datasets(observed: Mapping[str, Any], expected: Mapping[str, Any]) -> None:
+    datasets = {item["path"]: item for item in observed["datasets"]}
+    if set(datasets) != set(expected):
+        raise RuntimeError("HDF5 dataset inventory mismatch")
+    for name, contract in expected.items():
+        if datasets[name]["shape"] != list(contract["shape"]):
+            raise RuntimeError(f"HDF5 shape mismatch: {name}")
+        if datasets[name]["dtype"] != contract["dtype"]:
+            raise RuntimeError(f"HDF5 dtype mismatch: {name}")
+
+
+def _manifest(output: Path, artifacts: list[Path]) -> dict[str, Any]:
+    records = []
+    for path in artifacts:
+        records.append(
+            {
+                "path": path.relative_to(output).as_posix(),
+                "bytes": path.stat().st_size,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "case_id": CASE_ID,
+        "artifact_count": len(records),
+        "artifacts": records,
+    }
+
+
+def _report(summary: Mapping[str, Any]) -> str:
+    return f"""# Zenodo 8132804 Co3O4-Mn3O4 audit
+
+**Status:** `{summary['status']}`
+
+## Supported
+
+- The checksum-bound source contains real HAADF-STEM and EELS tomography arrays.
+- The two audited HDF5 members match their pinned CRC32, SHA-256, shapes and dtypes.
+- The released specimen is a mixed Co3O4-Mn3O4 core-shell system from one `Exp_1`.
+
+## Scientific boundary
+
+This is not target TEM/HRTEM segmentation validation data. It is a mixed-material,
+single-experiment STEM/EELS tomography source without embedded sample/acquisition
+lineage, pixel calibration, independent segmentation labels, or target-model non-use
+evidence.
+
+Registry disposition: `excluded_wrong_microscopy_modality`.
+
+No annotation, model inference, retraining, parameter selection, performance
+evaluation, or engineering claim is authorized.
+"""
+
+
+def run(config_path: Path, output: Path) -> dict[str, Any]:
+    if output.exists() and any(output.iterdir()):
+        raise FileExistsError("output directory must be absent or empty")
+    output.mkdir(parents=True, exist_ok=True)
+    transient = Path(tempfile.mkdtemp(prefix="zenodo_8132804_", dir=output.parent))
+    try:
+        config = _json_object(config_path)
+        validate_config(config)
+        source = _mapping(config, "source")
+        bounded = _mapping(config, "bounded_transfer")
+        context = _mapping(config, "published_context")
+        target = _mapping(config, "target_contract")
+        expected = _mapping(config, "expected_disposition")
+        record, raw_record = _fetch_record(str(source["record_id"]))
+        archive_url = _archive_content_url(record, source)
+        entries, zip_metadata, transferred = _zip_inventory(
+            archive_url,
+            int(source["archive_bytes"]),
+            int(bounded["tail_probe_bytes"]),
+        )
+        if zip_metadata["entry_count"] != int(source["expected_zip_entry_count"]):
+            raise RuntimeError("ZIP entry-count mismatch")
+        if zip_metadata["central_directory_bytes"] != int(
+            source["expected_central_directory_bytes"]
+        ):
+            raise RuntimeError("ZIP central-directory size mismatch")
+        by_path = {entry["path"]: entry for entry in entries}
+        audited_members = []
+        for member in config["members"]:
+            live_entry = by_path.get(member["path"])
+            if live_entry is None:
+                raise RuntimeError(f"pinned member missing: {member['path']}")
+            for key in (
+                "local_header_offset",
+                "compressed_bytes",
+                "uncompressed_bytes",
+                "crc32",
+            ):
+                if live_entry[key] != member[key]:
+                    raise RuntimeError(f"ZIP member metadata mismatch: {member['path']} {key}")
+            target_path = transient / Path(member["path"]).name
+            audited, member_transfer = _extract_member(
+                archive_url, int(source["archive_bytes"]), member, target_path
+            )
+            transferred += member_transfer
+            _verify_datasets(audited["hdf5"], member["expected_datasets"])
+            audited_members.append(audited)
+        if transferred > int(bounded["maximum_compressed_member_bytes"]) + 2 * 4096 + int(
+            bounded["tail_probe_bytes"]
+        ) + int(source["expected_central_directory_bytes"]):
+            raise RuntimeError("observed bounded transfer exceeded policy")
+        all_attributes_empty = all(
+            not item["hdf5"]["root_attributes"]
+            and all(not group["attributes"] for group in item["hdf5"]["groups"])
+            and all(not dataset["attributes"] for dataset in item["hdf5"]["datasets"])
+            for item in audited_members
+        )
+        raw_member = next(
+            item for item in audited_members if item["path"].endswith("/raw_tilt_series.h5")
+        )
+        raw_datasets = {item["path"]: item for item in raw_member["hdf5"]["datasets"]}
+        summary = {
+            "schema_version": SCHEMA_VERSION,
+            "case_id": CASE_ID,
+            "audit_date": config["audit_date"],
+            "status": expected["status"],
+            "registry_candidate_status": expected["registry_candidate_status"],
+            "record_id": source["record_id"],
+            "doi": source["doi"],
+            "archive_name": source["archive_name"],
+            "archive_bytes": source["archive_bytes"],
+            "archive_md5": source["archive_md5"],
+            "record_metadata_sha256": hashlib.sha256(raw_record).hexdigest(),
+            "verified_raw_stem_tomography_arrays": True,
+            "target_tem_or_hrtem_arrays_available": False,
+            "material": context["material"],
+            "microscopy": context["microscopy"],
+            "source_assigned_experiment_id": context["source_assigned_experiment_id"],
+            "independent_sample_count": context["reported_independent_sample_count"],
+            "independent_acquisition_count": context[
+                "reported_independent_acquisition_count"
+            ],
+            "minimum_required_samples": target["minimum_independent_samples"],
+            "minimum_required_acquisitions": target[
+                "minimum_independent_acquisitions"
+            ],
+            "raw_haadf_tilt_series_shape": raw_datasets["haadf/tiltSeries"]["shape"],
+            "raw_eels_tilt_series_shape": raw_datasets["eels/tiltSeries"]["shape"],
