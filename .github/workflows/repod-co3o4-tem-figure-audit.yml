@@ -1,0 +1,88 @@
+name: RepOD Co3O4 TEM figure audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/repod_co3o4_tem_figure_audit/**"
+      - "case_studies/tem_external_validation_candidate_registry/**"
+      - "scripts/audit_repod_co3o4_tem_figures.py"
+      - "tests/test_repod_co3o4_tem_figure_audit.py"
+      - "tests/test_tem_external_validation_candidate_registry.py"
+      - ".github/workflows/repod-co3o4-tem-figure-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/repod_co3o4_tem_figure_audit/**"
+      - "case_studies/tem_external_validation_candidate_registry/**"
+      - "scripts/audit_repod_co3o4_tem_figures.py"
+      - "tests/test_repod_co3o4_tem_figure_audit.py"
+      - "tests/test_tem_external_validation_candidate_registry.py"
+      - ".github/workflows/repod-co3o4-tem-figure-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repod-co3o4-tem-figure-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and audit dependencies
+        run: python -m pip install -e ".[dev]" pillow
+      - name: Run focused regressions
+        run: |
+          pytest -q \
+            tests/test_repod_co3o4_tem_figure_audit.py \
+            tests/test_tem_external_validation_candidate_registry.py
+      - name: Run TEM candidate registry
+        run: |
+          mca tem-candidates \
+            --config case_studies/tem_external_validation_candidate_registry/case_config.json \
+            --output outputs/tem_external_validation_candidate_registry
+      - name: Run live checksum-bound RepOD audit
+        run: |
+          python scripts/audit_repod_co3o4_tem_figures.py \
+            --config case_studies/repod_co3o4_tem_figure_audit/case_config.json \
+            --output outputs/repod_co3o4_tem_figure_audit \
+            --registry-output outputs/tem_external_validation_candidate_registry
+      - name: Verify metadata-only evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/repod_co3o4_tem_figure_audit")
+          forbidden = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in {".jpg", ".jpeg", ".tif", ".tiff", ".dm3", ".dm4", ".emd", ".ser"}
+          ]
+          if forbidden:
+              raise SystemExit(f"source figures leaked into evidence: {forbidden}")
+          summary = json.loads((root / "repod_co3o4_tem_figure_audit_summary.json").read_text())
+          assert summary["result"] == "exact_material_but_rendered_multi_panel_figures_not_validation_data"
+          assert summary["record_file_count"] == 6
+          assert summary["tem_containing_figure_count"] == 2
+          assert summary["individual_tem_micrograph_count"] == 0
+          assert summary["all_tem_content_is_inside_composite_jpeg_figures"]
+          assert not summary["raw_or_lossless_tem_images_available"]
+          assert not summary["source_figures_retained"]
+          assert not summary["external_validation_ready"]
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: repod-co3o4-tem-figure-audit-evidence
+          path: |
+            outputs/repod_co3o4_tem_figure_audit
+            outputs/tem_external_validation_candidate_registry
+          if-no-files-found: warn
+          retention-days: 30
