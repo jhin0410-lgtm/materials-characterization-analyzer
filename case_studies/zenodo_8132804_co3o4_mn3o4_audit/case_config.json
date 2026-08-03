@@ -1,0 +1,87 @@
+{
+  "case_id": "zenodo_8132804_co3o4_mn3o4_audit",
+  "audit_date": "2026-08-03",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": "8132804",
+    "doi": "10.5281/zenodo.8132804",
+    "concept_doi": "10.5281/zenodo.8132803",
+    "title": "Imaging 3D Chemistry at 1 nm Resolution with Fused Multi-Modal Electron Tomography",
+    "version": "0.1",
+    "license": "CC-BY-4.0",
+    "archive_name": "Multi_Modal_Data_Fusion_Chemical_Tomography.zip",
+    "archive_bytes": 1183315114,
+    "archive_md5": "cb249cc2893428aa20c9b487918c0d5f",
+    "expected_zip_entry_count": 71,
+    "expected_central_directory_bytes": 12037
+  },
+  "bounded_transfer": {
+    "maximum_compressed_member_bytes": 83886080,
+    "tail_probe_bytes": 262144,
+    "full_archive_download_permitted": false
+  },
+  "members": [
+    {
+      "path": "Multi_Modal_Data_Fusion_Chemical_Tomography/Co3O4_Mn3O4/Tilt_Series/Exp_1_coarse_tilt_series.h5",
+      "local_header_offset": 268277686,
+      "compressed_bytes": 10817459,
+      "uncompressed_bytes": 31905424,
+      "crc32": "6d7b5238",
+      "uncompressed_sha256": "f162b10b91c62bce1418bc1be5848b55cc31f15374db05b4b4a7ffbacdd639ea",
+      "expected_datasets": {
+        "eels/Co": {"shape": [345, 345, 9], "dtype": "float32"},
+        "eels/Mn": {"shape": [345, 345, 9], "dtype": "float32"},
+        "eels/O": {"shape": [345, 345, 9], "dtype": "float32"},
+        "eels/tiltAngles": {"shape": [9], "dtype": "float32"},
+        "haadf/tiltAngles": {"shape": [39], "dtype": "float32"},
+        "haadf/tiltSeries": {"shape": [345, 345, 39], "dtype": "float32"}
+      }
+    },
+    {
+      "path": "Multi_Modal_Data_Fusion_Chemical_Tomography/Co3O4_Mn3O4/Tilt_Series/raw_tilt_series.h5",
+      "local_header_offset": 279095318,
+      "compressed_bytes": 55303989,
+      "uncompressed_bytes": 99850624,
+      "crc32": "90715263",
+      "uncompressed_sha256": "2e631549e9341e782803a486e6ff645a794c160c28b23a60044ae2d01b748100",
+      "expected_datasets": {
+        "eels/Co": {"shape": [400, 400, 9], "dtype": "float32"},
+        "eels/Mn": {"shape": [400, 400, 9], "dtype": "float32"},
+        "eels/O": {"shape": [400, 400, 9], "dtype": "float32"},
+        "eels/haadf": {"shape": [400, 400, 9], "dtype": "float32"},
+        "eels/maadf": {"shape": [400, 400, 9], "dtype": "float32"},
+        "eels/previewStack": {"shape": [400, 400, 9], "dtype": "float32"},
+        "eels/tiltAngles": {"shape": [9], "dtype": "float32"},
+        "eels/tiltSeries": {"shape": [400, 400, 9], "dtype": "float32"},
+        "haadf/haadf": {"shape": [400, 400, 31], "dtype": "float32"},
+        "haadf/maadf": {"shape": [400, 400, 31], "dtype": "float32"},
+        "haadf/tiltAngles": {"shape": [31], "dtype": "float32"},
+        "haadf/tiltSeries": {"shape": [400, 400, 31], "dtype": "float32"}
+      }
+    }
+  ],
+  "published_context": {
+    "material": "Co3O4-Mn3O4 core-shell nanocrystal",
+    "microscopy": ["HAADF-STEM tomography", "EELS tomography"],
+    "instrument": "TEAM I modified FEI Titan 80-300",
+    "accelerating_voltage_kev": 300,
+    "detector": "Gatan K3 with Continuum spectrometer",
+    "source_assigned_experiment_id": "Exp_1",
+    "reported_independent_sample_count": 1,
+    "reported_independent_acquisition_count": 1
+  },
+  "target_contract": {
+    "task": "binary nanoparticle segmentation for cobalt-oxide TEM or HRTEM images",
+    "target_material": "cobalt oxide",
+    "target_modalities": ["TEM", "HRTEM"],
+    "minimum_independent_samples": 2,
+    "minimum_independent_acquisitions": 2
+  },
+  "expected_disposition": {
+    "status": "raw_stem_tomography_verified_but_not_tem_segmentation_validation_ready",
+    "registry_candidate_status": "excluded_wrong_microscopy_modality",
+    "external_validation_ready": false,
+    "annotation_ready": false,
+    "model_inference_permitted": false
+  }
+}

@@ -36,7 +36,7 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
     ]
     assert not summary["readiness"]["public_search_supports_model_evaluation_now"]
     assert summary["result_counts"] == {
-        "candidate_count": 10,
+        "candidate_count": 11,
         "in_domain_external_validation_ready_count": 0,
         "metadata_resolution_candidate_count": 0,
         "annotation_pilot_candidate_count": 0,
@@ -44,7 +44,7 @@ def test_pinned_registry_has_no_evaluation_ready_candidate(tmp_path: Path) -> No
         "rendered_representation_exclusion_count": 2,
         "cross_phase_candidate_count": 1,
         "diagnostic_cross_material_candidate_count": 1,
-        "excluded_control_count": 5,
+        "excluded_control_count": 6,
     }
     assert summary["readiness"]["recommended_candidate_id"] == (
         "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"
@@ -134,6 +134,30 @@ def test_new_co3o4_public_records_are_wrong_modality_exclusions(
     assert "760 file members" in mendeley["source_evidence"]
     assert "Data/SEM/2.png" in mendeley["source_evidence"]
 
+
+
+def test_zenodo_8132804_raw_stem_arrays_are_wrong_target_modality(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "out"
+    run_candidate_registry(load_registry_config(CONFIG), output)
+    with (output / "tem_external_validation_candidate_inventory.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = {row["candidate_id"]: row for row in csv.DictReader(handle)}
+    candidate = rows["zenodo_8132804_co3o4_mn3o4_stem_tomography"]
+    assert candidate["candidate_status"] == WRONG_MODALITY
+    assert candidate["target_material_relation"] == "heterojunction_contains_cobalt_oxide"
+    assert candidate["modalities"] == "HAADF-STEM tomography | EELS tomography"
+    assert candidate["reported_tem_file_count"] == "0"
+    assert candidate["raw_or_lossless_tem_images_available"] == "False"
+    assert "target_material_mismatch" not in candidate["blockers"]
+    assert "raw_or_lossless_tem_images_unavailable" in candidate["blockers"]
+    assert "immutable_sample_ids_unavailable" in candidate["blockers"]
+    assert "target_creator_overlap" in candidate["blockers"]
+    assert "400 x 400 x 31 HAADF-STEM" in candidate["source_evidence"]
+    assert "Exp_1" in candidate["source_evidence"]
+    assert candidate["evaluation_ready"] == "False"
 
 
 def test_phaset3m_processed_exact_material_is_diagnostic_only(
@@ -245,7 +269,7 @@ def test_cli_writes_registry_outputs(
     assert result == 0
     printed = json.loads(capsys.readouterr().out)
     assert printed["status"] == RESULT
-    assert printed["candidate_count"] == 10
+    assert printed["candidate_count"] == 11
     assert printed["in_domain_external_validation_ready_count"] == 0
     assert printed["recommended_candidate_id"] == (
         "zenodo_17336678_phaset3m_co3o4_processed_tilt_series"

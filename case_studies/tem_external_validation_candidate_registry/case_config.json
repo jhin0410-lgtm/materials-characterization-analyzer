@@ -16,7 +16,8 @@
       "Co3O4 electron tomography raw tilt series",
       "Co3O4 NiO TEM raw data replication package",
       "palygorskite Co3O4 TEM public archive",
-      "Hierarchical Co3O4 anode TEM raw micrographs RepOD"
+      "Hierarchical Co3O4 anode TEM raw micrographs RepOD",
+      "Co3O4 Mn3O4 HAADF STEM EELS tomography raw tilt series HDF5"
     ]
   },
   "target_contract": {
@@ -430,6 +431,48 @@
       "next_validation_step": "Exclude the deposited publication figures from segmentation validation. Request checksum-bound individual TEM micrographs or detector files with pixel calibration, sample/acquisition lineage, independent labels and target-model non-use evidence.",
       "blinded_labeling_verified": false,
       "adjudicated_consensus_available": false
+    },
+    {
+      "candidate_id": "zenodo_8132804_co3o4_mn3o4_stem_tomography",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.8132804",
+      "record_url": "https://zenodo.org/records/8132804",
+      "title": "Imaging 3D Chemistry at 1 nm Resolution with Fused Multi-Modal Electron Tomography",
+      "materials": [
+        "Co3O4-Mn3O4 core-shell nanocrystal"
+      ],
+      "modalities": [
+        "HAADF-STEM tomography",
+        "EELS tomography"
+      ],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": false,
+      "reported_tem_file_count": 0,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "none",
+      "labeler_count": 0,
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": true,
+      "target_material_relation": "heterojunction_contains_cobalt_oxide",
+      "imaging_domain_relation": "material_or_acquisition_domain_shift",
+      "reuse_license": "CC-BY-4.0",
+      "reuse_license_verified": true,
+      "target_training_source": false,
+      "source_evidence": [
+        "Zenodo record 8132804 version 0.1 exposes one 1,183,315,114-byte archive with MD5 cb249cc2893428aa20c9b487918c0d5f under CC BY 4.0.",
+        "Bounded HTTP Range audit verified the 71-member ZIP inventory without downloading the full archive.",
+        "Exp_1_coarse_tilt_series.h5 and raw_tilt_series.h5 were verified by ZIP CRC32 and uncompressed SHA-256.",
+        "The raw HDF5 contains 400 x 400 x 31 HAADF-STEM and 400 x 400 x 9 EELS tilt-series arrays, all float32.",
+        "The source is a mixed Co3O4-Mn3O4 core-shell specimen acquired by HAADF-STEM/EELS, not target TEM/HRTEM.",
+        "Only source-assigned Exp_1 is represented; embedded sample IDs, acquisition IDs, pixel calibration, detector provenance, and segmentation labels are absent.",
+        "Mary Scott overlaps the target training-source creator set, and target-model non-use is unverified."
+      ],
+      "next_validation_step": "Exclude from target TEM/HRTEM segmentation validation. Use only for bounded HDF5 ingestion or cross-modality tomography diagnostics; continue searching for an independent pure-cobalt-oxide TEM/HRTEM cohort with at least two samples and acquisitions."
     }
   ]
 }
