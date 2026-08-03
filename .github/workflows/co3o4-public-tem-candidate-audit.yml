@@ -1,0 +1,411 @@
+name: Co3O4 public TEM candidate audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/co3o4_public_tem_candidate_audit/**"
+      - "case_studies/tem_external_validation_candidate_registry/**"
+      - "src/mca/tem_external_validation_candidate_registry*.py"
+      - "tests/test_tem_external_validation_candidate_registry.py"
+      - ".github/workflows/co3o4-public-tem-candidate-audit.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "case_studies/co3o4_public_tem_candidate_audit/**"
+      - "case_studies/tem_external_validation_candidate_registry/**"
+      - "src/mca/tem_external_validation_candidate_registry*.py"
+      - "tests/test_tem_external_validation_candidate_registry.py"
+      - ".github/workflows/co3o4-public-tem-candidate-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: co3o4-public-tem-candidate-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and bounded inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unar
+          python -m pip install -e ".[dev]" pillow
+
+      - name: Resolve and verify official source metadata
+        run: |
+          mkdir -p outputs/co3o4_public_tem_candidate_audit/source
+          python - <<'PY'
+          import json
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          root = Path("outputs/co3o4_public_tem_candidate_audit")
+          source = root / "source"
+          config = json.loads(
+              Path("case_studies/co3o4_public_tem_candidate_audit/case_config.json")
+              .read_text(encoding="utf-8")
+          )
+
+          def fetch_json(url: str, accept: str = "application/json"):
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "Accept": accept,
+                      "User-Agent": "materials-characterization-analyzer-source-audit/1.0",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  return json.load(response)
+
+          zenodo_expected = config["sources"]["zenodo_co3o4_nio"]
+          zenodo = fetch_json(
+              f"https://zenodo.org/api/records/{zenodo_expected['record_id']}"
+          )
+          metadata = zenodo.get("metadata", {})
+          files = zenodo.get("files", [])
+          rights = metadata.get("rights") or []
+          normalized_rights = {
+              str(item.get("id") if isinstance(item, dict) else item).casefold()
+              for item in rights
+          }
+          if zenodo_expected["license"].casefold() not in normalized_rights:
+              raise SystemExit(f"Zenodo licence mismatch: {rights!r}")
+          if str(zenodo.get("id")) != zenodo_expected["record_id"]:
+              raise SystemExit("Zenodo record identity mismatch")
+          if str(zenodo.get("doi", "")).casefold() != zenodo_expected["doi"].casefold():
+              raise SystemExit("Zenodo DOI mismatch")
+          observed_zenodo = []
+          for item in files:
+              checksum = str(item.get("checksum", ""))
+              algorithm, _, digest = checksum.partition(":")
+              observed_zenodo.append(
+                  {
+                      "name": item.get("key"),
+                      "bytes": int(item.get("size", 0)),
+                      "checksum_algorithm": algorithm.casefold(),
+                      "checksum": digest.casefold(),
+                  }
+              )
+          expected_files = zenodo_expected["expected_files"]
+          if len(observed_zenodo) != zenodo_expected["expected_file_count"]:
+              raise SystemExit("Zenodo file-count mismatch")
+          if sum(item["bytes"] for item in observed_zenodo) != zenodo_expected["expected_total_bytes"]:
+              raise SystemExit("Zenodo total-byte mismatch")
+          for expected in expected_files:
+              match = next(
+                  (item for item in observed_zenodo if item["name"] == expected["name"]),
+                  None,
+              )
+              if match is None:
+                  raise SystemExit(f"Zenodo file missing: {expected['name']}")
+              if match["bytes"] != expected["bytes"]:
+                  raise SystemExit("Zenodo file byte mismatch")
+              if match["checksum_algorithm"] != "md5" or match["checksum"] != expected["md5"]:
+                  raise SystemExit("Zenodo file checksum mismatch")
+
+          mendeley_expected = config["sources"]["mendeley_palygorskite_co3o4"]
+          dataset_id = mendeley_expected["dataset_id"]
+          version = mendeley_expected["version"]
+          public_base = "https://data.mendeley.com/public-api"
+          snapshot = fetch_json(
+              f"{public_base}/datasets/{dataset_id}/snapshot/{version}"
+          )
+          snapshot_text = json.dumps(snapshot, ensure_ascii=False).casefold()
+          if mendeley_expected["doi"].casefold() not in snapshot_text:
+              raise SystemExit("Mendeley DOI mismatch")
+          if "cc by 4.0" not in snapshot_text and "cc-by-4.0" not in snapshot_text:
+              raise SystemExit("Mendeley CC BY 4.0 licence not resolved")
+          file_payload = fetch_json(
+              f"{public_base}/datasets/{dataset_id}/files?"
+              + urllib.parse.urlencode({"folder_id": "root", "version": version}),
+              "application/vnd.mendeley-public-dataset.1+json, application/json",
+          )
+          if isinstance(file_payload, dict):
+              file_payload = (
+                  file_payload.get("results")
+                  or file_payload.get("files")
+                  or file_payload.get("items")
+                  or []
+              )
+          if not isinstance(file_payload, list):
+              raise SystemExit("Mendeley file response is not a list")
+          observed_mendeley = []
+          for item in file_payload:
+              content = item.get("content_details") or {}
+              observed_mendeley.append(
+                  {
+                      "file_id": item.get("id") or item.get("file_id"),
+                      "name": item.get("filename") or item.get("name") or "",
+                      "bytes": int(content.get("size", item.get("size", 0)) or 0),
+                      "sha256": (
+                          content.get("sha256_hash")
+                          or content.get("sha256")
+                          or item.get("sha256_hash")
+                          or item.get("sha256")
+                          or ""
+                      ).casefold(),
+                      "last_modified_date": item.get("last_modified_date"),
+                  }
+              )
+          expected_archive = mendeley_expected["archive"]
+          archive = next(
+              (item for item in observed_mendeley if item["name"] == expected_archive["name"]),
+              None,
+          )
+          if archive is None:
+              raise SystemExit("Mendeley archive missing")
+          for key in ("file_id", "bytes", "sha256"):
+              if archive[key] != expected_archive[key]:
+                  raise SystemExit(f"Mendeley archive {key} mismatch")
+          endpoint = (
+              "https://data.mendeley.com/public-files/datasets/"
+              f"{dataset_id}/files/{archive['file_id']}/file_downloaded"
+          )
+          (source / "mendeley-download-url.txt").write_text(endpoint, encoding="utf-8")
+          (source / "official-source-inventory.json").write_text(
+              json.dumps(
+                  {
+                      "schema_version": "1.0",
+                      "case_id": config["case_id"],
+                      "audit_date": config["audit_date"],
+                      "zenodo": {
+                          "record_id": str(zenodo.get("id")),
+                          "doi": zenodo.get("doi"),
+                          "files": observed_zenodo,
+                      },
+                      "mendeley": {
+                          "dataset_id": dataset_id,
+                          "version": version,
+                          "doi": mendeley_expected["doi"],
+                          "files": observed_mendeley,
+                      },
+                  },
+                  indent=2,
+                  ensure_ascii=False,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Download and verify bounded Mendeley archive
+        run: |
+          curl \
+            --fail \
+            --location \
+            --silent \
+            --show-error \
+            --retry 5 \
+            --retry-all-errors \
+            --connect-timeout 15 \
+            --max-time 180 \
+            "$(cat outputs/co3o4_public_tem_candidate_audit/source/mendeley-download-url.txt)" \
+            --output outputs/co3o4_public_tem_candidate_audit/source/Data.rar
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          config = json.loads(
+              Path("case_studies/co3o4_public_tem_candidate_audit/case_config.json")
+              .read_text(encoding="utf-8")
+          )
+          expected = config["sources"]["mendeley_palygorskite_co3o4"]["archive"]
+          path = Path("outputs/co3o4_public_tem_candidate_audit/source/Data.rar")
+          if path.stat().st_size != expected["bytes"]:
+              raise SystemExit("downloaded archive byte mismatch")
+          observed = hashlib.sha256(path.read_bytes()).hexdigest()
+          if observed != expected["sha256"]:
+              raise SystemExit("downloaded archive SHA-256 mismatch")
+          PY
+
+      - name: Inspect archive representation
+        run: |
+          mkdir -p outputs/co3o4_public_tem_candidate_audit/extracted
+          unar \
+            -quiet \
+            -output-directory outputs/co3o4_public_tem_candidate_audit/extracted \
+            outputs/co3o4_public_tem_candidate_audit/source/Data.rar
+          python - <<'PY'
+          import json
+          import re
+          from collections import Counter
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path("outputs/co3o4_public_tem_candidate_audit")
+          extracted = root / "extracted"
+          config = json.loads(
+              Path("case_studies/co3o4_public_tem_candidate_audit/case_config.json")
+              .read_text(encoding="utf-8")
+          )
+          expected = config["sources"]["mendeley_palygorskite_co3o4"]
+          members = sorted(path for path in extracted.rglob("*") if path.is_file())
+          relative = [path.relative_to(extracted).as_posix() for path in members]
+          if len(members) != expected["expected_member_count"]:
+              raise SystemExit(f"archive member-count mismatch: {len(members)}")
+          unsafe = [name for name in relative if name.startswith("/") or ".." in Path(name).parts]
+          if unsafe:
+              raise SystemExit(f"unsafe archive paths: {unsafe}")
+
+          images = []
+          for path in members:
+              try:
+                  with Image.open(path) as image:
+                      images.append(
+                          {
+                              "path": path.relative_to(extracted).as_posix(),
+                              "format": image.format,
+                              "mode": image.mode,
+                              "size": [image.width, image.height],
+                              "frames": getattr(image, "n_frames", 1),
+                          }
+                      )
+              except Exception:
+                  pass
+          observed_image_paths = sorted(item["path"] for item in images)
+          if observed_image_paths != sorted(expected["expected_image_members"]):
+              raise SystemExit(f"image-member mismatch: {observed_image_paths}")
+          for image in images:
+              if image["format"] != expected["expected_image_format"]:
+                  raise SystemExit("image-format mismatch")
+              if image["mode"] != expected["expected_image_mode"]:
+                  raise SystemExit("image-mode mismatch")
+              if image["size"] != expected["expected_image_size"]:
+                  raise SystemExit("image-size mismatch")
+              if image["frames"] != 1:
+                  raise SystemExit("unexpected multi-frame image")
+
+          tem_pattern = re.compile(r"(^|[/_. -])(hrtem|tem)([/_. -]|$)", re.IGNORECASE)
+          tem_paths = [name for name in relative if tem_pattern.search(name)]
+          if tem_paths:
+              raise SystemExit(f"unexpected TEM/HRTEM paths: {tem_paths}")
+          microscopy_detector_suffixes = {".dm3", ".dm4", ".emd", ".ser", ".tif", ".tiff"}
+          detector_members = [
+              name for name in relative if Path(name).suffix.casefold() in microscopy_detector_suffixes
+          ]
+          if detector_members:
+              raise SystemExit(f"unexpected microscopy detector files: {detector_members}")
+
+          summary = {
+              "schema_version": "1.0",
+              "case_id": config["case_id"],
+              "result": "assessed_public_records_do_not_expose_tem_validation_arrays",
+              "archive_member_count": len(members),
+              "suffix_counts": dict(
+                  sorted(Counter(Path(name).suffix.casefold() or "<none>" for name in relative).items())
+              ),
+              "decodable_image_count": len(images),
+              "decodable_images": images,
+              "tem_or_hrtem_member_count": len(tem_paths),
+              "microscopy_detector_file_count": len(detector_members),
+              "source_binaries_retained": False,
+              "model_inference_performed": False,
+              "annotation_performed": False,
+              "scientific_closeout": {
+                  "status": "Supported",
+                  "strongest_evidence": (
+                      "The Zenodo record exposes only one spreadsheet and the checksum-bound "
+                      "Mendeley archive contains 760 members with only three SEM PNG images."
+                  ),
+                  "primary_limitation": (
+                      "The audit establishes public-file absence for the pinned snapshots, not "
+                      "that the original investigators never acquired TEM data."
+                  ),
+                  "not_suitable_for": [
+                      "TEM segmentation inference",
+                      "model retraining",
+                      "external performance claims",
+                      "engineering release",
+                  ],
+              },
+          }
+          (root / "co3o4_public_tem_candidate_audit_summary.json").write_text(
+              json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run and verify candidate registry
+        run: |
+          mca tem-candidates \
+            --config case_studies/tem_external_validation_candidate_registry/case_config.json \
+            --output outputs/tem_external_validation_candidate_registry
+          python - <<'PY'
+          import csv
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/tem_external_validation_candidate_registry")
+          summary = json.loads(
+              (output / "tem_external_validation_candidate_summary.json")
+              .read_text(encoding="utf-8")
+          )
+          counts = summary["result_counts"]
+          assert counts["candidate_count"] == 9
+          assert counts["in_domain_external_validation_ready_count"] == 0
+          assert counts["excluded_control_count"] == 5
+          assert not summary["readiness"]["public_search_supports_model_evaluation_now"]
+          with (output / "tem_external_validation_candidate_inventory.csv").open(
+              encoding="utf-8", newline=""
+          ) as handle:
+              rows = {row["candidate_id"]: row for row in csv.DictReader(handle)}
+          for candidate_id in (
+              "zenodo_14160831_co3o4_nio_replication_package",
+              "mendeley_kkk76z8g8z_current_public_archive",
+          ):
+              row = rows[candidate_id]
+              assert row["candidate_status"] == "excluded_wrong_microscopy_modality"
+              assert row["reported_tem_file_count"] == "0"
+              assert row["raw_or_lossless_tem_images_available"] == "False"
+              assert row["evaluation_ready"] == "False"
+          PY
+
+      - name: Delete source binaries and transient URLs
+        if: always()
+        run: |
+          rm -rf outputs/co3o4_public_tem_candidate_audit/extracted
+          rm -f outputs/co3o4_public_tem_candidate_audit/source/Data.rar
+          rm -f outputs/co3o4_public_tem_candidate_audit/source/mendeley-download-url.txt
+
+      - name: Verify metadata-only evidence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path("outputs/co3o4_public_tem_candidate_audit")
+          forbidden = [
+              path
+              for path in root.rglob("*")
+              if path.is_file()
+              and path.suffix.casefold()
+              in {".rar", ".zip", ".dm3", ".dm4", ".emd", ".ser", ".tif", ".tiff", ".png"}
+          ]
+          if forbidden:
+              raise SystemExit(f"source binaries leaked into evidence: {forbidden}")
+          assert (root / "co3o4_public_tem_candidate_audit_summary.json").is_file()
+          assert (root / "source" / "official-source-inventory.json").is_file()
+          PY
+
+      - name: Upload metadata-only audit evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: co3o4-public-tem-candidate-audit-evidence
+          path: |
+            outputs/co3o4_public_tem_candidate_audit
+            outputs/tem_external_validation_candidate_registry
+          if-no-files-found: error
+          retention-days: 30
