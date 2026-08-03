@@ -1,7 +1,7 @@
 {
   "case_id": "tem_external_validation_candidate_registry",
   "search_snapshot": {
-    "search_date": "2026-08-02",
+    "search_date": "2026-08-03",
     "repositories_searched": [
       "Zenodo",
       "Dryad",
@@ -12,7 +12,9 @@
       "Co3O4 TEM images raw data",
       "cobalt oxide electron microscopy dataset",
       "Co3O4 TEM annotation external validation",
-      "Co3O4 electron tomography raw tilt series"
+      "Co3O4 electron tomography raw tilt series",
+      "Co3O4 NiO TEM raw data replication package",
+      "palygorskite Co3O4 TEM public archive"
     ]
   },
   "target_contract": {
@@ -299,6 +301,90 @@
       "next_validation_step": "Use only for processed exact-material HDF5 and robustness diagnostics. Request raw detector frames, immutable sample/acquisition lineage, explicit data reuse terms, and an independent multi-sample source before blinded annotation or model evaluation.",
       "blinded_labeling_verified": false,
       "adjudicated_consensus_available": false
+    },
+    {
+      "candidate_id": "zenodo_14160831_co3o4_nio_replication_package",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.14160831",
+      "record_url": "https://zenodo.org/records/14160831",
+      "title": "On the epitaxial growth in ALD Co3O4- and NiO-based bilayers",
+      "materials": [
+        "Co3O4",
+        "NiO",
+        "Co3O4/NiO bilayers"
+      ],
+      "modalities": [
+        "tabular replication package"
+      ],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": false,
+      "reported_tem_file_count": 0,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "no public TEM image files or segmentation labels",
+      "labeler_count": null,
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": false,
+      "target_material_relation": "heterojunction_contains_cobalt_oxide",
+      "imaging_domain_relation": "wrong_modality",
+      "reuse_license": "CC-BY-4.0",
+      "reuse_license_verified": true,
+      "target_training_source": false,
+      "source_evidence": [
+        "The official Zenodo record is CC-BY-4.0 and exposes exactly one file, replication_package.xlsx, at 383655 bytes with repository MD5 862e64d9ebeba6fb34da16e89d5c19c4.",
+        "The associated study reports cross-sectional TEM/STEM, but the public record contains no TEM, HRTEM, STEM, DM3, DM4, EMD, SER, TIFF, or other detector-image file.",
+        "Literature evidence that microscopy was performed does not establish that reusable microscopy source arrays were deposited."
+      ],
+      "next_validation_step": "Exclude the current public record from TEM segmentation validation. Reconsider only if the authors or curator publish checksum-bound detector or lossless TEM files with immutable sample/acquisition lineage."
+    },
+    {
+      "candidate_id": "mendeley_kkk76z8g8z_current_public_archive",
+      "repository": "Mendeley Data",
+      "doi": "10.17632/kkk76z8g8z.1",
+      "record_url": "https://data.mendeley.com/datasets/kkk76z8g8z/1",
+      "title": "Data for: Palygorskite@Co3O4 nanocomposites as efficient peroxidase mimics for colorimetric detection of H2O2 and ascorbic acid",
+      "materials": [
+        "palygorskite",
+        "Co3O4",
+        "palygorskite@Co3O4"
+      ],
+      "modalities": [
+        "SEM",
+        "XRD",
+        "FTIR",
+        "UV-Vis",
+        "fluorescence spectroscopy"
+      ],
+      "file_inventory_status": "exact",
+      "file_checksums_available": true,
+      "raw_or_lossless_tem_images_available": false,
+      "reported_tem_file_count": 0,
+      "independent_segmentation_labels_available": false,
+      "label_origin": "no public TEM image files or segmentation labels",
+      "labeler_count": null,
+      "blinded_labeling_verified": false,
+      "adjudicated_consensus_available": false,
+      "immutable_sample_ids_available": false,
+      "immutable_acquisition_ids_available": false,
+      "verified_not_used_for_target_training_or_model_selection": false,
+      "target_creator_name_overlap": false,
+      "target_material_relation": "exact_cobalt_oxide",
+      "imaging_domain_relation": "wrong_modality",
+      "reuse_license": "CC-BY-4.0",
+      "reuse_license_verified": true,
+      "target_training_source": false,
+      "source_evidence": [
+        "A checksum-bound version-1 snapshot of Data.rar was verified at 16250421 bytes with SHA-256 e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9; the API file UUID is download-routing metadata only.",
+        "A later checksum-bound audit of the same DOI/version verified the same byte count but SHA-256 e3afceb4e3b6cebabb16c19129d1959ec2620ac8b86d4e1bcc4cbccb413e4984 and routing UUID 251dd224-6e9e-4c25-810b-cc7c24702685. The changed file UUID and SHA-256 demonstrate unstable public source identity, so stable immutable archive identity is unavailable.",
+        "The first directly extracted snapshot contained 760 file members and only three 1536 x 1103 16-bit SEM PNG images: Data/SEM/2.png, Data/SEM/3.png, and Data/SEM/4.png.",
+        "The later directly extracted snapshot also contained 760 file members and only three 1536 x 1103 16-bit SEM PNG images: Data/SEM/1_001.png, Data/SEM/4_019.png, and Data/SEM/B_010.png.",
+        "Neither inspected snapshot contained a TEM, HRTEM, STEM, DM3, DM4, EMD, SER, TIFF, or TIF source file."
+      ],
+      "next_validation_step": "Exclude from TEM segmentation validation. Reconsider only after an immutable repository release provides stable archive identity and checksum-bound TEM/HRTEM source files with sample/acquisition lineage and target-model non-use evidence."
     }
   ]
 }

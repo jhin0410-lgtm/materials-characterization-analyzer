@@ -1,0 +1,95 @@
+{
+  "case_id": "co3o4_public_tem_candidate_audit",
+  "audit_date": "2026-08-03",
+  "target_contract": {
+    "material": "cobalt oxide",
+    "modalities": [
+      "TEM",
+      "HRTEM"
+    ],
+    "minimum_independent_samples": 2,
+    "minimum_independent_acquisitions": 2
+  },
+  "sources": {
+    "zenodo_co3o4_nio": {
+      "record_id": "14160831",
+      "doi": "10.5281/zenodo.14160831",
+      "license": "cc-by-4.0",
+      "expected_file_count": 1,
+      "expected_total_bytes": 383655,
+      "expected_files": [
+        {
+          "name": "replication_package.xlsx",
+          "bytes": 383655,
+          "md5": "862e64d9ebeba6fb34da16e89d5c19c4"
+        }
+      ],
+      "expected_tem_file_count": 0,
+      "expected_registry_candidate_id": "zenodo_14160831_co3o4_nio_replication_package"
+    },
+    "mendeley_palygorskite_co3o4": {
+      "dataset_id": "kkk76z8g8z",
+      "version": 1,
+      "doi": "10.17632/kkk76z8g8z.1",
+      "license": "CC BY 4.0",
+      "expected_tem_file_count": 0,
+      "expected_registry_candidate_id": "mendeley_kkk76z8g8z_current_public_archive",
+      "archive_name": "Data.rar",
+      "known_snapshots": [
+        {
+          "observed_date": "2026-08-03",
+          "name": "Data.rar",
+          "bytes": 16250421,
+          "sha256": "e3af684f7892877ee073e54e54a230d969d661193c807703a3b083fbdc4e42e9",
+          "observed_file_id": "251b0061-cc22-48b4-bc3d-8bba56f8a030",
+          "file_id_role": "download_routing_only"
+        },
+        {
+          "observed_date": "2026-08-03",
+          "workflow_run_id": 30789059140,
+          "artifact_id": 8846350084,
+          "name": "Data.rar",
+          "bytes": 16250421,
+          "sha256": "e3afceb4e3b6cebabb16c19129d1959ec2620ac8b86d4e1bcc4cbccb413e4984",
+          "observed_file_id": "251dd224-6e9e-4c25-810b-cc7c24702685",
+          "file_id_role": "download_routing_only",
+          "member_count": 760,
+          "decodable_images": [
+            "Data/SEM/1_001.png",
+            "Data/SEM/4_019.png",
+            "Data/SEM/B_010.png"
+          ],
+          "tem_hrtem_stem_member_count": 0,
+          "microscopy_detector_file_count": 0
+        }
+      ],
+      "provenance_policy": {
+        "same_version_identity_drift_observed": true,
+        "file_id_is_download_routing_only": true,
+        "current_api_declared_bytes_and_sha256_must_match_download": true,
+        "identity_drift_blocks_external_validation": true
+      },
+      "known_wrong_modality_representation": {
+        "member_count": 760,
+        "image_members": [
+          "Data/SEM/2.png",
+          "Data/SEM/3.png",
+          "Data/SEM/4.png"
+        ],
+        "image_format": "PNG",
+        "image_mode": "I;16",
+        "image_size": [
+          1536,
+          1103
+        ]
+      }
+    }
+  },
+  "scientific_boundary": {
+    "source_binaries_may_be_downloaded_transiently": true,
+    "source_binaries_may_be_uploaded_as_artifacts": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "external_validation_claim_authorized": false
+  }
+}
