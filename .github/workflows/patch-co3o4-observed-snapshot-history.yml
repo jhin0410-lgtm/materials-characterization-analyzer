@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/patch_co3o4_observed_snapshot_history.py"
+      - "scripts/fix_observed_history_phrase.py"
       - ".github/workflows/patch-co3o4-observed-snapshot-history.yml"
 
 permissions:
@@ -19,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
+      - name: Fix evidence wording
+        run: python scripts/fix_observed_history_phrase.py
       - name: Apply permanent snapshot history
         run: python scripts/patch_co3o4_observed_snapshot_history.py
       - name: Validate focused regressions and snapshot uniqueness
@@ -38,7 +41,11 @@ jobs:
           assert len(snapshots) == 2
           assert len({item["sha256"] for item in snapshots}) == 2
           assert {item["bytes"] for item in snapshots} == {16250421}
-          assert all(item["tem_hrtem_stem_member_count"] == 0 for item in snapshots if "tem_hrtem_stem_member_count" in item)
+          assert all(
+              item["tem_hrtem_stem_member_count"] == 0
+              for item in snapshots
+              if "tem_hrtem_stem_member_count" in item
+          )
           PY
       - name: Commit permanent files
         run: |
