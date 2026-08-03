@@ -199,6 +199,37 @@ def test_duplicate_sample_ids_block_readiness(tmp_path: Path) -> None:
     assert not result["evidence_gates"]["minimum_two_source_assigned_samples"]
 
 
+def test_placeholder_text_cannot_satisfy_readiness(tmp_path: Path) -> None:
+    bundle, payload, _ = _template(tmp_path)
+    payload = _positive(payload)
+    payload["respondent"]["name"] = "replace-with-name"
+    payload["representation"]["classification_basis"] = "unresolved"
+    payload["instrument"]["coordinate_convention"] = "replace-with-convention"
+    payload["series"][0]["sample_id"] = "replace-sample-001"
+    payload["series"][0]["member_path"] = "replace/member-001.mrc"
+    payload["series"][0]["dtype"] = "replace-with-file-dtype"
+    payload["series"][0]["center"]["source"] = "unresolved"
+    payload["series"][0]["calibration"]["source"] = "replace-with-calibration"
+    payload["independence_attestation"]["attestation"] = "unresolved"
+    payload["analyzer_nonuse_attestation"]["attestation"] = "replace-with-attestation"
+    response = tmp_path / "response.json"
+    _write_json(response, payload)
+    result = assess_author_response(bundle, response, tmp_path / "assessment")
+    assert result["status"] == RESPONSE_BLOCKED
+    for gate in (
+        "respondent_authority_confirmed",
+        "representation_eligible",
+        "instrument_geometry_documented",
+        "member_paths_unique",
+        "minimum_two_source_assigned_samples",
+        "all_series_dtype_documented",
+        "all_centres_traceable",
+        "all_reciprocal_calibrations_traceable",
+        "analyzer_nonuse_attested",
+    ):
+        assert not result["evidence_gates"][gate]
+
+
 def test_identity_mismatch_rejected(tmp_path: Path) -> None:
     bundle, payload, _ = _template(tmp_path)
     payload["record"]["record_id"] = "wrong"
