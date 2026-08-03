@@ -26,7 +26,7 @@ The registry was refreshed on 2026-08-03 from official records and checksum-boun
 - Zenodo `10.5281/zenodo.11161891`: cobalt-tungstate STEM/TEM; cross-phase only.
 - Zenodo `10.5281/zenodo.7941248`: Co3O4 SEM/XPS/HAXPES; wrong modality.
 - Zenodo `10.5281/zenodo.14160831`: Co3O4/NiO TEM/STEM is reported in the publication, but the public record contains only `replication_package.xlsx`; wrong public modality.
-- Mendeley Data `10.17632/kkk76z8g8z.1`: the checksum-bound current archive contains 760 members and only three SEM PNG images; no deposited TEM/HRTEM files.
+- Mendeley Data `10.17632/kkk76z8g8z.1`: two directly verified version-1 snapshots had different SHA-256 values and different SEM member paths; both contained 760 members, only three SEM PNG images, and no deposited TEM/HRTEM/STEM files.
 
 ## Current conclusion
 

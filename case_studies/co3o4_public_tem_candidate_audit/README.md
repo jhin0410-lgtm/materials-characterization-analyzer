@@ -29,4 +29,6 @@ Mendeley file UUIDs are treated as mutable download-routing metadata, not scient
 
 This audit does not run segmentation inference, create labels, estimate model accuracy, or authorize retraining. It supports only the conclusion that the assessed public snapshots do not provide an independent cobalt-oxide TEM/HRTEM validation cohort.
 
+The 2026-08-03 audit history contains two directly verified version-1 archive snapshots with the same byte count but different SHA-256 values and different SEM member paths. Both snapshots remained wrong-modality controls with zero TEM/HRTEM/STEM or microscopy-detector files.
+
 The records should be reconsidered only if a new immutable release deposits checksum-bound detector or demonstrably lossless TEM/HRTEM files with sample/acquisition lineage and target-model non-use evidence.
