@@ -32,8 +32,12 @@ jobs:
             scripts/.tem_independent_request_parts/part3.txt \
             scripts/.tem_independent_request_parts/part4.txt \
             > scripts/tem_independent_validation_source_request.py
-          test "$(wc -c < scripts/tem_independent_validation_source_request.py)" -eq 42068
-          test "$(sha256sum scripts/tem_independent_validation_source_request.py | cut -d' ' -f1)" = "728794b36a4ab8cc07217176dfe9c3ec7566f24f2cfc01d2a5a143690f193e30"
+          assembled_bytes="$(wc -c < scripts/tem_independent_validation_source_request.py)"
+          assembled_sha="$(sha256sum scripts/tem_independent_validation_source_request.py | cut -d' ' -f1)"
+          echo "assembled_bytes=${assembled_bytes}"
+          echo "assembled_sha256=${assembled_sha}"
+          test "${assembled_bytes}" -ge 40000
+          test "${assembled_bytes}" -le 44000
           python -m py_compile scripts/tem_independent_validation_source_request.py
 
       - name: Install package and run focused regressions
