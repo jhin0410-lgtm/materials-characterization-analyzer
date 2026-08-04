@@ -1,0 +1,40 @@
+name: SAED independent source transfer verification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/verify_saed_independent_source_transfer.py"
+      - "scripts/saed_transfer_verification/**"
+      - "tests/test_verify_saed_independent_source_transfer.py"
+      - "tests/test_verify_saed_source_transfer_contracts.py"
+      - "tests/saed_transfer_test_*.py"
+      - "case_studies/saed_independent_source_transfer_verification/**"
+      - "scripts/saed_independent_validation_source_request.py"
+      - "src/mca/saed_external_validation_intake.py"
+      - ".github/workflows/saed-independent-source-transfer-verification.yml"
+
+jobs:
+  verify-transfer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run transfer and intake contract regressions
+        run: |
+          python -m py_compile scripts/verify_saed_independent_source_transfer.py
+          python -m compileall -q scripts/saed_transfer_verification
+          pytest -q \
+            tests/test_verify_saed_independent_source_transfer.py \
+            tests/test_verify_saed_source_transfer_contracts.py \
+            tests/test_saed_independent_validation_source_request.py \
+            tests/test_saed_external_validation_intake.py
