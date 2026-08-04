@@ -9,6 +9,7 @@ on:
       - "scripts/audit_public_cobalt_oxide_tem_source_image_mask_pairing.py"
       - "src/mca/tem_source_image_mask_pairing.py"
       - "tests/test_public_cobalt_oxide_tem_source_image_mask_pairing.py"
+      - "tests/test_v0_11_release_publication_workflow.py"
       - "pyproject.toml"
       - "src/mca/__init__.py"
       - "CITATION.cff"
@@ -22,6 +23,7 @@ on:
       - "scripts/audit_public_cobalt_oxide_tem_source_image_mask_pairing.py"
       - "src/mca/tem_source_image_mask_pairing.py"
       - "tests/test_public_cobalt_oxide_tem_source_image_mask_pairing.py"
+      - "tests/test_v0_11_release_publication_workflow.py"
       - "pyproject.toml"
       - "src/mca/__init__.py"
       - "CITATION.cff"
@@ -90,13 +92,15 @@ jobs:
 
           import pandas as pd
 
+          from mca import __version__
+
           output = Path("outputs/public-cobalt-oxide-tem-source-image-mask-pairing")
           summary = json.loads(
               (output / "source_image_mask_pairing_summary.json").read_text(
                   encoding="utf-8"
               )
           )
-          assert summary["software_version"] == "0.10.0"
+          assert summary["software_version"] == __version__
           assert summary["source"]["doi"] == "10.5281/zenodo.14927582"
           assert summary["source"]["license"] == "CC-BY-4.0"
           assert summary["source"]["image_archive"]["sha256"] == (
@@ -178,14 +182,18 @@ jobs:
       - name: Verify package version and build
         run: |
           set -euo pipefail
+          version="$(python -c 'from mca import __version__; print(__version__)')"
           mca --version | tee mca-version.txt
-          grep -F "0.10.0" mca-version.txt
+          grep -F "${version}" mca-version.txt
           python -m build
           python - <<'PY'
           from pathlib import Path
+
+          from mca import __version__
+
           files = sorted(path.name for path in Path("dist").iterdir())
-          assert "materials_characterization_analyzer-0.10.0-py3-none-any.whl" in files
-          assert "materials_characterization_analyzer-0.10.0.tar.gz" in files
+          assert f"materials_characterization_analyzer-{__version__}-py3-none-any.whl" in files
+          assert f"materials_characterization_analyzer-{__version__}.tar.gz" in files
           print(files)
           PY
 
@@ -203,7 +211,7 @@ jobs:
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: materials-characterization-analyzer-0.10.0-distributions
+          name: materials-characterization-analyzer-distributions
           path: dist/
           if-no-files-found: error
           retention-days: 14

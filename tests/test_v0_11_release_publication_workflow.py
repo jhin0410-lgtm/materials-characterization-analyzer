@@ -7,6 +7,18 @@ WORKFLOW = ROOT / ".github" / "workflows" / "publish-v0-11-0-release.yml"
 SOURCE_MASK_WORKFLOW = (
     ROOT / ".github" / "workflows" / "public-cobalt-oxide-tem-masks.yml"
 )
+TRAINING_WORKFLOW = (
+    ROOT / ".github" / "workflows" / "public-cobalt-oxide-tem-training-data-audit.yml"
+)
+PAIRING_WORKFLOW = (
+    ROOT
+    / ".github"
+    / "workflows"
+    / "public-cobalt-oxide-tem-source-image-mask-pairing.yml"
+)
+OVERLAP_WORKFLOW = (
+    ROOT / ".github" / "workflows" / "public-cobalt-oxide-tem-parent-overlap-audit.yml"
+)
 RELEASE_NOTES = ROOT / "docs" / "releases" / "0.11.0.md"
 
 
@@ -44,13 +56,20 @@ def test_v0_11_release_notes_preserve_scientific_boundaries() -> None:
     assert "No third-party raw dataset is redistributed" in text
 
 
-def test_real_tem_mask_workflow_uses_runtime_version_not_release_literal() -> None:
-    text = SOURCE_MASK_WORKFLOW.read_text(encoding="utf-8")
+def _assert_runtime_version_contract(path: Path, *, summary_checks: int = 1) -> None:
+    text = path.read_text(encoding="utf-8")
 
-    assert 'from mca import __version__' in text
-    assert 'summary["software_version"] == __version__' in text
-    assert 'item["software_version"] == __version__' in text
+    assert "from mca import __version__" in text
+    assert text.count('["software_version"] == __version__') >= summary_checks
     assert 'materials_characterization_analyzer-{__version__}-py3-none-any.whl' in text
     assert 'materials_characterization_analyzer-{__version__}.tar.gz' in text
-    assert 'summary["software_version"] == "0.10.0"' not in text
     assert 'grep -F "0.10.0"' not in text
+    assert '["software_version"] == "0.10.0"' not in text
+    assert "materials-characterization-analyzer-0.10.0-distributions" not in text
+
+
+def test_real_tem_workflows_use_runtime_version_not_release_literal() -> None:
+    _assert_runtime_version_contract(SOURCE_MASK_WORKFLOW, summary_checks=2)
+    _assert_runtime_version_contract(TRAINING_WORKFLOW)
+    _assert_runtime_version_contract(PAIRING_WORKFLOW)
+    _assert_runtime_version_contract(OVERLAP_WORKFLOW, summary_checks=2)
