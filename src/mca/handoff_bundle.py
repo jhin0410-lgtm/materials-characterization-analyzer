@@ -1,6 +1,7 @@
 """Versioned file bundle for cross-repository characterization handoff."""
 from __future__ import annotations
 
+import hashlib
 import json
 from collections import Counter
 from collections.abc import Iterable, Mapping
@@ -17,24 +18,53 @@ BUNDLE_TYPE = "materials_characterization_feature_handoff"
 FEATURE_FILE_NAME = "characterization_features_long.csv"
 SAMPLE_CONTEXT_FILE_NAME = "sample_context.csv"
 MANIFEST_FILE_NAME = "characterization_handoff_bundle.json"
+SUPPORTED_EVIDENCE_LEVELS = {
+    "Supported",
+    "Diagnostic",
+    "Inconclusive",
+    "Unsupported",
+}
+
+
+class HandoffBundleContractError(ValueError):
+    """Raised when a producer handoff bundle fails its public contract."""
+
+
+def _reject_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise HandoffBundleContractError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
 
 
 def _load_json_object(path: str | Path, label: str) -> dict[str, Any]:
     source = Path(path)
-    if not source.is_file():
-        raise FileNotFoundError(f"{label} not found: {source}")
-    payload = json.loads(source.read_text(encoding="utf-8"))
+    if not source.is_file() or source.is_symlink():
+        raise FileNotFoundError(f"{label} not found or unsafe: {source}")
+    try:
+        payload = json.loads(
+            source.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_pairs,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise HandoffBundleContractError(f"Could not read {label}: {source}") from exc
     if not isinstance(payload, dict):
-        raise ValueError(f"{label} must contain a JSON object.")
+        raise HandoffBundleContractError(f"{label} must contain a JSON object.")
     return payload
 
 
 def _relative_reference(output_dir: Path, path: str | Path, label: str) -> dict[str, Any]:
     candidate = Path(path)
-    if not candidate.is_file():
-        raise FileNotFoundError(f"{label} not found: {candidate}")
-    if output_dir.resolve() != candidate.resolve().parent:
-        raise ValueError(f"{label} must be stored directly in the bundle output directory.")
+    if not candidate.is_file() or candidate.is_symlink():
+        raise FileNotFoundError(f"{label} not found or unsafe: {candidate}")
+    output_resolved = output_dir.resolve()
+    candidate_resolved = candidate.resolve()
+    if output_resolved != candidate_resolved.parent:
+        raise HandoffBundleContractError(
+            f"{label} must be stored directly in the bundle output directory."
+        )
     return {
         "path": candidate.name,
         "sha256": sha256_file(candidate),
@@ -48,20 +78,37 @@ def _features_from_analysis_manifest(
     payload = _load_json_object(analysis_manifest_path, "analysis manifest")
     analyses = payload.get("analyses")
     if not isinstance(analyses, list) or not analyses:
-        raise ValueError("analysis manifest must contain at least one analysis.")
+        raise HandoffBundleContractError(
+            "analysis manifest must contain at least one analysis."
+        )
+    analysis_count = payload.get("analysis_count")
+    if isinstance(analysis_count, bool) or not isinstance(analysis_count, int):
+        raise HandoffBundleContractError(
+            "analysis manifest analysis_count must be an integer."
+        )
+    if analysis_count != len(analyses):
+        raise HandoffBundleContractError(
+            "analysis manifest analysis_count does not match analyses."
+        )
 
     feature_rows: list[dict[str, object]] = []
     software_versions: set[str] = set()
     result_schema_versions: set[str] = set()
     for index, analysis in enumerate(analyses):
         if not isinstance(analysis, dict):
-            raise ValueError(f"analysis manifest entry {index} must be an object.")
+            raise HandoffBundleContractError(
+                f"analysis manifest entry {index} must be an object."
+            )
         features = analysis.get("features")
         if not isinstance(features, list):
-            raise ValueError(f"analysis manifest entry {index} features must be a list.")
+            raise HandoffBundleContractError(
+                f"analysis manifest entry {index} features must be a list."
+            )
         for feature in features:
             if not isinstance(feature, dict):
-                raise ValueError("analysis feature entries must be objects.")
+                raise HandoffBundleContractError(
+                    "analysis feature entries must be objects."
+                )
             feature_rows.append(dict(feature))
         software_version = analysis.get("software_version")
         result_schema_version = analysis.get("schema_version")
@@ -71,22 +118,61 @@ def _features_from_analysis_manifest(
             result_schema_versions.add(result_schema_version)
 
     if not feature_rows:
-        raise ValueError("Handoff bundle requires at least one numeric feature record.")
+        raise HandoffBundleContractError(
+            "Handoff bundle requires at least one numeric feature record."
+        )
     feature_table = pd.DataFrame(feature_rows)
     missing = [column for column in LONG_FEATURE_COLUMNS if column not in feature_table.columns]
     extra = [column for column in feature_table.columns if column not in LONG_FEATURE_COLUMNS]
     if missing or extra:
-        raise ValueError(
+        raise HandoffBundleContractError(
             f"analysis manifest feature schema mismatch; missing={missing}, extra={extra}."
         )
     feature_table = feature_table.loc[:, LONG_FEATURE_COLUMNS]
     numeric = pd.to_numeric(feature_table["value"], errors="coerce")
     if numeric.isna().any():
-        raise ValueError("analysis manifest contains non-numeric or missing feature values.")
+        raise HandoffBundleContractError(
+            "analysis manifest contains non-numeric or missing feature values."
+        )
     feature_table["value"] = numeric.astype(float)
     if feature_table.duplicated().any():
-        raise ValueError("Handoff feature table contains duplicate rows.")
+        raise HandoffBundleContractError(
+            "Handoff feature table contains duplicate rows."
+        )
     return feature_table, sorted(software_versions), sorted(result_schema_versions)
+
+
+def _serialized_csv(table: pd.DataFrame) -> bytes:
+    return table.to_csv(index=False, lineterminator="\n").encode("utf-8")
+
+
+def _bytes_record(path_name: str, payload: bytes) -> dict[str, Any]:
+    return {
+        "path": path_name,
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "size_bytes": len(payload),
+    }
+
+
+def _write_transactional(output: Path, payloads: Mapping[Path, bytes]) -> None:
+    temporary: list[Path] = []
+    written: list[Path] = []
+    try:
+        for target, payload in payloads.items():
+            temp = output / f".{target.name}.tmp"
+            if temp.exists():
+                raise FileExistsError(f"Refusing to overwrite temporary handoff artifact: {temp}")
+            temp.write_bytes(payload)
+            temporary.append(temp)
+        for target, temp in zip(payloads, temporary, strict=True):
+            temp.replace(target)
+            written.append(target)
+    except Exception:
+        for temp in temporary:
+            temp.unlink(missing_ok=True)
+        for target in written:
+            target.unlink(missing_ok=True)
+        raise
 
 
 def write_characterization_handoff_bundle(
@@ -103,33 +189,45 @@ def write_characterization_handoff_bundle(
 ) -> dict[str, Path]:
     """Write a portable bundle from persisted case evidence without a consumer import."""
     if not case_id.strip():
-        raise ValueError("case_id must not be empty.")
+        raise HandoffBundleContractError("case_id must not be empty.")
     if not producer_repository.strip():
-        raise ValueError("producer_repository must not be empty.")
+        raise HandoffBundleContractError("producer_repository must not be empty.")
+    if evidence_level not in SUPPORTED_EVIDENCE_LEVELS:
+        raise HandoffBundleContractError(
+            f"Unsupported evidence_level: {evidence_level}"
+        )
+    if not isinstance(scientific_boundary, Mapping):
+        raise HandoffBundleContractError("scientific_boundary must be a mapping.")
 
     feature_table, software_versions, result_schema_versions = (
         _features_from_analysis_manifest(analysis_manifest_path)
     )
     context_table = pd.DataFrame([dict(row) for row in sample_context_rows])
     if "sample_id" not in context_table.columns:
-        raise ValueError("sample context requires a sample_id column.")
+        raise HandoffBundleContractError("sample context requires a sample_id column.")
     context_table = context_table.copy()
     context_table["sample_id"] = context_table["sample_id"].astype("string").str.strip()
     if context_table["sample_id"].isna().any() or context_table["sample_id"].eq("").any():
-        raise ValueError("sample context contains blank sample_id values.")
+        raise HandoffBundleContractError(
+            "sample context contains blank sample_id values."
+        )
     if context_table["sample_id"].duplicated().any():
-        raise ValueError("sample context sample_id values must be unique.")
+        raise HandoffBundleContractError(
+            "sample context sample_id values must be unique."
+        )
 
     feature_sample_ids = sorted(set(feature_table["sample_id"].astype(str)))
     context_sample_ids = sorted(set(context_table["sample_id"].astype(str)))
     if feature_sample_ids != context_sample_ids:
-        raise ValueError(
+        raise HandoffBundleContractError(
             "Feature and sample-context sample_id sets must match exactly; "
             f"features={feature_sample_ids}, context={context_sample_ids}."
         )
 
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
+    if output.is_symlink() or not output.is_dir():
+        raise HandoffBundleContractError("output_dir must be a real directory.")
     feature_path = output / FEATURE_FILE_NAME
     context_path = output / SAMPLE_CONTEXT_FILE_NAME
     manifest_path = output / MANIFEST_FILE_NAME
@@ -137,11 +235,21 @@ def write_characterization_handoff_bundle(
         if path.exists():
             raise FileExistsError(f"Refusing to overwrite existing handoff artifact: {path}")
 
-    feature_table.sort_values(
+    evidence_references = {
+        "source_manifest": _relative_reference(output, source_manifest_path, "source manifest"),
+        "analysis_manifest": _relative_reference(output, analysis_manifest_path, "analysis manifest"),
+        "comparability_matrix": _relative_reference(
+            output, comparability_matrix_path, "comparability matrix"
+        ),
+    }
+
+    feature_table = feature_table.sort_values(
         ["sample_id", "instrument", "feature_name", "feature_label", "measurement_id"],
         na_position="last",
-    ).to_csv(feature_path, index=False)
-    context_table.sort_values("sample_id").to_csv(context_path, index=False)
+    )
+    context_table = context_table.sort_values("sample_id")
+    feature_bytes = _serialized_csv(feature_table)
+    context_bytes = _serialized_csv(context_table)
 
     quality_counts = Counter(str(value) for value in feature_table["quality_flag"])
     manifest = {
@@ -160,9 +268,7 @@ def write_characterization_handoff_bundle(
             "missing_metadata_inferred": False,
         },
         "feature_table": {
-            "path": feature_path.name,
-            "sha256": sha256_file(feature_path),
-            "size_bytes": feature_path.stat().st_size,
+            **_bytes_record(feature_path.name, feature_bytes),
             "columns": LONG_FEATURE_COLUMNS,
             "row_count": int(len(feature_table)),
             "sample_count": int(feature_table["sample_id"].nunique()),
@@ -175,27 +281,27 @@ def write_characterization_handoff_bundle(
             ),
         },
         "sample_context": {
-            "path": context_path.name,
-            "sha256": sha256_file(context_path),
-            "size_bytes": context_path.stat().st_size,
+            **_bytes_record(context_path.name, context_bytes),
             "columns": list(context_table.columns),
             "row_count": int(len(context_table)),
         },
-        "evidence_references": {
-            "source_manifest": _relative_reference(output, source_manifest_path, "source manifest"),
-            "analysis_manifest": _relative_reference(output, analysis_manifest_path, "analysis manifest"),
-            "comparability_matrix": _relative_reference(
-                output, comparability_matrix_path, "comparability matrix"
-            ),
-        },
+        "evidence_references": evidence_references,
         "scientific_closeout": {
             "evidence_level": evidence_level,
             **dict(scientific_boundary),
         },
     }
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
+    manifest_bytes = (
+        json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    ).encode("utf-8")
+
+    _write_transactional(
+        output,
+        {
+            feature_path: feature_bytes,
+            context_path: context_bytes,
+            manifest_path: manifest_bytes,
+        },
     )
     return {
         "feature_table": feature_path,
