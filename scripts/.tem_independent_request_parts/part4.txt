@@ -1,0 +1,249 @@
+        f"**Ready for bounded source verification:** `{assessment['ready_for_bounded_source_verification']}`",
+        "",
+        "## Blockers",
+        "",
+    ]
+    lines.extend(f"- `{value}`" for value in blockers) if blockers else lines.append("- none")
+    lines.extend(
+        [
+            "",
+            "## Decision boundary",
+            "",
+            "No download, TEM intake, model inference, retraining, parameter selection, external performance claim or engineering release is authorized by this assessment.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _prepare_output(path: str | Path) -> tuple[Path, bool]:
+    output = Path(path)
+    created = False
+    if output.exists():
+        if output.is_symlink() or not output.is_dir() or any(output.iterdir()):
+            raise FileExistsError("output directory must be absent or empty")
+    else:
+        output.mkdir(parents=True)
+        created = True
+    return output, created
+
+
+def _cleanup_output(output: Path, created: bool) -> None:
+    if created:
+        shutil.rmtree(output, ignore_errors=True)
+    elif output.is_dir():
+        for child in output.iterdir():
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child, ignore_errors=True)
+            else:
+                child.unlink(missing_ok=True)
+
+
+def _artifact_manifest(output: Path, paths: Sequence[Path]) -> dict[str, Any]:
+    artifacts = [
+        {
+            "path": path.relative_to(output).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": _hash_file(path),
+        }
+        for path in paths
+    ]
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "case_id": CASE_ID,
+        "artifact_count": len(artifacts),
+        "artifacts": artifacts,
+    }
+
+
+def _load_json(path: Path, context: str) -> dict[str, Any]:
+    if not path.is_file() or path.is_symlink():
+        raise SourceRequestContractError(f"{context} must be a real file")
+
+    def hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        output: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in output:
+                raise SourceRequestContractError(f"duplicate JSON key in {context}: {key}")
+            output[key] = value
+        return output
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=hook)
+    except SourceRequestContractError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise SourceRequestContractError(f"invalid {context}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise SourceRequestContractError(f"{context} must contain a JSON object")
+    return payload
+
+
+def _read_inventory(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    if not rows or not rows[0].keys():
+        raise SourceRequestContractError("candidate inventory must be non-empty")
+    required = {"candidate_id", "evaluation_ready"}
+    if not required.issubset(rows[0]):
+        raise SourceRequestContractError("candidate inventory is missing required columns")
+    return rows
+
+
+def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _hash_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _mapping(payload: Mapping[str, Any], key: str) -> Mapping[str, Any]:
+    return _mapping_value(payload.get(key), key)
+
+
+def _mapping_value(value: Any, context: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise SourceRequestContractError(f"{context} must be an object")
+    return value
+
+
+def _text(payload: Mapping[str, Any], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise SourceRequestContractError(f"{key} must be non-empty text")
+    return value.strip()
+
+
+def _resolved_text(payload: Mapping[str, Any], key: str) -> str:
+    return _resolved_string(_text(payload, key), key)
+
+
+def _resolved_string(value: Any, context: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise SourceRequestContractError(f"{context} must be non-empty text")
+    text = value.strip()
+    if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in _PLACEHOLDER_PATTERNS):
+        raise SourceRequestContractError(f"{context} contains unresolved placeholder text")
+    return text
+
+
+def _optional_text(value: Any, context: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise SourceRequestContractError(f"{context} must be null or non-empty text")
+    return value.strip()
+
+
+def _optional_resolved_text(value: Any, context: str) -> str | None:
+    text = _optional_text(value, context)
+    return None if text is None else _resolved_string(text, context)
+
+
+def _email(payload: Mapping[str, Any], key: str) -> str:
+    value = _resolved_text(payload, key)
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value):
+        raise SourceRequestContractError(f"{key} must be a valid email address")
+    return value
+
+
+def _identifier(payload: Mapping[str, Any], key: str) -> str:
+    value = _resolved_text(payload, key)
+    if not re.fullmatch(r"[A-Za-z0-9._:-]+", value):
+        raise SourceRequestContractError(f"{key} contains unsupported characters")
+    return value
+
+
+def _relative_path(payload: Mapping[str, Any], key: str) -> str:
+    value = _resolved_text(payload, key)
+    pure = PurePosixPath(value)
+    if pure.is_absolute() or not pure.parts or any(part in {"", ".", ".."} for part in pure.parts):
+        raise SourceRequestContractError(f"{key} must be a safe relative POSIX path")
+    if "\\" in value or value != pure.as_posix():
+        raise SourceRequestContractError(f"{key} must be a normalized POSIX path")
+    return value
+
+
+def _sha256(payload: Mapping[str, Any], key: str) -> str:
+    value = _text(payload, key).casefold()
+    if not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise SourceRequestContractError(f"{key} must be a SHA-256 hex digest")
+    return value
+
+
+def _optional_sha256(value: Any, context: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", value):
+        raise SourceRequestContractError(f"{context} must be null or a SHA-256 hex digest")
+    return value.casefold()
+
+
+def _boolean(payload: Mapping[str, Any], key: str) -> bool:
+    value = payload.get(key)
+    if not isinstance(value, bool):
+        raise SourceRequestContractError(f"{key} must be a boolean")
+    return value
+
+
+def _positive_int(payload: Mapping[str, Any], key: str) -> int:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise SourceRequestContractError(f"{key} must be a positive integer")
+    return value
+
+
+def _nonnegative_int(payload: Mapping[str, Any], key: str) -> int:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise SourceRequestContractError(f"{key} must be a non-negative integer")
+    return value
+
+
+def _positive_number(payload: Mapping[str, Any], key: str) -> float:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not (0 < float(value) < float("inf")):
+        raise SourceRequestContractError(f"{key} must be a finite positive number")
+    return float(value)
+
+
+def _reject_unknown(payload: Mapping[str, Any], allowed: set[str], context: str) -> None:
+    unknown = sorted(set(payload) - allowed)
+    if unknown:
+        raise SourceRequestContractError(f"unknown {context} keys: {unknown}")
+
+
+def _normalize_name(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.casefold())
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=True)
+    build = sub.add_parser("build", help="build a send-ready request package")
+    build.add_argument("--registry-output", required=True)
+    build.add_argument("--output", required=True)
+    assess = sub.add_parser("assess", help="assess an authoritative source response")
+    assess.add_argument("--registry-output", required=True)
+    assess.add_argument("--response", required=True)
+    assess.add_argument("--output", required=True)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    bundle = load_registry_bundle(args.registry_output)
+    if args.command == "build":
+        result = build_request_package(bundle, args.output)
+    else:
+        result = assess_author_response(bundle, args.response, args.output)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
