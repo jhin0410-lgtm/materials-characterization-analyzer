@@ -1,0 +1,169 @@
+name: SAED independent validation source request
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/saed_independent_validation_source_request/**"
+      - "case_studies/saed_public_candidate_registry/**"
+      - "scripts/saed_independent_validation_source_request.py"
+      - "tests/test_saed_independent_validation_source_request.py"
+      - "src/mca/saed_external_validation_candidate_registry*.py"
+      - ".github/workflows/saed-independent-validation-source-request.yml"
+
+jobs:
+  request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused contract regressions
+        run: |
+          python -m py_compile scripts/saed_independent_validation_source_request.py
+          pytest -q \
+            tests/test_saed_independent_validation_source_request.py \
+            tests/test_saed_external_validation_candidate_registry.py \
+            tests/test_saed_external_validation_intake.py
+
+      - name: Reproduce checksum-bound SAED candidate registry
+        run: |
+          mca saed-candidates \
+            --config case_studies/saed_public_candidate_registry/case_config.json \
+            --output outputs/saed_public_candidate_registry
+
+      - name: Build send-ready request package
+        run: |
+          python scripts/saed_independent_validation_source_request.py build \
+            --registry-output outputs/saed_public_candidate_registry \
+            --output outputs/saed_independent_validation_source_request
+
+      - name: Verify request decision boundary and manifest
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/saed_independent_validation_source_request")
+          summary = json.loads(
+              (output / "saed_independent_source_request_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert summary["status"] == "independent_saed_source_request_package_ready"
+          assert summary["request_ready_for_correspondence"] is True
+          assert summary["message_sent"] is False
+          assert summary["source_download_authorized"] is False
+          assert summary["bounded_source_verification_ready"] is False
+          assert summary["saed_validation_intake_ready"] is False
+          assert summary["external_evaluation_ready"] is False
+
+          request = json.loads(
+              (output / "saed_independent_source_request.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert request["current_evidence_state"]["assessed_candidate_count"] == 7
+          assert request["current_evidence_state"]["ready_candidate_count"] == 0
+          assert request["target_contract"]["acquisition_mode"] == (
+              "static_selected_area_diffraction"
+          )
+          assert request["target_contract"][
+              "minimum_independent_pattern_series"
+          ] == 2
+          boundary = request["decision_boundary"]
+          assert boundary["message_sent_by_software"] is False
+          assert boundary["source_download_authorized"] is False
+          assert boundary["saed_analyzer_execution_authorized"] is False
+          assert boundary["phase_or_reflection_indexing_authorized"] is False
+
+          correspondence = (
+              output / "saed_independent_source_correspondence.md"
+          ).read_text(encoding="utf-8")
+          assert "Suggested subject" in correspondence
+          assert "at least `2` independent static SAED pattern series" in correspondence
+          assert "does not authorize a download" in correspondence
+
+          manifest = json.loads(
+              (output / "saed_independent_source_request_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert manifest["artifact_count"] == 4
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert record["bytes"] == path.stat().st_size
+              assert record["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+          PY
+
+      - name: Verify a referral remains fail closed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = {
+              "schema_version": "1.0",
+              "request_case_id": "saed_independent_validation_source_request",
+              "response_status": "referral_only",
+              "respondent": {
+                  "name": "Repository Curator",
+                  "affiliation": "Microscopy Repository",
+                  "email": "curator@example.org",
+                  "authority": "repository_curator",
+                  "authority_basis": "Repository record custodian",
+              },
+              "candidate": None,
+              "referrals": [{
+                  "name": "Independent Collector",
+                  "affiliation": "External Facility",
+                  "email": "collector@example.org",
+                  "reason": "Holds original calibrated detector exports",
+              }],
+              "notes": "No candidate files are held by this repository.",
+          }
+          Path("outputs/saed_referral_response.json").write_text(
+              json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+          python scripts/saed_independent_validation_source_request.py assess \
+            --registry-output outputs/saed_public_candidate_registry \
+            --response outputs/saed_referral_response.json \
+            --output outputs/saed_independent_validation_referral_assessment
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/saed_independent_validation_referral_assessment")
+          assessment = json.loads(
+              (output / "saed_independent_source_response_assessment.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert assessment["status"] == "no_candidate_saed_source_declared"
+          assert assessment["source_download_authorized"] is False
+          assert assessment["ready_for_bounded_source_verification"] is False
+          assert assessment["saed_validation_intake_ready"] is False
+          assert assessment["external_evaluation_ready"] is False
+          assert not (output / "saed_bounded_source_verification_plan.json").exists()
+          PY
+          rm -rf \
+            outputs/saed_referral_response.json \
+            outputs/saed_independent_validation_referral_assessment
+
+      - name: Upload request evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: saed-independent-validation-source-request-evidence
+          path: outputs/saed_independent_validation_source_request
+          if-no-files-found: error
+          retention-days: 30
