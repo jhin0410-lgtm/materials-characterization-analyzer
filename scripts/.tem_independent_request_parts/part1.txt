@@ -1,0 +1,229 @@
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import re
+import shutil
+from pathlib import Path, PurePosixPath
+from typing import Any, Mapping, Sequence
+
+CASE_ID = "tem_independent_validation_source_request"
+SCHEMA_VERSION = "1.0"
+REGISTRY_CASE_ID = "tem_external_validation_candidate_registry"
+REGISTRY_RESULT = "no_public_candidate_ready_for_in_domain_external_validation"
+
+REQUEST_READY = "independent_source_request_package_ready"
+RESPONSE_READY = "candidate_response_ready_for_bounded_source_verification"
+RESPONSE_BLOCKED = "candidate_response_received_but_source_not_ready"
+NO_SOURCE = "no_candidate_source_declared"
+
+_RESPONSE_STATUSES = {"candidate_available", "referral_only", "not_available"}
+_AUTHORITIES = {"data_collector", "principal_investigator", "repository_curator", "data_custodian"}
+_SOURCE_TYPES = {"external_public", "private_transfer", "new_acquisition", "private_acquisition"}
+_MODALITIES = {"TEM", "HRTEM"}
+_REPRESENTATIONS = {"raw_detector", "lossless_export", "rendered_figure"}
+_IDENTITY_PROVENANCE = {"source_assigned", "operator_assigned_at_acquisition", "inferred"}
+_PURITY_SCOPES = {"pure_cobalt_oxide", "mixed_or_composite", "unknown"}
+
+_PLACEHOLDER_PATTERNS = (
+    r"replace[-_/ ]?with",
+    r"^replace[-_/ ]",
+    r"\bunresolved\b",
+    r"\bunknown\b",
+    r"\bnot provided\b",
+    r"\bnot available\b",
+    r"\btbd\b",
+    r"\btodo\b",
+    r"^n/?a$",
+)
+
+
+class SourceRequestContractError(ValueError):
+    """Raised when registry evidence or an author response fails closed."""
+
+
+def load_registry_bundle(registry_output: str | Path) -> dict[str, Any]:
+    root = Path(registry_output)
+    if not root.is_dir() or root.is_symlink():
+        raise SourceRequestContractError("registry-output must be a real directory")
+
+    names = {
+        "tem_external_validation_candidate_inventory.csv",
+        "tem_external_validation_candidate_summary.json",
+        "tem_external_validation_candidate_report.md",
+        "tem_external_validation_annotation_protocol.json",
+        "tem_external_validation_candidate_manifest.json",
+    }
+    for name in sorted(names):
+        path = root / name
+        if not path.is_file() or path.is_symlink():
+            raise SourceRequestContractError(f"registry bundle is missing required file: {name}")
+
+    manifest_path = root / "tem_external_validation_candidate_manifest.json"
+    manifest = _load_json(manifest_path, "registry manifest")
+    _reject_unknown(
+        manifest,
+        {"schema_version", "case_id", "software_version", "search_date", "artifact_count", "artifacts"},
+        "registry manifest",
+    )
+    if manifest.get("case_id") != REGISTRY_CASE_ID:
+        raise SourceRequestContractError("registry manifest case_id mismatch")
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        raise SourceRequestContractError("registry manifest artifacts must be non-empty")
+    if manifest.get("artifact_count") != len(artifacts):
+        raise SourceRequestContractError("registry manifest artifact_count mismatch")
+
+    bound: set[str] = set()
+    for index, raw in enumerate(artifacts):
+        item = _mapping_value(raw, f"registry artifact[{index}]")
+        _reject_unknown(item, {"path", "bytes", "sha256"}, f"registry artifact[{index}]")
+        relative = _relative_path(item, "path")
+        if relative in bound:
+            raise SourceRequestContractError("registry manifest paths must be unique")
+        bound.add(relative)
+        path = root / PurePosixPath(relative)
+        if not path.is_file() or path.is_symlink():
+            raise SourceRequestContractError(f"registry artifact missing or unsafe: {relative}")
+        if path.stat().st_size != _positive_int(item, "bytes"):
+            raise SourceRequestContractError(f"registry artifact byte mismatch: {relative}")
+        if _hash_file(path) != _sha256(item, "sha256"):
+            raise SourceRequestContractError(f"registry artifact SHA-256 mismatch: {relative}")
+
+    required_bound = names - {"tem_external_validation_candidate_manifest.json"}
+    missing_bound = sorted(required_bound - bound)
+    if missing_bound:
+        raise SourceRequestContractError(
+            f"registry manifest does not bind required file: {missing_bound[0]}"
+        )
+
+    summary = _load_json(
+        root / "tem_external_validation_candidate_summary.json", "registry summary"
+    )
+    protocol = _load_json(
+        root / "tem_external_validation_annotation_protocol.json", "annotation protocol"
+    )
+    inventory = _read_inventory(
+        root / "tem_external_validation_candidate_inventory.csv"
+    )
+
+    if summary.get("case_id") != REGISTRY_CASE_ID:
+        raise SourceRequestContractError("registry summary case_id mismatch")
+    target = _mapping(summary, "target_contract")
+    counts = _mapping(summary, "result_counts")
+    readiness = _mapping(summary, "readiness")
+    processing = _mapping(summary, "processing")
+    if readiness.get("status") != REGISTRY_RESULT:
+        raise SourceRequestContractError("registry is not in the pinned fail-closed state")
+    if readiness.get("independent_in_domain_external_validation_available") is not False:
+        raise SourceRequestContractError("registry unexpectedly reports a ready candidate")
+
+    candidate_count = _nonnegative_int(counts, "candidate_count")
+    ready_count = _nonnegative_int(counts, "in_domain_external_validation_ready_count")
+    if candidate_count != len(inventory):
+        raise SourceRequestContractError("registry candidate count mismatch")
+    if ready_count != 0:
+        raise SourceRequestContractError("registry ready-candidate count must be zero")
+    for row in inventory:
+        if str(row.get("evaluation_ready", "")).casefold() != "false":
+            raise SourceRequestContractError("registry inventory contains an evaluation-ready row")
+
+    prohibited = {
+        "source_arrays_downloaded_by_registry",
+        "source_arrays_modified",
+        "labels_created",
+        "model_training_performed",
+        "model_inference_performed",
+        "segmentation_metrics_computed",
+    }
+    if any(processing.get(key) is not False for key in prohibited):
+        raise SourceRequestContractError("registry processing boundary mismatch")
+
+    modalities = target.get("modalities")
+    if modalities != ["TEM", "HRTEM"]:
+        raise SourceRequestContractError("registry target modalities mismatch")
+    creators = target.get("target_training_creators")
+    if not isinstance(creators, list) or not all(
+        isinstance(value, str) and value.strip() for value in creators
+    ):
+        raise SourceRequestContractError("target training creators must be a list of names")
+
+    annotation_requirements = _mapping(protocol, "annotation_requirements")
+    if annotation_requirements.get("minimum_independent_blinded_labelers") != 2:
+        raise SourceRequestContractError("annotation protocol labeler minimum mismatch")
+
+    return {
+        "candidate_count": candidate_count,
+        "ready_candidate_count": ready_count,
+        "target_task": _text(target, "task"),
+        "target_material": _text(target, "material"),
+        "target_modalities": list(modalities),
+        "target_training_creators": [str(value).strip() for value in creators],
+        "search_date": _text(manifest, "search_date"),
+        "registry_manifest_sha256": _hash_file(manifest_path),
+    }
+
+
+def build_request_package(bundle: Mapping[str, Any], output_dir: str | Path) -> dict[str, Any]:
+    output, created = _prepare_output(output_dir)
+    try:
+        request = {
+            "schema_version": SCHEMA_VERSION,
+            "case_id": CASE_ID,
+            "purpose": "obtain an independent raw or lossless cobalt-oxide TEM/HRTEM source for a blinded external-validation workflow",
+            "current_evidence_state": {
+                "registry_search_date": bundle["search_date"],
+                "registry_manifest_sha256": bundle["registry_manifest_sha256"],
+                "assessed_candidate_count": bundle["candidate_count"],
+                "ready_candidate_count": bundle["ready_candidate_count"],
+                "conclusion": REGISTRY_RESULT,
+            },
+            "target_contract": {
+                "task": bundle["target_task"],
+                "material": bundle["target_material"],
+                "modalities": bundle["target_modalities"],
+                "representations": ["raw_detector", "lossless_export"],
+                "minimum_independent_samples": 2,
+                "minimum_independent_acquisitions": 2,
+                "pixel_calibration_required": True,
+                "immutable_sample_and_acquisition_ids_required": True,
+                "target_training_nonuse_attestation_required": True,
+                "creator_disjointness_required": True,
+                "independent_labels_required_before_evaluation": True,
+            },
+            "requested_evidence": [
+                "authoritative respondent identity and authority basis",
+                "dataset identifier, version, transfer route, manifest SHA-256, and reuse authorization",
+                "composition, phase, purity scope, preparation and processing history",
+                "creator list and target-training creator overlap declaration",
+                "at least two source-assigned samples and two acquisitions",
+                "per-image path, bytes, SHA-256, modality, representation, detector and instrument metadata",
+                "per-image pixel calibration and calibration source",
+                "attestation that no image was used for training, threshold selection, hyperparameter tuning or model selection",
+                "available label provenance, while preserving blinded annotation requirements",
+            ],
+            "response_template_file": "tem_independent_source_author_response_template.json",
+            "decision_boundary": {
+                "email_sent_by_software": False,
+                "source_download_authorized": False,
+                "model_inference_authorized": False,
+                "model_retraining_authorized": False,
+                "parameter_selection_authorized": False,
+                "external_performance_claim_authorized": False,
+            },
+        }
+        template = _response_template()
+        summary = {
+            "schema_version": SCHEMA_VERSION,
+            "case_id": CASE_ID,
+            "status": REQUEST_READY,
+            "request_ready_for_correspondence": True,
+            "email_sent": False,
+            "source_download_authorized": False,
+            "bounded_source_verification_ready": False,
+            "tem_validation_intake_ready": False,
+            "external_evaluation_ready": False,
+            "recommended_next_action": "Send the correspondence and JSON template to an authoritative independent data collector, custodian, curator or principal investigator, then assess the completed response before any transfer.",
+        }
