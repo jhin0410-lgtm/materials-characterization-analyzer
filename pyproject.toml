@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "materials-characterization-analyzer"
-version = "0.10.0"
+version = "0.11.0"
 description = "Provenance-aware CLI support for XRD, SEM, EDS, Raman, TEM, SAED, XPS, FTIR, TGA, and DSC characterization workflows."
 readme = "README.md"
 license = "BSD-3-Clause"

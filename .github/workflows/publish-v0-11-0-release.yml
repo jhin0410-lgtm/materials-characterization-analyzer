@@ -1,0 +1,206 @@
+name: Publish v0.11.0 GitHub Release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "src/mca/__init__.py"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "docs/releases/0.11.0.md"
+      - "tests/test_release_metadata.py"
+      - "tests/test_v0_11_release_publication_workflow.py"
+      - ".github/workflows/publish-v0-11-0-release.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "pyproject.toml"
+      - "src/mca/__init__.py"
+      - "CITATION.cff"
+      - "CHANGELOG.md"
+      - "docs/releases/0.11.0.md"
+      - "tests/test_v0_11_release_publication_workflow.py"
+      - ".github/workflows/publish-v0-11-0-release.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-v0-11-0-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: v0.11.0
+  RELEASE_VERSION: 0.11.0
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out exact repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and release dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Verify release metadata and run complete tests
+        shell: bash
+        run: |
+          mkdir -p outputs/release-publication
+          set -o pipefail
+          python -m pytest -q 2>&1 | tee outputs/release-publication/pytest.log
+
+      - name: Build wheel and source distribution
+        run: python -m build
+
+      - name: Smoke-test the built wheel
+        shell: bash
+        run: |
+          python -m venv outputs/release-wheel-venv
+          outputs/release-wheel-venv/bin/python -m pip install --upgrade pip
+          outputs/release-wheel-venv/bin/python -m pip install dist/*.whl
+          test "$(outputs/release-wheel-venv/bin/mca --version)" = \
+            "materials-characterization-analyzer ${RELEASE_VERSION}"
+          outputs/release-wheel-venv/bin/mca analyzer-readiness \
+            --config case_studies/analyzer_readiness_registry/readiness_registry.json \
+            --output outputs/release-analyzer-readiness
+          outputs/release-wheel-venv/bin/mca build-handoff --help
+          outputs/release-wheel-venv/bin/mca validate-handoff --help
+
+      - name: Verify readiness and scientific boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/release-analyzer-readiness")
+          summary = json.loads(
+              (root / "analyzer_readiness_summary.json").read_text(encoding="utf-8")
+          )
+          manifest = json.loads(
+              (root / "analyzer_readiness_artifact_manifest.json").read_text(encoding="utf-8")
+          )
+
+          assert summary["analyzer_count"] == 10
+          assert summary["software_supported_count"] == 10
+          assert summary["public_real_data_exercised_count"] == 10
+          assert summary["scientific_evidence_level_counts"] == {
+              "Diagnostic": 8,
+              "Inconclusive": 2,
+          }
+          assert summary["independent_external_validation_ready_count"] == 0
+          assert summary["engineering_decision_ready_count"] == 0
+          assert manifest["scientific_boundary"]["scientific_claims_promoted"] is False
+          assert manifest["scientific_boundary"]["missing_metadata_inferred"] is False
+          PY
+
+      - name: Package release assets and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp dist/* release-assets/
+          zip -q -r \
+            release-assets/materials-characterization-analyzer-v0.11.0-readiness-evidence.zip \
+            outputs/release-analyzer-readiness
+          zip -q \
+            release-assets/materials-characterization-analyzer-v0.11.0-pytest-log.zip \
+            outputs/release-publication/pytest.log
+          cp docs/releases/0.11.0.md release-assets/RELEASE_BODY.md
+          (
+            cd release-assets
+            sha256sum ./*.whl ./*.tar.gz ./*.zip > SHA256SUMS.txt
+          )
+          cat release-assets/SHA256SUMS.txt
+
+      - name: Upload validated release bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: v0-11-0-release-publication-bundle
+          path: release-assets
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-github-release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out exact validated main commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download validated release assets
+        uses: actions/download-artifact@v7
+        with:
+          name: v0-11-0-release-publication-bundle
+          path: release-assets
+
+      - name: Create or verify exact tag and GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "$(python - <<'PY'
+          import tomllib
+          with open('pyproject.toml', 'rb') as handle:
+              print(tomllib.load(handle)['project']['version'])
+          PY
+          )" = "${RELEASE_VERSION}"
+          git fetch --tags origin
+
+          existing_tag_commit="$(git rev-parse "${RELEASE_TAG}^{commit}" 2>/dev/null || true)"
+          if [[ -n "${existing_tag_commit}" ]]; then
+            test "${existing_tag_commit}" = "${GITHUB_SHA}"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "${RELEASE_TAG}" "${GITHUB_SHA}" \
+              -m "Materials Characterization Analyzer ${RELEASE_TAG}"
+            git push origin "refs/tags/${RELEASE_TAG}"
+          fi
+
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "GitHub Release already exists for ${RELEASE_TAG}."
+          else
+            gh release create "${RELEASE_TAG}" \
+              release-assets/*.whl \
+              release-assets/*.tar.gz \
+              release-assets/materials-characterization-analyzer-v0.11.0-readiness-evidence.zip \
+              release-assets/materials-characterization-analyzer-v0.11.0-pytest-log.zip \
+              release-assets/SHA256SUMS.txt \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Materials Characterization Analyzer v0.11.0" \
+              --notes-file release-assets/RELEASE_BODY.md \
+              --target "${GITHUB_SHA}" \
+              --verify-tag
+          fi
+
+          test "$(git rev-parse "${RELEASE_TAG}^{commit}")" = "${GITHUB_SHA}"
+          gh release view "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --json tagName,name,isDraft,isPrerelease,targetCommitish,publishedAt,url
