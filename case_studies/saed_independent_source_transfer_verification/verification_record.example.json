@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "case_id": "saed_independent_source_transfer_verification",
+  "response_case_id": "saed_independent_validation_source_request",
+  "response_artifact_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "transfer_authorization": {
+    "authorized": true,
+    "authorized_by": "REPLACE_WITH_AUTHORIZER",
+    "authority_basis": "REPLACE_WITH_AUTHORITY_BASIS",
+    "authorized_at": "2026-08-04",
+    "scope": "declared_patterns_and_collection_manifest_only"
+  },
+  "collection_manifest": {
+    "relative_path": "source_manifest.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "bytes": 1
+  },
+  "dataset_verification": {
+    "intake_source_type": "external_public",
+    "source_type_mapping_basis": "REPLACE_WITH_MAPPING_BASIS",
+    "reuse_authorization_verified": false,
+    "material_identity_source": "REPLACE_WITH_MATERIAL_IDENTITY_SOURCE",
+    "creator_overlap_with_analyzer_development_source": false,
+    "cross_dataset_lineage_independence_attested": false,
+    "minimum_independent_samples": 2,
+    "minimum_independent_acquisitions": 2
+  },
+  "reference_verification": {
+    "intake_reference_identifier": "REPLACE_WITH_ONE_DECLARED_REFERENCE_IDENTIFIER",
+    "reference_identifier_selection_basis": "REPLACE_WITH_SELECTION_BASIS"
+  },
+  "pattern_verifications": [
+    {
+      "pattern_id": "REPLACE_WITH_DECLARED_PATTERN_ID",
+      "material_id": "replace_with_stable_material_id",
+      "file_format": "REPLACE_WITH_SOURCE_VERIFIED_FILE_FORMAT",
+      "camera_length_mm": null,
+      "preprocessing_operations": [
+        "none"
+      ],
+      "used_for_center_selection": false,
+      "used_for_smoothing_selection": false,
+      "used_for_prominence_selection": false,
+      "used_for_radius_bound_selection": false,
+      "used_for_candidate_count_selection": false,
+      "excluded": false,
+      "exclusion_reason": null
+    }
+  ]
+}
