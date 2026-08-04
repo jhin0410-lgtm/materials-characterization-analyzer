@@ -6,18 +6,42 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+No unreleased changes at the 0.11.0 publication boundary.
+
+## [0.11.0] - 2026-08-04
+
 ### Added
 
-- A checksum-bound PhaseT3M Co3O4 tilt-series candidate audit that safely inventories the Zenodo ZIP, inspects the unique HDF5 member, records source processing, and excludes raw files from evidence artifacts.
-- A `processed_in_domain_diagnostic_only` registry state so exact-material denoised or otherwise processed microscopy cannot be mistaken for raw external-validation data.
+- Fail-closed TEM and SAED external-validation candidate registries, dataset-intake contracts, source-request packages, authoritative-response assessment, and bounded transfer-verification workflows.
+- Checksum-bound audits for public TEM, HRTEM, STEM-tomography, SAED, and MicroED candidates, with representation, modality, calibration, acquisition-lineage, reuse, and model-development boundaries preserved.
+- Generic `mca validate-handoff` validation for portable characterization bundles, including file identity, schema, sample IDs, join rules, provenance coverage, and scientific-closeout verification.
+- Config-driven `mca build-handoff` construction that stages, validates, and atomically publishes portable bundles without inferring missing sample identity or comparability.
+- A versioned `mca analyzer-readiness` registry covering XRD, SEM, EDS, Raman, XPS, FTIR, TGA, DSC, TEM, and SAED.
+- Transactional CSV, JSON, Markdown, and checksum-manifest evidence for readiness and cross-repository handoff workflows.
+
+### Changed
+
+- TEM source triage now distinguishes rendered publication figures, processed exact-material diagnostic sources, wrong-modality STEM/EELS data, cross-material controls, and genuinely eligible independent TEM/HRTEM validation cohorts.
+- SAED source triage now separates static selected-area diffraction, continuous-rotation 3DED, software examples, archived sources, and candidates requiring authoritative calibration or lineage resolution.
+- Public bundle generation and validation now reject duplicate JSON keys, unsafe paths, symlinks, undeclared files, checksum drift, row-order joins, silent aggregation, and missing-metadata inference.
+- The project now reports analyzer readiness through distinct software, diagnostic-use, scientific-validation, independent external-validation, and engineering-decision fields.
 
 ### Fixed
 
-- Dryad HRTEM pilot automatic acquisition now resolves the pinned file-linked source version and checksum inventory, authenticates binary downloads without exposing the token, preserves raw API responses separately from enriched evidence, and keeps readiness blocked unless processed metadata binding is exact and authoritative.
-- The public Dryad pilot contract now pins the HDF5, training, overlap, notebook, source-version, and endpoint configuration; workflow evidence distinguishes a configured credential from a successfully verified authenticated download.
-- TEM external-validation intake now keeps model inference blocked whenever any dataset or image gate fails, even if annotations and protocol fields are otherwise complete.
-- Canonical manifest SHA-256 binding now detects post-freeze cohort or protocol mutation, and duplicate JSON object keys fail closed.
-- Duplicate active-image detection ignores excluded archival copies, excluded-image annotations do not change active-cohort status, every active annotation must remain blinded and unused for model development, and annotation file paths must be unique.
+- Dryad HRTEM provenance is bound to the file-linked source version, with credential configuration distinguished from successful authenticated binary acquisition.
+- TEM validation intake remains fail closed when dataset, image, annotation, overlap, or frozen-protocol gates are incomplete.
+- Active-image duplicate and annotation counts exclude archived copies and excluded records while preserving all evidence.
+- SAED transfer verification requires exact declared files, per-file SHA-256, explicit transfer authority, acquisition lineage, calibration, reference, and analyzer-development non-use rather than silently mapping missing metadata.
+- Handoff writing is transactional so late failures do not leave partially published CSV or JSON artifacts.
+
+### Scientific status
+
+- All ten analyzer families have regression-tested packaged baseline software and public real-data diagnostic execution or method-suitability evidence.
+- XRD, SEM, EDS, Raman, XPS, FTIR, TGA, and DSC remain **Diagnostic** for their current scientific claims; automatic candidates do not establish phase, morphology, quantitative composition, chemical state, functional group, reaction, mechanism, validated onset, or quantitative enthalpy.
+- TEM independent in-domain segmentation validation remains **Inconclusive** until an independent raw or demonstrably lossless Co3O4 TEM/HRTEM cohort with authoritative sample/acquisition lineage, blinded labels, overlap review, and a frozen evaluation protocol passes intake.
+- SAED crystallographic validation remains **Inconclusive** until an independent raw or demonstrably lossless static-SAED cohort with authoritative centre, reciprocal calibration, material/acquisition identity, frozen references, and analyzer-development non-use passes intake.
+- Independent external-validation readiness is `0/10`; engineering-decision readiness is `0/10`.
+- Passing software tests or bundle checks does not establish experimental validity, causal interpretation, predictive generalization, or engineering-release suitability.
 
 ## [0.10.0] - 2026-08-01
 
