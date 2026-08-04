@@ -4,6 +4,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "publish-v0-11-0-release.yml"
+SOURCE_MASK_WORKFLOW = (
+    ROOT / ".github" / "workflows" / "public-cobalt-oxide-tem-masks.yml"
+)
 RELEASE_NOTES = ROOT / "docs" / "releases" / "0.11.0.md"
 
 
@@ -39,3 +42,15 @@ def test_v0_11_release_notes_preserve_scientific_boundaries() -> None:
     assert "TEM independent in-domain segmentation performance remains `Inconclusive`" in text
     assert "SAED crystallographic performance remains `Inconclusive`" in text
     assert "No third-party raw dataset is redistributed" in text
+
+
+def test_real_tem_mask_workflow_uses_runtime_version_not_release_literal() -> None:
+    text = SOURCE_MASK_WORKFLOW.read_text(encoding="utf-8")
+
+    assert 'from mca import __version__' in text
+    assert 'summary["software_version"] == __version__' in text
+    assert 'item["software_version"] == __version__' in text
+    assert 'materials_characterization_analyzer-{__version__}-py3-none-any.whl' in text
+    assert 'materials_characterization_analyzer-{__version__}.tar.gz' in text
+    assert 'summary["software_version"] == "0.10.0"' not in text
+    assert 'grep -F "0.10.0"' not in text
