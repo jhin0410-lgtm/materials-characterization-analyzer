@@ -1,0 +1,40 @@
+name: Analyzer readiness registry
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/analyzer_readiness_registry/**"
+      - "src/mca/analyzer_readiness.py"
+      - "src/mca/analyzer_readiness_cli.py"
+      - "src/mca/cli_entry.py"
+      - "tests/test_analyzer_readiness.py"
+      - ".github/workflows/analyzer-readiness.yml"
+
+jobs:
+  validate-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused readiness regressions
+        run: |
+          python -m py_compile src/mca/analyzer_readiness.py src/mca/analyzer_readiness_cli.py
+          pytest -q tests/test_analyzer_readiness.py
+
+      - name: Run installed readiness command
+        run: |
+          mca analyzer-readiness \
+            --config case_studies/analyzer_readiness_registry/readiness_registry.json \
+            --output outputs/analyzer-readiness
+          test -f outputs/analyzer-readiness/analyzer_readiness_report.md
+          test -f outputs/analyzer-readiness/analyzer_readiness_artifact_manifest.json
