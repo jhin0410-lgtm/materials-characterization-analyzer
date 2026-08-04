@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "case_id": "replace-with-stable-case-id",
+  "producer_repository": "jhin0410-lgtm/materials-characterization-analyzer",
+  "evidence_level": "Diagnostic",
+  "sample_context_rows": [
+    {
+      "sample_id": "replace-with-stable-sample-id",
+      "identical_physical_aliquot_confirmed": false
+    }
+  ],
+  "scientific_boundary": {
+    "primary_limitation": "replace with the main scientific limitation",
+    "suitable_for": ["software integration and provenance checks"],
+    "unsuitable_for": ["causal, predictive, or engineering claims"]
+  },
+  "evidence": {
+    "source_manifest": "path/to/source_manifest.json",
+    "analysis_manifest": "path/to/characterization_manifest.json",
+    "comparability_matrix": "path/to/comparability_matrix.csv"
+  }
+}

@@ -66,3 +66,17 @@ It does **not** establish:
 - engineering-release readiness.
 
 A consumer must continue to verify the scientific question, sample comparability, units, target definitions, exclusions, leakage boundaries, and source licences.
+
+## Build a generic bundle
+
+Use an explicit schema `1.0` config when a case does not have a dedicated exporter:
+
+```bash
+mca build-handoff \
+  --config handoff_build_config.json \
+  --output outputs/portable-handoff
+```
+
+The builder resolves evidence paths relative to the config, copies only the three declared evidence files into a staging directory, writes the bundle, validates the completed bundle, and atomically publishes the output directory. An existing output is never overwritten and failed builds remove the staging directory.
+
+The builder does not derive sample identity, comparability, evidence level, or scientific limitations. These must be stated in the config.

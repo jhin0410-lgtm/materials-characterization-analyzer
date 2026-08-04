@@ -8,6 +8,7 @@ from . import __version__
 from .cli import main as legacy_main
 from .ftir_cli import main as ftir_main
 from .handoff_bundle_cli import main as validate_handoff_main
+from .handoff_bundle_builder_cli import main as build_handoff_main
 from .raman_cli import main as raman_main
 from .saed_bir_metadata_audit import cli_main as saed_bir_metadata_audit_main
 from .saed_bir_metadata_resolution import cli_main as saed_bir_metadata_resolution_main
@@ -54,6 +55,8 @@ def main(argv: list[str] | None = None) -> int:
         return saed_bir_metadata_resolution_main(args[1:])
     if args and args[0] == "saed-validation-intake":
         return saed_validation_intake_main(args[1:])
+    if args and args[0] == "build-handoff":
+        return build_handoff_main(args[1:])
     if args and args[0] == "validate-handoff":
         return validate_handoff_main(args[1:])
     if args and args[0] == "xps":
@@ -67,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             "Additional commands: raman, tem, tem-candidates, tem-mendeley-audit, "
             "tem-readiness, tem-validation-intake, saed, saed-candidates, "
             "saed-bir-metadata-audit, saed-bir-metadata-resolution, "
-            "saed-validation-intake, validate-handoff, xps, ftir, thermal "
+            "saed-validation-intake, build-handoff, validate-handoff, xps, ftir, thermal "
             "(run 'mca <command> --help' for options).\n"
             "Version: mca --version"
         )
