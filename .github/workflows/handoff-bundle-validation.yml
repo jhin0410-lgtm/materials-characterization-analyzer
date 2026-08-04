@@ -8,10 +8,14 @@ on:
       - "src/mca/handoff_bundle_validation.py"
       - "src/mca/handoff_validation/**"
       - "src/mca/handoff_bundle_cli.py"
+      - "src/mca/handoff_bundle_builder.py"
+      - "src/mca/handoff_bundle_builder_cli.py"
       - "src/mca/cli_entry.py"
       - "tests/test_handoff_bundle.py"
       - "tests/test_handoff_bundle_validation.py"
+      - "tests/test_handoff_bundle_builder.py"
       - "docs/handoff_bundle_validation.md"
+      - "docs/handoff_build_config.example.json"
       - ".github/workflows/handoff-bundle-validation.yml"
 
 jobs:
@@ -34,11 +38,16 @@ jobs:
           python -m py_compile \
             src/mca/handoff_bundle.py \
             src/mca/handoff_bundle_validation.py \
-            src/mca/handoff_bundle_cli.py
+            src/mca/handoff_bundle_cli.py \
+            src/mca/handoff_bundle_builder.py \
+            src/mca/handoff_bundle_builder_cli.py
           python -m compileall -q src/mca/handoff_validation
           pytest -q \
             tests/test_handoff_bundle.py \
-            tests/test_handoff_bundle_validation.py
+            tests/test_handoff_bundle_validation.py \
+            tests/test_handoff_bundle_builder.py
 
-      - name: Verify installed command is exposed
-        run: mca validate-handoff --help
+      - name: Verify installed commands are exposed
+        run: |
+          mca build-handoff --help
+          mca validate-handoff --help
