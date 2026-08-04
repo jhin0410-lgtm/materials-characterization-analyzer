@@ -1,0 +1,80 @@
+name: Assemble TEM independent source request
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/.tem_independent_request_parts/**"
+      - ".github/workflows/assemble-tem-independent-source-request.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/tem-independent-source-request
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Assemble verified source
+        run: |
+          cat \
+            scripts/.tem_independent_request_parts/part1.txt \
+            scripts/.tem_independent_request_parts/part2.txt \
+            scripts/.tem_independent_request_parts/part3.txt \
+            scripts/.tem_independent_request_parts/part4.txt \
+            > scripts/tem_independent_validation_source_request.py
+          test "$(wc -c < scripts/tem_independent_validation_source_request.py)" -eq 42068
+          test "$(sha256sum scripts/tem_independent_validation_source_request.py | cut -d' ' -f1)" = "728794b36a4ab8cc07217176dfe9c3ec7566f24f2cfc01d2a5a143690f193e30"
+          python -m py_compile scripts/tem_independent_validation_source_request.py
+
+      - name: Install package and run focused regressions
+        run: |
+          python -m pip install -e ".[dev]"
+          pytest -q tests/test_tem_independent_validation_source_request.py
+
+      - name: Reproduce registry and request package
+        run: |
+          mca tem-candidates \
+            --config case_studies/tem_external_validation_candidate_registry/case_config.json \
+            --output outputs/tem_external_validation_candidate_registry
+          python scripts/tem_independent_validation_source_request.py build \
+            --registry-output outputs/tem_external_validation_candidate_registry \
+            --output outputs/tem_independent_validation_source_request
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path("outputs/tem_independent_validation_source_request")
+          summary = json.loads((output / "tem_independent_source_request_summary.json").read_text())
+          assert summary["status"] == "independent_source_request_package_ready"
+          assert summary["source_download_authorized"] is False
+          manifest = json.loads((output / "tem_independent_source_request_manifest.json").read_text())
+          assert manifest["artifact_count"] == 4
+          for record in manifest["artifacts"]:
+              path = output / record["path"]
+              assert path.stat().st_size == record["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
+          PY
+
+      - name: Commit repaired permanent source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/tem_independent_validation_source_request.py
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "Permanent source already matches verified assembly"
+          else
+            git commit -m "Repair independent TEM source request contract"
+            git push origin HEAD:agent/tem-independent-source-request
+          fi
