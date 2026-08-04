@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 
 from . import __version__
+from .analyzer_readiness_cli import main as analyzer_readiness_main
 from .cli import main as legacy_main
 from .ftir_cli import main as ftir_main
 from .handoff_bundle_cli import main as validate_handoff_main
@@ -33,6 +34,8 @@ def main(argv: list[str] | None = None) -> int:
     if args in (["--version"], ["-V"]):
         print(f"materials-characterization-analyzer {__version__}")
         return 0
+    if args and args[0] == "analyzer-readiness":
+        return analyzer_readiness_main(args[1:])
     if args and args[0] == "raman":
         return raman_main(args[1:])
     if args and args[0] == "tem":
@@ -67,9 +70,9 @@ def main(argv: list[str] | None = None) -> int:
         return thermal_main(args[1:])
     if args in (["--help"], ["-h"]):
         print(
-            "Additional commands: raman, tem, tem-candidates, tem-mendeley-audit, "
-            "tem-readiness, tem-validation-intake, saed, saed-candidates, "
-            "saed-bir-metadata-audit, saed-bir-metadata-resolution, "
+            "Additional commands: analyzer-readiness, raman, tem, tem-candidates, "
+            "tem-mendeley-audit, tem-readiness, tem-validation-intake, saed, "
+            "saed-candidates, saed-bir-metadata-audit, saed-bir-metadata-resolution, "
             "saed-validation-intake, build-handoff, validate-handoff, xps, ftir, thermal "
             "(run 'mca <command> --help' for options).\n"
             "Version: mca --version"
