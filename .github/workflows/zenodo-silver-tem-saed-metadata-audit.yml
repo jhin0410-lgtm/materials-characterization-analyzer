@@ -9,6 +9,7 @@ on:
       - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
       - "scripts/audit_zenodo_silver_tem_saed_metadata.py"
       - "tests/test_zenodo_silver_tem_saed_metadata_audit.py"
+      - "tests/test_zenodo_silver_tem_saed_verified_snapshot.py"
       - ".github/workflows/zenodo-silver-tem-saed-metadata-audit.yml"
   push:
     branches: [main]
@@ -18,6 +19,7 @@ on:
       - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
       - "scripts/audit_zenodo_silver_tem_saed_metadata.py"
       - "tests/test_zenodo_silver_tem_saed_metadata_audit.py"
+      - "tests/test_zenodo_silver_tem_saed_verified_snapshot.py"
       - ".github/workflows/zenodo-silver-tem-saed-metadata-audit.yml"
 
 permissions:
@@ -38,7 +40,10 @@ jobs:
       - name: Install package and tests
         run: python -m pip install -e ".[dev]"
       - name: Run focused regressions
-        run: pytest -q tests/test_zenodo_silver_tem_saed_metadata_audit.py
+        run: |
+          pytest -q \
+            tests/test_zenodo_silver_tem_saed_metadata_audit.py \
+            tests/test_zenodo_silver_tem_saed_verified_snapshot.py
       - name: Run live metadata-only audit
         run: |
           python scripts/audit_zenodo_silver_tem_saed_metadata.py \
@@ -61,12 +66,14 @@ jobs:
               "zenodo_record_and_archive_identity_verified_without_source_download"
           )
           assert summary["source"]["record_id"] == 18942976
+          assert summary["source"]["resource_type_id"] == "image"
+          assert summary["source"]["publication_date"] == "2027-05-10"
           assert summary["source"]["file_count"] == 3
           assert summary["target_archive"]["key"] == "TEM_SAED.zip"
+          assert summary["target_archive"]["bytes"] == 1417789651
           assert summary["target_archive"]["checksum"] == (
               "md5:c7bda9d495dd0fd657a8fe0332db4f9c"
           )
-          assert 1_000_000_000 <= summary["target_archive"]["bytes"] <= 1_600_000_000
           assert not summary["source_archive_downloaded"]
           assert not summary["source_files_retained"]
           assert not summary["model_inference_performed"]
@@ -76,6 +83,7 @@ jobs:
           assert not summary["external_validation_ready"]
           assert not summary["engineering_decision_ready"]
           assert summary["analyzer_scientific_evidence_level"] == "Inconclusive"
+          assert plan["target_archive"]["exact_bytes"] == 1417789651
           assert not plan["authorization"]["source_archive_download_authorized"]
           forbidden = {".zip", ".tif", ".tiff", ".dm3", ".dm4", ".emd", ".ser"}
           leaked = [
