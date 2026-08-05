@@ -1,0 +1,51 @@
+{
+  "case_id": "dryad_tise2_saed_hrtem_source_audit_v1",
+  "audit_date": "2026-08-06",
+  "source": {
+    "repository": "Dryad",
+    "doi": "10.5061/dryad.6djh9w1hw",
+    "record_url": "https://datadryad.org/dataset/doi%3A10.5061/dryad.6djh9w1hw",
+    "primary_file_id": 4808550,
+    "primary_filename": "Data_TiSe2.zip",
+    "readme_file_id": 4808551,
+    "readme_filename": "README.md",
+    "expected_license": "CC0-1.0",
+    "expected_title": "Revisiting the charge-density-wave superlattice",
+    "source_quality_flags": [
+      "The landing-page README calls the deposited diffraction and HRTEM files raw or original, but this audit does not equate that wording with detector-native intensity preservation.",
+      "Fig2_Data is source-declared experimental diffraction; Fig3_Data and Fig4_Data are source-declared simulated diffraction.",
+      "Supplementary folders may contain experimental, processed, simulated, line-profile, real-space or DFT products and require folder-level ReadMe evidence.",
+      "The source is TiSe2 and is not an in-domain cobalt-oxide validation cohort.",
+      "Dryad publication under CC0 supports reuse but does not establish calibration, acquisition independence or scientific comparability."
+    ]
+  },
+  "limits": {
+    "minimum_archive_bytes": 1500000000,
+    "maximum_archive_bytes": 2300000000,
+    "maximum_member_count": 20000,
+    "maximum_total_uncompressed_bytes": 12000000000,
+    "maximum_single_member_bytes": 2500000000,
+    "maximum_compression_ratio": 1500,
+    "maximum_text_member_bytes": 5000000,
+    "maximum_tiff_samples": 20,
+    "maximum_tiff_sample_bytes": 256000000
+  },
+  "scientific_boundary": {
+    "source_archive_download_authorized": true,
+    "archive_member_inventory_authorized": true,
+    "bounded_text_read_authorized": true,
+    "bounded_tiff_header_inspection_authorized": true,
+    "source_archive_retention_authorized": false,
+    "source_files_may_be_uploaded_as_artifacts": false,
+    "archive_members_may_be_uploaded_as_artifacts": false,
+    "pixel_array_export_authorized": false,
+    "image_preprocessing_authorized": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "phase_indexing_claim_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  }
+}
