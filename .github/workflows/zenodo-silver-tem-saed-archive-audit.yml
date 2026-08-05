@@ -1,0 +1,130 @@
+name: Zenodo silver TEM SAED archive audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_silver_tem_saed_archive_audit/**"
+      - "case_studies/zenodo_silver_tem_saed_metadata_audit/**"
+      - "case_studies/open_tem_saed_candidates/**"
+      - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
+      - "scripts/audit_zenodo_silver_tem_saed_archive.py"
+      - "tests/test_zenodo_silver_tem_saed_archive_audit.py"
+      - "tests/test_zenodo_silver_tem_saed_archive_snapshot.py"
+      - ".github/workflows/zenodo-silver-tem-saed-archive-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_silver_tem_saed_archive_audit/**"
+      - "case_studies/zenodo_silver_tem_saed_metadata_audit/**"
+      - "case_studies/open_tem_saed_candidates/**"
+      - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
+      - "scripts/audit_zenodo_silver_tem_saed_archive.py"
+      - "tests/test_zenodo_silver_tem_saed_archive_audit.py"
+      - "tests/test_zenodo_silver_tem_saed_archive_snapshot.py"
+      - ".github/workflows/zenodo-silver-tem-saed-archive-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-silver-tem-saed-archive-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: |
+          pytest -q \
+            tests/test_zenodo_silver_tem_saed_archive_audit.py \
+            tests/test_zenodo_silver_tem_saed_archive_snapshot.py
+      - name: Run live transient archive audit
+        run: |
+          python scripts/audit_zenodo_silver_tem_saed_archive.py \
+            --config case_studies/zenodo_silver_tem_saed_archive_audit/case_config.json \
+            --output outputs/zenodo_silver_tem_saed_archive_audit
+      - name: Verify metadata-only fail-closed evidence
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_silver_tem_saed_archive_audit")
+          summary = json.loads(
+              (root / "zenodo_silver_tem_saed_archive_audit_summary.json").read_text()
+          )
+          inventory = json.loads((root / "archive_member_inventory.json").read_text())
+
+          assert summary["result"] == (
+              "checksum_verified_archive_inventory_completed_but_scientific_validation_metadata_incomplete"
+          )
+          assert summary["source"]["record_id"] == 18942976
+          assert summary["source"]["resource_type_id"] == "image"
+          assert summary["source"]["publication_date"] == "2027-05-10"
+          assert summary["archive"]["key"] == "TEM_SAED.zip"
+          assert summary["archive"]["bytes"] == 1417789651
+          assert summary["archive"]["md5"] == "c7bda9d495dd0fd657a8fe0332db4f9c"
+          assert summary["archive"]["sha256"] == (
+              "4569a878be7053c2e84867a5693e9483fd9b937b765ce5e3be15e3f154b5fa12"
+          )
+          assert summary["archive"]["member_count"] == 241
+          assert summary["archive"]["total_uncompressed_bytes"] == 1732391068
+          assert summary["archive"]["member_hashing_complete"]
+          assert summary["archive"]["crc_verification_complete"]
+          assert summary["representation_counts"] == {
+              "native_microscopy_container": 0,
+              "lossless_or_lossless-capable_raster_export": 212,
+              "rendered_raster": 0,
+              "metadata_or_document": 20,
+              "other_or_unresolved": 9,
+          }
+          assert summary["name_cue_counts"]["saed_or_diffraction"] == 2
+          assert summary["name_cue_counts"]["calibration"] == 0
+          assert inventory["member_count"] == 241
+          assert Counter(row["suffix"] for row in inventory["members"]) == {
+              ".tif": 212,
+              ".txt": 19,
+              ".docx": 9,
+              ".xlsx": 1,
+          }
+          assert all(len(row["sha256"]) == 64 for row in inventory["members"])
+          assert not summary["source_archive_retained"]
+          assert not summary["source_members_retained"]
+          assert not summary["image_preprocessing_performed"]
+          assert not summary["model_inference_performed"]
+          assert not summary["annotation_performed"]
+          assert not summary["primary_parameters_changed"]
+          assert not summary["external_validation_ready"]
+          assert not summary["engineering_decision_ready"]
+          assert summary["analyzer_scientific_evidence_level"] == "Inconclusive"
+
+          forbidden = {
+              ".zip", ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp",
+              ".gif", ".webp", ".dm3", ".dm4", ".emd", ".ser", ".mrc",
+              ".mrcs", ".h5", ".hdf5", ".hspy", ".zspy",
+          }
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden
+          ]
+          if leaked:
+              raise SystemExit(f"source content leaked into evidence: {leaked}")
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-silver-tem-saed-archive-audit-evidence
+          path: outputs/zenodo_silver_tem_saed_archive_audit
+          if-no-files-found: warn
+          retention-days: 30

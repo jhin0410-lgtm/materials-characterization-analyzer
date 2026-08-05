@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0",
+  "verified_at": "2026-08-05T07:32:25Z",
+  "workflow_run_id": 30984812022,
+  "workflow_artifact": {
+    "name": "zenodo-silver-tem-saed-archive-audit-evidence",
+    "artifact_id": 8921845239,
+    "digest": "sha256:3a3b2d2d53a11f2bea8f5bf11ab9bcec6bd3e1e18c2f94f7987c1d2490a13681"
+  },
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 18942976,
+    "doi": "10.5281/zenodo.18942976",
+    "status": "published",
+    "resource_type_id": "image",
+    "license_id": "cc-by-4.0",
+    "publication_date": "2027-05-10"
+  },
+  "archive": {
+    "key": "TEM_SAED.zip",
+    "bytes": 1417789651,
+    "md5": "c7bda9d495dd0fd657a8fe0332db4f9c",
+    "sha256": "4569a878be7053c2e84867a5693e9483fd9b937b765ce5e3be15e3f154b5fa12",
+    "member_count": 241,
+    "total_compressed_bytes": 1417703403,
+    "total_uncompressed_bytes": 1732391068,
+    "overall_compression_ratio": 1.2219700286633226,
+    "member_hashing_complete": true,
+    "crc_verification_complete": true
+  },
+  "member_summary": {
+    "top_level_directories": {
+      "MET": 241
+    },
+    "suffix_counts": {
+      ".tif": 212,
+      ".txt": 19,
+      ".docx": 9,
+      ".xlsx": 1
+    },
+    "representation_counts": {
+      "native_microscopy_container": 0,
+      "lossless_or_lossless-capable_raster_export": 212,
+      "rendered_raster": 0,
+      "metadata_or_document": 20,
+      "other_or_unresolved": 9
+    },
+    "name_cue_counts": {
+      "saed_or_diffraction": 2,
+      "tem": 0,
+      "hrtem": 0,
+      "stem": 0,
+      "raw_name_cue_only": 0,
+      "calibration": 0,
+      "metadata": 0
+    },
+    "explicit_saed_named_members": [
+      {
+        "member_path": "MET/Etanólico/ResultsSAED0016.txt",
+        "bytes": 101,
+        "sha256": "69ff014cce8a2f87066a09e8d16a0997054ddbec4a74268a7aab675727ba6f3d"
+      },
+      {
+        "member_path": "MET/Etanólico/ResultsSAED0017.txt",
+        "bytes": 210,
+        "sha256": "a22afb5ae7ccfaf73e2b8bd4885e089c293c0da9a548c239677b64db63b43963"
+      }
+    ]
+  },
+  "quality_flags": [
+    {
+      "code": "no_native_microscopy_container_in_archive",
+      "severity": "warning",
+      "interpretation": "All 212 microscopy-image members are TIFF raster exports. Native detector/container provenance is not established."
+    },
+    {
+      "code": "saed_patterns_not_explicitly_identified_by_filename",
+      "severity": "warning",
+      "interpretation": "Only two small text members carry an explicit SAED name cue. The inventory does not provide an unambiguous filename-level mapping from those results to static diffraction-pattern images."
+    },
+    {
+      "code": "sample_and_acquisition_lineage_not_explicit",
+      "severity": "warning",
+      "interpretation": "Folder and filename conventions encode synthesis conditions and sequential image numbers, but immutable sample/acquisition identity and independence are not established."
+    },
+    {
+      "code": "publication_date_after_audit_date",
+      "severity": "warning",
+      "interpretation": "The Zenodo API publication_date is 2027-05-10, later than the 2026-08-05 audit date although the record status is published."
+    }
+  ],
+  "scientific_boundaries": {
+    "raw_detector_status_resolved": false,
+    "sample_acquisition_lineage_resolved": false,
+    "tem_independent_segmentation_labels_available": false,
+    "saed_static_selected_area_mode_confirmed_per_member": false,
+    "saed_pattern_center_resolved": false,
+    "saed_reciprocal_calibration_resolved": false,
+    "source_archive_retained": false,
+    "source_members_retained": false,
+    "image_preprocessing_performed": false,
+    "model_inference_performed": false,
+    "annotation_performed": false,
+    "parameter_tuning_performed": false
+  },
+  "closeout": {
+    "source_identity_archive_integrity_and_member_hashing": "Supported",
+    "representation_and_filename_inventory": "Supported",
+    "tem_external_validation": "Inconclusive",
+    "saed_external_validation": "Inconclusive",
+    "analyzer_scientific_evidence_level": "Inconclusive",
+    "intake_decision": "accepted_for_bounded_diagnostic_only",
+    "external_validation_ready": false,
+    "engineering_decision_ready": false,
+    "primary_limitation": "The archive provides many checksum-bound TIFF exports but does not establish native raw status, immutable sample/acquisition lineage, independent TEM labels, or a traceable mapping of static SAED patterns to pattern centre and reciprocal calibration."
+  }
+}

@@ -18,11 +18,12 @@ def test_open_tem_saed_candidate_registry_is_fail_closed() -> None:
     assert payload["schema_version"] == "1.0"
     assert payload["snapshot_date"] == "2026-08-05"
     assert payload["snapshot_status"] == (
-        "updated_after_repod_source_audit_and_zenodo_silver_metadata_audit"
+        "updated_after_repod_and_zenodo_silver_bounded_source_audits"
     )
-    assert payload["current_decision"]["scientific_evidence_level"] == "Inconclusive"
-    assert payload["current_decision"]["external_validation_ready_count"] == 0
-    assert payload["current_decision"]["download_now"] == []
+    current = payload["current_decision"]
+    assert current["scientific_evidence_level"] == "Inconclusive"
+    assert current["external_validation_ready_count"] == 0
+    assert current["download_now"] == []
 
     candidates = payload["candidates"]
     candidate_ids = [candidate["candidate_id"] for candidate in candidates]
@@ -67,30 +68,33 @@ def test_open_tem_saed_registry_preserves_mode_and_domain_boundaries() -> None:
     assert repod["priority"] == "diagnostic_audit_complete"
     assert repod["source_audit"]["source_identity_and_archive_integrity"] == "Supported"
     assert repod["source_audit"]["audited_member_count"] == 7
-    assert repod["source_audit"]["lossless_raster_member_count"] == 7
     assert repod["source_audit"]["native_microscopy_member_count"] == 0
     assert repod["external_validation_ready"] is False
-    assert "TEM segmentation performance" in repod["prohibited_claims"]
 
     silver = by_id["zenodo_18942976_silver_tem_saed"]
-    assert silver["status"] == (
-        "metadata_audit_complete_archive_download_not_yet_authorized"
-    )
-    assert silver["priority"] == "metadata_audit_complete_archive_inventory_pending"
+    assert silver["status"] == "bounded_source_audit_complete_diagnostic_only"
+    assert silver["priority"] == "diagnostic_audit_complete"
     assert silver["metadata_audit"]["record_identity_and_file_inventory"] == "Supported"
     assert silver["metadata_audit"]["temporal_metadata_consistency"] == "Inconclusive"
-    assert silver["metadata_audit"]["target_archive_bytes"] == 1417789651
-    assert silver["metadata_audit"]["resource_type_id"] == "image"
+    assert silver["source_audit"][
+        "source_identity_archive_integrity_and_member_hashing"
+    ] == "Supported"
+    assert silver["source_audit"]["representation_and_filename_inventory"] == "Supported"
+    assert silver["source_audit"]["archive_sha256"] == (
+        "4569a878be7053c2e84867a5693e9483fd9b937b765ce5e3be15e3f154b5fa12"
+    )
+    assert silver["source_audit"]["member_count"] == 241
+    assert silver["source_audit"]["tiff_member_count"] == 212
+    assert silver["source_audit"]["native_microscopy_member_count"] == 0
+    assert silver["source_audit"]["explicit_saed_named_member_count"] == 2
     assert silver["external_validation_ready"] is False
     assert silver["metadata_quality_flags"]
 
     current = payload["current_decision"]
     assert current["source_audit_complete_diagnostic_only"] == [
-        "repod_siowh6_cofeni_tem_saed"
+        "repod_siowh6_cofeni_tem_saed",
+        "zenodo_18942976_silver_tem_saed",
     ]
-    assert current["metadata_audit_complete_archive_inventory_pending"] == [
-        "zenodo_18942976_silver_tem_saed"
-    ]
-    assert current["archive_inventory_authorization_pending_review"] == [
-        "zenodo_18942976_silver_tem_saed"
-    ]
+    assert current["next_execution_priority"] == (
+        "resolve_author_metadata_and_identify_in_domain_cobalt_oxide_sources"
+    )

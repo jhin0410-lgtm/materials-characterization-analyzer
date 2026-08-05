@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "snapshot_date": "2026-08-05",
-  "snapshot_status": "updated_after_repod_source_audit_and_zenodo_silver_metadata_audit",
+  "snapshot_status": "updated_after_repod_and_zenodo_silver_bounded_source_audits",
   "purpose": "Dated addendum for public TEM and SAED sources. Public availability, metadata-audit completion, source-audit completion, and external-validation readiness are intentionally separate states.",
   "authoritative_registries": {
     "tem": "case_studies/tem_external_validation_candidate_registry/case_config.json",
@@ -35,7 +35,8 @@
         {
           "name": "TEM_SAED.zip",
           "bytes": 1417789651,
-          "repository_checksum": "md5:c7bda9d495dd0fd657a8fe0332db4f9c"
+          "repository_checksum": "md5:c7bda9d495dd0fd657a8fe0332db4f9c",
+          "verified_sha256": "4569a878be7053c2e84867a5693e9483fd9b937b765ce5e3be15e3f154b5fa12"
         }
       ],
       "reuse_license": "CC BY 4.0",
@@ -54,43 +55,70 @@
         "record_identity_and_file_inventory": "Supported",
         "temporal_metadata_consistency": "Inconclusive"
       },
+      "source_audit": {
+        "completed_at": "2026-08-05T07:32:25Z",
+        "workflow_run_id": 30984812022,
+        "artifact_id": 8921845239,
+        "artifact_digest": "sha256:3a3b2d2d53a11f2bea8f5bf11ab9bcec6bd3e1e18c2f94f7987c1d2490a13681",
+        "verified_snapshot": "case_studies/zenodo_silver_tem_saed_archive_audit/verified_snapshot.json",
+        "archive_sha256": "4569a878be7053c2e84867a5693e9483fd9b937b765ce5e3be15e3f154b5fa12",
+        "member_count": 241,
+        "total_uncompressed_bytes": 1732391068,
+        "member_hashing_complete": true,
+        "crc_verification_complete": true,
+        "tiff_member_count": 212,
+        "text_member_count": 19,
+        "docx_member_count": 9,
+        "xlsx_member_count": 1,
+        "native_microscopy_member_count": 0,
+        "rendered_raster_member_count": 0,
+        "explicit_saed_named_member_count": 2,
+        "source_identity_archive_integrity_and_member_hashing": "Supported",
+        "representation_and_filename_inventory": "Supported"
+      },
       "metadata_quality_flags": [
         "Zenodo API publication_date is 2027-05-10, later than the 2026-08-05 audit date although record status is published.",
-        "Zenodo API classifies the multi-file raw experimental record as resource type image."
+        "Zenodo API classifies the multi-file raw experimental record as resource type image.",
+        "All 212 microscopy-image members are TIFF raster exports; no native microscopy container is present.",
+        "Only ResultsSAED0016.txt and ResultsSAED0017.txt carry explicit SAED filename cues, without an unambiguous filename-level mapping to static pattern images."
       ],
       "source_metadata_confirmed": [
         "The live API confirms the record ID, DOI, published status, CC BY 4.0 licence, and three-file inventory.",
-        "TEM_SAED.zip is exactly 1,417,789,651 bytes with MD5 c7bda9d495dd0fd657a8fe0332db4f9c.",
-        "The target archive has a valid public content link.",
-        "No source archive was downloaded during the metadata audit."
+        "TEM_SAED.zip is exactly 1,417,789,651 bytes with the repository MD5 and computed SHA-256 verified.",
+        "The ZIP passed path, duplicate, symlink, encryption, compression, CRC, size, and member-hash checks.",
+        "The archive contains 241 members under MET/: 212 TIFF, 19 TXT, 9 DOCX, and 1 XLSX.",
+        "All member SHA-256 values were computed, and no source archive or member was retained in the evidence artifact."
       ],
       "unresolved": [
-        "archive member inventory and member checksums",
-        "raw detector versus rendered or exported image status",
-        "sample and acquisition identifiers",
+        "native detector files and raw-detector status",
+        "immutable sample and acquisition identifiers",
+        "independence of sequential TIFF acquisitions",
         "TEM image calibration and acquisition conditions",
-        "SAED acquisition mode, detector metadata, pattern center, and reciprocal calibration",
         "independent TEM segmentation labels",
+        "unambiguous mapping from SAED result text to static diffraction-pattern images",
+        "SAED accelerating voltage, detector, camera length, pixel geometry, pattern center, and reciprocal calibration",
+        "source-bound reflection assignments",
         "verified non-use in analyzer development",
         "meaning of the future publication_date"
       ],
-      "tem_role": "cross-material unlabeled source and representation audit candidate",
-      "saed_role": "bounded static-SAED archive audit candidate, subject to acquisition-mode confirmation",
-      "priority": "metadata_audit_complete_archive_inventory_pending",
-      "status": "metadata_audit_complete_archive_download_not_yet_authorized",
+      "tem_role": "cross-material lossless-raster source, format, and metadata diagnostic",
+      "saed_role": "cross-material SAED metadata-gap diagnostic; calibrated pattern evaluation is not authorized",
+      "priority": "diagnostic_audit_complete",
+      "status": "bounded_source_audit_complete_diagnostic_only",
       "allowed_use": [
-        "record identity and checksum evidence",
-        "bounded transient archive inventory after explicit authorization",
-        "file-format and metadata inventory",
-        "cross-material software diagnostics only after fail-closed intake"
+        "checksum-bound archive and member identity evidence",
+        "TIFF and document representation diagnostics",
+        "metadata-gap assessment",
+        "author follow-up specification"
       ],
       "prohibited_claims": [
         "cobalt-oxide in-domain TEM segmentation performance",
-        "SAED d-spacing accuracy",
-        "phase or reflection assignment",
+        "TEM segmentation performance from unlabeled TIFFs",
+        "calibrated SAED d-spacing accuracy",
+        "phase, reflection, or zone-axis confirmation from analyzer output alone",
         "engineering readiness"
       ],
-      "next_action": "Review the frozen exact-byte acquisition plan, preserve the future publication-date warning, and execute only a transient metadata-only archive inventory with no inference, annotation, or parameter tuning.",
+      "next_action": "Do not run performance evaluation or tune parameters. Seek native files, immutable sample/acquisition lineage, independent TEM labels, and a traceable SAED pattern-to-center/calibration mapping from the authors or use a task-matched independent cobalt-oxide source.",
       "external_validation_ready": false
     },
     {
@@ -223,7 +251,7 @@
         "calibrated d-spacing or phase claims",
         "engineering readiness"
       ],
-      "next_action": "Resolve the two linked record versions, pin exact files and checksums, and select a predeclared two-condition subset without viewing analyzer outputs.",
+      "next_action": "Resolve the linked record versions, pin exact files and checksums, and select a predeclared two-condition subset without viewing analyzer outputs.",
       "external_validation_ready": false
     },
     {
@@ -318,25 +346,23 @@
   "current_decision": {
     "download_now": [],
     "source_audit_complete_diagnostic_only": [
-      "repod_siowh6_cofeni_tem_saed"
-    ],
-    "metadata_audit_complete_archive_inventory_pending": [
-      "zenodo_18942976_silver_tem_saed"
-    ],
-    "archive_inventory_authorization_pending_review": [
+      "repod_siowh6_cofeni_tem_saed",
       "zenodo_18942976_silver_tem_saed"
     ],
     "resolve_metadata_first": [
+      "repod_siowh6_cofeni_tem_saed",
+      "zenodo_18942976_silver_tem_saed",
       "zenodo_10512357_wtacrv_tem_saed"
     ],
     "diagnostic_only": [
       "repod_siowh6_cofeni_tem_saed",
+      "zenodo_18942976_silver_tem_saed",
       "zenodo_20411896_nemi_2026_workshop"
     ],
     "not_selected": [
       "empiar_general_archive"
     ],
-    "next_execution_priority": "execute_zenodo_18942976_transient_archive_inventory_after_review",
+    "next_execution_priority": "resolve_author_metadata_and_identify_in_domain_cobalt_oxide_sources",
     "scientific_evidence_level": "Inconclusive",
     "external_validation_ready_count": 0
   }
