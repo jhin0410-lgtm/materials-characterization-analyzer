@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "snapshot_date": "2026-08-05",
+  "relationship": "Addendum to trusted_search_snapshot_2026-08-05.json after additional primary-record searches.",
+  "candidates": [
+    {
+      "candidate_id": "zenodo_10512463_w_ta_cr_v_raw_tem_saed",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.10512463",
+      "title": "The microstructure and He+ ion irradiation behavior of novel low-activation W-Ta-Cr-V refractory high entropy alloy for nuclear applications",
+      "priority_tier": "B_static_saed_radiation_damage_diagnostic",
+      "material_domain": ["W-Ta-Cr-V refractory high-entropy alloy", "as-deposited and helium-irradiated states"],
+      "modalities": ["raw TEM", "SAED", "EDS maps", "SEM", "TKD"],
+      "declared_archive": {
+        "name": "D_Kalita_NME.zip",
+        "declared_size": "729.6 MB",
+        "md5": "2d3db56126bb936844c9d817b0a01f4c"
+      },
+      "confirmed_metadata": [
+        "record explicitly describes raw cross-section TEM images in as-deposited and He-irradiated conditions",
+        "record explicitly includes selected-area diffraction patterns and EDS elemental maps",
+        "author affiliations include VTT, Los Alamos National Laboratory and dedicated HRTEM facilities",
+        "archive identity is bound by a public MD5"
+      ],
+      "unresolved": [
+        "archive member formats and native-detector status",
+        "pattern-specific centres and reciprocal calibration",
+        "source-assigned sample and acquisition identifiers",
+        "independent acquisition count",
+        "analyzer-development non-use"
+      ],
+      "allowed_use_now": ["bounded archive audit", "static-SAED representation diagnostic", "radiation-damage sensitivity diagnostic"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_4497007_mgo_dm3_tem_diffraction",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.4497007",
+      "priority_tier": "B_native_dm3_diffraction_diagnostic",
+      "material_domain": ["MgO electron-tomography specimen"],
+      "modalities": ["TEM", "electron diffraction"],
+      "native_format": "DM3",
+      "confirmed_metadata": [
+        "record declares TEM micrographs and electron diffraction patterns",
+        "individual DM3 files are publicly listed with file-level MD5 checksums"
+      ],
+      "unresolved": [
+        "static-SAED aperture and acquisition details",
+        "pattern centre and reciprocal calibration",
+        "sample and acquisition lineage",
+        "reuse and analyzer-development independence"
+      ],
+      "allowed_use_now": ["small bounded native-DM3 parser and metadata audit"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_14555388_sei_dm4_controlled_dose_diffraction",
+      "repository": "Zenodo",
+      "record_id": "14555388",
+      "priority_tier": "B_native_dm4_beam_damage_diagnostic",
+      "material_domain": ["battery solid-electrolyte interphase"],
+      "modalities": ["electron diffraction under controlled dose"],
+      "native_format": "DM4",
+      "declared_archive": {
+        "declared_size": "9.3 GB",
+        "md5": "becd640070b9b9a378997fff75c6def4"
+      },
+      "confirmed_metadata": [
+        "record declares DM4 source files",
+        "controlled electron-dose context is directly relevant to beam-induced diffraction artifacts",
+        "University of Pennsylvania and Eric Stach research context"
+      ],
+      "unresolved": [
+        "static selected-area acquisition mode",
+        "file/member inventory and per-pattern metadata",
+        "centre and reciprocal calibration",
+        "sample/acquisition identity and independence"
+      ],
+      "allowed_use_now": ["beam-dose and diffraction-artifact diagnostic after bounded archive audit"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_13464620_iron_oxide_nanoflower_tem_saed",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.13464620",
+      "priority_tier": "C_inventory_resolution",
+      "material_domain": ["iron-oxide nanoflowers"],
+      "modalities": ["TEM", "HRTEM", "SAED", "XRD", "magnetic characterization"],
+      "confirmed_metadata": [
+        "CNRS and University of Bordeaux dataset",
+        "record describes TEM size distributions, SAED patterns, HRTEM and FFT/inverse-FFT analyses"
+      ],
+      "unresolved": [
+        "whether original detector files or only supporting figures are deposited",
+        "checksums and exact member inventory",
+        "instrument, acquisition, centre and calibration metadata"
+      ],
+      "allowed_use_now": ["record and archive inventory resolution only"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_14278562_carmine_tem_3ded",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.14278562",
+      "priority_tier": "C_wrong_mode_native_format_control",
+      "material_domain": ["carmine organic crystal"],
+      "modalities": ["continuous-rotation 3D electron diffraction", "bright-field TEM"],
+      "native_formats": ["MRC", "SMV", "DM3"],
+      "confirmed_metadata": [
+        "raw Instamatic output",
+        "instrument log files",
+        "MRC and SMV diffraction frames",
+        "defocused frames showing crystal position relative to the selected-area aperture",
+        "bright-field DM3 micrographs"
+      ],
+      "role": "strong native-format and aperture-lineage software diagnostic, explicitly excluded from static-SAED scientific validation because the acquisition is continuous-rotation 3D ED",
+      "external_validation_ready": false
+    }
+  ],
+  "priority_update": [
+    "Zenodo 15082448 remains the first executable native static-SAED audit because it contains paired TEM/HRTEM and SAED DM3 files at named locations.",
+    "Dryad TiSe2 remains the second static-SAED audit priority because experimental and simulated patterns are explicitly separated.",
+    "Zenodo 10512463 is promoted as a high-value radiation-damage and static-SAED representation diagnostic.",
+    "MgO DM3 and SEI DM4 sources are retained as focused native-format and beam-damage controls.",
+    "Continuous-rotation 3D ED sources remain mode-shift controls and cannot be counted as static-SAED validation."
+  ],
+  "scientific_closeout": {
+    "evidence_level": "Diagnostic",
+    "tem_external_validation": "Inconclusive",
+    "calibrated_static_saed_validation": "Inconclusive",
+    "engineering_readiness": "Unsupported"
+  }
+}
