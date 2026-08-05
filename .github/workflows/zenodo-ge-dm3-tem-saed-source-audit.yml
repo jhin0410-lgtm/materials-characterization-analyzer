@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "scripts/audit_zenodo_ge_dm3_tem_saed.py"
+      - "scripts/run_zenodo_ge_dm3_tem_saed_audit.py"
       - "tests/test_audit_zenodo_ge_dm3_tem_saed.py"
       - "case_studies/zenodo_ge_dm3_tem_saed_source_audit/**"
       - ".github/workflows/zenodo-ge-dm3-tem-saed-source-audit.yml"
@@ -13,6 +14,7 @@ on:
       - main
     paths:
       - "scripts/audit_zenodo_ge_dm3_tem_saed.py"
+      - "scripts/run_zenodo_ge_dm3_tem_saed_audit.py"
       - "tests/test_audit_zenodo_ge_dm3_tem_saed.py"
       - "case_studies/zenodo_ge_dm3_tem_saed_source_audit/**"
       - ".github/workflows/zenodo-ge-dm3-tem-saed-source-audit.yml"
@@ -51,12 +53,14 @@ jobs:
 
       - name: Run focused fail-closed tests
         run: |
-          python -m py_compile scripts/audit_zenodo_ge_dm3_tem_saed.py
+          python -m py_compile \
+            scripts/audit_zenodo_ge_dm3_tem_saed.py \
+            scripts/run_zenodo_ge_dm3_tem_saed_audit.py
           pytest -q tests/test_audit_zenodo_ge_dm3_tem_saed.py
 
       - name: Run live transient native-DM3 audit
         run: |
-          python scripts/audit_zenodo_ge_dm3_tem_saed.py \
+          python scripts/run_zenodo_ge_dm3_tem_saed_audit.py \
             --config case_studies/zenodo_ge_dm3_tem_saed_source_audit/case_config.json \
             --output outputs/zenodo_ge_dm3_tem_saed_source_audit
 
@@ -76,7 +80,7 @@ jobs:
           )
           assert summary["status"] == (
               "checksum_verified_native_dm3_tem_saed_inventory_completed_but_"
-              "calibration_lineage_and_reuse_metadata_incomplete"
+              "calibration_and_lineage_metadata_incomplete"
           )
           assert summary["record"]["id"] == 15082448
           assert summary["record"]["doi"] == "10.5281/zenodo.15082448"
@@ -95,7 +99,11 @@ jobs:
           assert summary["evidence_assessment"]["record_and_archive_identity"] == "Supported"
           assert summary["evidence_assessment"]["native_dm3_tem_saed_representation"] == "Supported"
           assert summary["evidence_assessment"]["pattern_centre_and_reciprocal_calibration"] == "Inconclusive"
-          assert summary["evidence_assessment"]["reuse_authorization"] == "Inconclusive"
+          assert summary["evidence_assessment"]["reuse_authorization"] == "Supported"
+          assert summary["evidence_assessment"]["dm3_metadata_extraction"] in {
+              "Supported",
+              "Supported_with_recorded_ExifTool_warnings",
+          }
           assert summary["readiness"]["external_validation_ready"] is False
           assert summary["readiness"]["engineering_decision_ready"] is False
           assert summary["processing"]["source_archive_retained"] is False
@@ -107,6 +115,12 @@ jobs:
           assert summary["processing"]["phase_indexing_performed"] is False
           assert any("w0 diff.dm3" in item for item in summary["source_quality_flags"])
           assert any("CC BY 4.0" in item for item in summary["source_quality_flags"])
+          assert "explicit dataset reuse licence or written permission" not in summary["unresolved"]
+
+          software = summary["software_quality_flags"]
+          assert set(software["exiftool_exit_codes"]).issubset({0, 1})
+          assert software["exiftool_warning_count"] == len(software["exiftool_warnings"])
+          assert all("/home/runner/" not in item for item in software["exiftool_warnings"])
 
           with (root / "zenodo_ge_dm3_tem_saed_member_inventory.csv").open(
               newline="", encoding="utf-8"
@@ -131,6 +145,11 @@ jobs:
           assert len(metadata) == summary["selected_dm3_member_count"]
           assert all(item["metadata_field_count"] >= 1 for item in metadata)
           assert all(not Path(item["member_path"]).is_absolute() for item in metadata)
+          assert all(item["exiftool_exit_code"] in {0, 1} for item in metadata)
+          assert all(
+              item["exiftool_warning_count"] == len(item["exiftool_warnings"])
+              for item in metadata
+          )
 
           manifest = json.loads(
               (root / "zenodo_ge_dm3_tem_saed_audit_manifest.json").read_text(
