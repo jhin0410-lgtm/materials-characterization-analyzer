@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "verified_at": "2026-08-05T06:49:29Z",
+  "workflow_run_id": 30982659178,
+  "workflow_artifact": {
+    "name": "repod-cofeni-tem-saed-source-audit-evidence",
+    "artifact_id": 8920746010,
+    "digest": "sha256:f40d6d309ee195605b6d4570f11bde4f54e110f1d35d5689d3b04622d2da2c27"
+  },
+  "source": {
+    "repository": "RepOD",
+    "doi": "10.18150/SIOWH6",
+    "version": "1.0",
+    "license_display": "CC BY - Creative Commons Attribution 4.0",
+    "license_api": "CC BY Creative Commons Attribution License 4.0",
+    "record_file_count": 12
+  },
+  "audited_targets": [
+    {
+      "name": "TEM_SAED.zip",
+      "bytes": 9015001,
+      "md5": "fbc9ab9944a398a0c4a3271e809f04ef",
+      "sha256": "e30476e8b0f21e4c2cf215aa65c472d2c13969a860c2fe62783e94dce15c6c94"
+    },
+    {
+      "name": "HRTEM_SAED.zip",
+      "bytes": 8506160,
+      "md5": "470b9996ea17f31b7fbe915e84d2d8d7",
+      "sha256": "ec1660985c5f9a8b48901951f887d8b925131d7e09c9359ccec1a1561569ad63"
+    },
+    {
+      "name": "HAADF_STEM.tif",
+      "bytes": 221864,
+      "md5": "4b8c137fd605995d9660223f4c971ff1",
+      "sha256": "49cfc069ef6baeb3eeeaa51127408221db58e81695dbe096619edf73066d19d1"
+    }
+  ],
+  "member_summary": {
+    "audited_member_count": 7,
+    "lossless_raster_member_count": 7,
+    "native_microscopy_member_count": 0,
+    "rendered_raster_member_count": 0,
+    "tem_or_hrtem_named_member_count": 2,
+    "saed_named_member_count": 3
+  },
+  "members": [
+    {
+      "source_archive": "TEM_SAED.zip",
+      "member_path": "Fig.7/BF_01.tif",
+      "sha256": "f3faba90c8a502464404203c398efa4eed35b213f7d75013c349b94dfee6195a",
+      "format": "TIFF",
+      "mode": "P",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "source_archive": "TEM_SAED.zip",
+      "member_path": "Fig.7/DF_02.tif",
+      "sha256": "4938c68b8d2f654b8d749cb50f1f45bd3c5f2b49290fbe5d2058be9a919f66b3",
+      "format": "TIFF",
+      "mode": "P",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "source_archive": "TEM_SAED.zip",
+      "member_path": "Fig.7/SAED_01.tif",
+      "sha256": "d7a28c2c0fcbb743f6da9722b2828f73e8ef1ab7a8b69626d109f852e86b721f",
+      "format": "TIFF",
+      "mode": "P",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "source_archive": "HRTEM_SAED.zip",
+      "member_path": "Fig.8/HRTEM_02.tif",
+      "sha256": "09cd1285892102377af579f8272f6f625ef2e06b5a655dcac1f0f613cbe1253f",
+      "format": "TIFF",
+      "mode": "P",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "source_archive": "HRTEM_SAED.zip",
+      "member_path": "Fig.8/SAED_01-NI.tif",
+      "sha256": "08c797e3dbc0c343b00698f0ddb545d4f3f40200cd58893c6066ada6a3816dee",
+      "format": "TIFF",
+      "mode": "RGB",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "source_archive": "HRTEM_SAED.zip",
+      "member_path": "Fig.8/SAED_01.tif",
+      "sha256": "f4eaf530c274413a341ab3ee8e87a93cbd1046c49fde8effb72785f54928c1bc",
+      "format": "TIFF",
+      "mode": "P",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "source_archive": null,
+      "member_path": "HAADF_STEM.tif",
+      "sha256": "49cfc069ef6baeb3eeeaa51127408221db58e81695dbe096619edf73066d19d1",
+      "format": "TIFF",
+      "mode": "RGB",
+      "width": 270,
+      "height": 270
+    }
+  ],
+  "metadata_observation": {
+    "all_tiff_members_decodable": true,
+    "all_tiff_member_frames": 1,
+    "embedded_metadata_is_limited_to_basic_raster_fields": true,
+    "raw_detector_status_resolved": false,
+    "sample_acquisition_lineage_resolved": false,
+    "independent_tem_labels_available": false,
+    "static_saed_mode_confirmed_per_member": false,
+    "saed_pattern_center_resolved": false,
+    "saed_reciprocal_calibration_resolved": false
+  },
+  "closeout": {
+    "source_identity_and_archive_integrity": "Supported",
+    "analyzer_scientific_evidence_level": "Inconclusive",
+    "intake_decision": "accepted_for_bounded_diagnostic_only",
+    "external_validation_ready": false,
+    "engineering_decision_ready": false,
+    "model_inference_performed": false,
+    "annotation_performed": false,
+    "parameter_tuning_performed": false,
+    "primary_limitation": "The audited files are lossless-capable TIFF exports tied to publication figures, not native detector containers. Member-level raw status, independent sample/acquisition lineage, TEM segmentation labels, and traceable SAED centre and reciprocal calibration remain unresolved."
+  }
+}

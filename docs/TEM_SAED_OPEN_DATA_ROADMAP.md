@@ -42,30 +42,44 @@ The dated machine-readable snapshot is:
 
 `case_studies/open_tem_saed_candidates/candidate_registry.json`
 
-### Priority 1 — RepOD CoFeNi TEM/HRTEM/SAED
+### Completed bounded audit — RepOD CoFeNi TEM/HRTEM/SAED
 
 Record: `10.18150/SIOWH6`
 
-Why it is useful:
+The live audit completed on 2026-08-05 and verified:
 
-- public CC BY 4.0 data;
-- explicit TEM, HRTEM, and SAED archives;
-- repository checksums;
-- stated S/TEM TITAN 80–300 instrument;
-- two small archives suitable for a bounded audit.
+- RepOD record version 1.0 and 12-file inventory;
+- file-level CC BY 4.0 licence returned by the API;
+- repository MD5 and computed SHA-256 for `TEM_SAED.zip`, `HRTEM_SAED.zip`, and `HAADF_STEM.tif`;
+- two valid ZIP archives with safe member paths and matching CRC values;
+- seven decodable TIFF members;
+- three SAED-named members, one HRTEM member, two BF/DF TEM members, and one HAADF-STEM image;
+- no source archive or image retained in the evidence artifact.
 
-Why it is not yet validation-ready:
+Scientific interpretation:
 
-- archive members have not been inventoried;
-- raw detector versus exported image status is unresolved;
-- pattern centre and reciprocal calibration are absent from the landing-page evidence;
-- sample/acquisition independence is not yet established;
-- it is CoFeNi, not cobalt oxide;
-- no independent TEM segmentation labels are supplied.
+- the seven files are TIFF raster exports, not native detector containers;
+- embedded metadata are limited to basic raster fields;
+- raw-detector status, immutable sample/acquisition lineage, and acquisition independence remain unresolved;
+- no independent TEM segmentation labels are supplied;
+- static selected-area acquisition, pattern centre, reciprocal calibration, and member-level reference assignments remain unresolved;
+- CoFeNi is outside the current cobalt-oxide target domain.
 
-Action: perform the first bounded source audit. Do not run the analyzer until the source audit freezes the usable members and scientific limits.
+Closeout:
 
-### Priority 2 — Zenodo silver nanoparticle TEM/SAED
+- source identity and archive integrity: **Supported**;
+- analyzer scientific evidence: **Inconclusive**;
+- intake: `accepted_for_bounded_diagnostic_only`;
+- external-validation ready: false;
+- engineering-decision ready: false.
+
+The verified snapshot is stored at:
+
+`case_studies/repod_cofeni_tem_saed_source_audit/verified_snapshot.json`
+
+Action: retain this source as a checksum-bound format and metadata diagnostic. Do not run performance validation or tune the analyzer on it. Seek author-provided acquisition metadata/native files or a task-matched independent cobalt-oxide source.
+
+### Next bounded candidate — Zenodo silver nanoparticle TEM/SAED
 
 Record: `10.5281/zenodo.18942976`
 
@@ -83,9 +97,9 @@ Why it is not yet validation-ready:
 - it contains silver nanoparticles rather than cobalt oxide;
 - no independent segmentation labels are reported.
 
-Action: audit only after a bounded member-selection plan is written without looking at analyzer output.
+Action: audit only after a bounded member-selection plan is written without looking at analyzer output. Do not download the entire archive merely to increase dataset volume.
 
-### Priority 3 — Zenodo W-Ta-Cr-V irradiation TEM/SAED
+### Metadata-resolution candidate — Zenodo W-Ta-Cr-V irradiation TEM/SAED
 
 Record: `10.5281/zenodo.10512357`
 
@@ -111,38 +125,47 @@ EMPIAR is a reputable CC0 raw electron-microscopy archive, but it is primarily o
 
 ## Now
 
-### 1. Freeze the source-receipt procedure
+### 1. Preserve the source-receipt procedure
 
 Use `case_studies/open_tem_saed_candidates/intake_runbook.md`.
 
 Every source must be:
 
-- preserved byte-for-byte;
+- preserved byte-for-byte during intake;
 - checksum-bound;
 - separated from derived files;
 - accompanied by licence and source metadata;
 - rejected from evaluation when identity, calibration, or independence is unresolved.
 
-### 2. Freeze the evaluation protocol
+### 2. Preserve the frozen evaluation protocol
 
 Use `case_studies/open_tem_saed_candidates/evaluation_protocol.md`.
 
 The protocol must be fixed before viewing analyzer results. Parameter adjustment after seeing candidate results converts validation into model development.
 
-### 3. Execute one bounded source audit
+### 3. Resolve the RepOD scientific gaps without analyzer execution
 
-Start with the small RepOD CoFeNi archives. The purpose is to determine whether the files are scientifically auditable, not to prove analyzer performance.
+The archive audit is complete. Remaining work is metadata resolution, not algorithm work:
 
-Stop conditions include:
+- confirm whether original native detector files still exist;
+- obtain sample and acquisition identifiers;
+- bind accelerating voltage, camera length, detector, and pixel geometry to each SAED pattern;
+- obtain a traceable pattern centre and reciprocal calibration;
+- establish whether the three SAED-named TIFFs are independent acquisitions;
+- obtain source-supported reflection assignments where available.
 
-- rendered multi-panel figures instead of source images;
-- missing or conflicting checksums;
-- fewer than two independent patterns/acquisitions;
-- no traceable SAED centre or reciprocal calibration;
-- no usable sample/acquisition binding;
-- evidence that the files were used during analyzer development.
+### 4. Prepare the silver-archive bounded plan
 
-### 4. Preserve the release baseline
+Before downloading the 1.4 GB Zenodo archive, predeclare:
+
+- exact archive version and checksum;
+- maximum files and bytes to inspect;
+- member-selection rule independent of analyzer output;
+- stop conditions;
+- metadata-only artifact policy;
+- allowed diagnostic claims.
+
+### 5. Preserve the release baseline
 
 Do not modify segmentation weights, SAED primary parameters, output schemas, or scientific thresholds during source acquisition.
 
@@ -150,26 +173,24 @@ Do not modify segmentation weights, SAED primary parameters, output schemas, or 
 
 ### TEM
 
-1. Complete archive and metadata audit.
-2. Verify content disjointness from the target training source.
-3. Define the bounded material and acquisition domain.
-4. Obtain at least two blinded independent annotations plus adjudication.
-5. Freeze image inclusion, exclusion, preprocessing, threshold, and metrics.
-6. Run one blind external evaluation.
-7. Close out as Supported, Diagnostic, Inconclusive, or Unsupported.
+1. Verify content disjointness from the target training source.
+2. Define the bounded material and acquisition domain.
+3. Obtain at least two blinded independent annotations plus adjudication.
+4. Freeze image inclusion, exclusion, preprocessing, threshold, and metrics.
+5. Run one blind external evaluation.
+6. Close out as Supported, Diagnostic, Inconclusive, or Unsupported.
 
 Cross-material public datasets may test software robustness. They cannot establish cobalt-oxide in-domain performance.
 
 ### SAED
 
-1. Complete archive and member inventory.
-2. Confirm static selected-area acquisition.
-3. Bind accelerating voltage, detector, pixel geometry, centre, and reciprocal calibration.
-4. Freeze reference structures or source assignments.
-5. Predeclare primary and sensitivity settings.
-6. Use at least two independent patterns/acquisitions.
-7. Preserve unmatched rings and all failure cases.
-8. Close out without upgrading phase, zone-axis, or d-spacing claims beyond the evidence.
+1. Confirm static selected-area acquisition.
+2. Bind accelerating voltage, detector, pixel geometry, centre, and reciprocal calibration.
+3. Freeze reference structures or source assignments.
+4. Predeclare primary and sensitivity settings.
+5. Use at least two independent patterns/acquisitions.
+6. Preserve unmatched rings and all failure cases.
+7. Close out without upgrading phase, zone-axis, or d-spacing claims beyond the evidence.
 
 ## Later
 

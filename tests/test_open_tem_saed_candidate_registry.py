@@ -17,8 +17,10 @@ def test_open_tem_saed_candidate_registry_is_fail_closed() -> None:
 
     assert payload["schema_version"] == "1.0"
     assert payload["snapshot_date"] == "2026-08-05"
+    assert payload["snapshot_status"] == "updated_after_repod_live_source_audit"
     assert payload["current_decision"]["scientific_evidence_level"] == "Inconclusive"
     assert payload["current_decision"]["external_validation_ready_count"] == 0
+    assert payload["current_decision"]["download_now"] == []
 
     candidates = payload["candidates"]
     candidate_ids = [candidate["candidate_id"] for candidate in candidates]
@@ -59,5 +61,19 @@ def test_open_tem_saed_registry_preserves_mode_and_domain_boundaries() -> None:
     ]
 
     repod = by_id["repod_siowh6_cofeni_tem_saed"]
-    assert repod["status"] == "ready_for_bounded_source_audit"
+    assert repod["status"] == "bounded_source_audit_complete_diagnostic_only"
+    assert repod["priority"] == "diagnostic_audit_complete"
+    assert repod["source_audit"]["source_identity_and_archive_integrity"] == "Supported"
+    assert repod["source_audit"]["audited_member_count"] == 7
+    assert repod["source_audit"]["lossless_raster_member_count"] == 7
+    assert repod["source_audit"]["native_microscopy_member_count"] == 0
     assert repod["external_validation_ready"] is False
+    assert "TEM segmentation performance" in repod["prohibited_claims"]
+
+    current = payload["current_decision"]
+    assert current["source_audit_complete_diagnostic_only"] == [
+        "repod_siowh6_cofeni_tem_saed"
+    ]
+    assert current["audit_after_bounded_plan"] == [
+        "zenodo_18942976_silver_tem_saed"
+    ]

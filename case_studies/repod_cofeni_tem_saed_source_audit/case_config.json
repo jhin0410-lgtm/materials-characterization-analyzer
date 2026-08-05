@@ -1,0 +1,47 @@
+{
+  "case_id": "repod_cofeni_tem_saed_source_audit",
+  "audit_date": "2026-08-05",
+  "source": {
+    "repository": "RepOD",
+    "persistent_id": "doi:10.18150/SIOWH6",
+    "doi": "10.18150/SIOWH6",
+    "record_url": "https://repod.icm.edu.pl/dataset.xhtml?persistentId=doi:10.18150/SIOWH6",
+    "api_base": "https://repod.icm.edu.pl",
+    "version_number": 1,
+    "version_minor_number": 0,
+    "version_state": "RELEASED",
+    "file_license_name": "CC BY Creative Commons Attribution License 4.0",
+    "expected_record_file_count": 12,
+    "target_files": [
+      {
+        "name": "TEM_SAED.zip",
+        "md5": "fbc9ab9944a398a0c4a3271e809f04ef",
+        "content_type": "application/zip",
+        "declared_role": "TEM and SAED source archive"
+      },
+      {
+        "name": "HRTEM_SAED.zip",
+        "md5": "470b9996ea17f31b7fbe915e84d2d8d7",
+        "content_type": "application/zip",
+        "declared_role": "HRTEM and SAED source archive"
+      },
+      {
+        "name": "HAADF_STEM.tif",
+        "md5": "4b8c137fd605995d9660223f4c971ff1",
+        "content_type": "image/tiff",
+        "declared_role": "standalone HAADF-STEM raster"
+      }
+    ]
+  },
+  "scientific_boundary": {
+    "source_files_may_be_downloaded_transiently": true,
+    "source_files_may_be_uploaded_as_artifacts": false,
+    "archive_members_may_be_inventoried": true,
+    "archive_members_may_be_uploaded_as_artifacts": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "parameter_tuning_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  }
+}
