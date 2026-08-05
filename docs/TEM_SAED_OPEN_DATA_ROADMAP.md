@@ -16,13 +16,14 @@ A DOI, an institutional repository, or a CC licence can establish identity and r
 - comparability to the target material and acquisition domain;
 - enough independent samples or acquisitions for generalization claims.
 
-The repository therefore distinguishes three levels:
+The repository therefore distinguishes four levels:
 
 1. **Public source:** files can be located and reused.
-2. **Bounded source-audit candidate:** a checksum-bound subset can be inspected without making performance claims.
-3. **External-validation-ready source:** every task-specific scientific gate is satisfied before analyzer execution.
+2. **Metadata-audited source:** record identity, licence, file inventory, and archive checksum are pinned.
+3. **Bounded source-audited source:** a checksum-bound archive subset has been inventoried without making performance claims.
+4. **External-validation-ready source:** every task-specific scientific gate is satisfied before analyzer execution.
 
-No newly identified record is at level 3.
+No newly identified record is at level 4.
 
 ## Current software and scientific state
 
@@ -36,7 +37,7 @@ No newly identified record is at level 3.
 
 The software baseline remains frozen while source evidence is collected. A new training run is not justified merely because more public images have been found.
 
-## Newly identified public candidates
+## Public candidates and completed audits
 
 The dated machine-readable snapshot is:
 
@@ -73,31 +74,63 @@ Closeout:
 - external-validation ready: false;
 - engineering-decision ready: false.
 
-The verified snapshot is stored at:
+Verified snapshot:
 
 `case_studies/repod_cofeni_tem_saed_source_audit/verified_snapshot.json`
 
 Action: retain this source as a checksum-bound format and metadata diagnostic. Do not run performance validation or tune the analyzer on it. Seek author-provided acquisition metadata/native files or a task-matched independent cobalt-oxide source.
 
-### Next bounded candidate — Zenodo silver nanoparticle TEM/SAED
+### Completed metadata audit — Zenodo silver nanoparticle TEM/SAED
 
 Record: `10.5281/zenodo.18942976`
 
-Why it is useful:
+The live metadata audit completed on 2026-08-05 and verified:
+
+- record ID `18942976`, DOI, and status `published`;
+- API resource type `image`;
+- licence `cc-by-4.0`;
+- three-file record inventory;
+- `TEM_SAED.zip` exact size `1,417,789,651` bytes;
+- archive checksum `md5:c7bda9d495dd0fd657a8fe0332db4f9c`;
+- a valid archive content link.
+
+Metadata quality flags:
+
+- the API reports `publication_date: 2027-05-10`, later than the 2026-08-05 audit date, despite status `published`;
+- the API classifies the multi-file raw experimental record as `image` rather than `dataset`.
+
+Neither value is silently corrected. The future publication date requires explicit provenance handling, but it does not by itself invalidate the file checksum.
+
+Closeout:
+
+- record identity and file inventory: **Supported**;
+- temporal metadata consistency: **Inconclusive**;
+- archive member inventory: **Inconclusive**;
+- archive downloaded: false;
+- analyzer scientific evidence: **Inconclusive**;
+- external-validation ready: false;
+- engineering-decision ready: false.
+
+Verified snapshot:
+
+`case_studies/zenodo_silver_tem_saed_metadata_audit/verified_snapshot.json`
+
+Why it remains useful:
 
 - the record states that it contains original experimental TEM and SAED outputs;
-- `TEM_SAED.zip` is public, checksum-listed, and CC BY 4.0;
-- the same archive can exercise both TEM and SAED intake.
+- the same archive can exercise both TEM and SAED intake;
+- exact byte identity and MD5 are now pinned.
 
 Why it is not yet validation-ready:
 
-- the archive is 1.4 GB and its member inventory is unresolved;
-- static-SAED acquisition mode is not yet confirmed;
+- archive members have not been inventoried;
+- raw/native versus raster-export status is unresolved;
+- static-SAED acquisition mode is not confirmed;
 - calibration, centre, sample identity, and acquisition identity are unresolved;
 - it contains silver nanoparticles rather than cobalt oxide;
 - no independent segmentation labels are reported.
 
-Action: audit only after a bounded member-selection plan is written without looking at analyzer output. Do not download the entire archive merely to increase dataset volume.
+Action: the next permissible step is a transient archive inventory under the frozen byte, member-count, uncompressed-size, safe-path, no-artifact, and no-inference limits. The archive must not be downloaded merely to increase dataset volume.
 
 ### Metadata-resolution candidate — Zenodo W-Ta-Cr-V irradiation TEM/SAED
 
@@ -145,7 +178,7 @@ The protocol must be fixed before viewing analyzer results. Parameter adjustment
 
 ### 3. Resolve the RepOD scientific gaps without analyzer execution
 
-The archive audit is complete. Remaining work is metadata resolution, not algorithm work:
+The RepOD archive audit is complete. Remaining work is metadata resolution, not algorithm work:
 
 - confirm whether original native detector files still exist;
 - obtain sample and acquisition identifiers;
@@ -154,16 +187,19 @@ The archive audit is complete. Remaining work is metadata resolution, not algori
 - establish whether the three SAED-named TIFFs are independent acquisitions;
 - obtain source-supported reflection assignments where available.
 
-### 4. Prepare the silver-archive bounded plan
+### 4. Execute only the frozen Zenodo silver archive inventory
 
-Before downloading the 1.4 GB Zenodo archive, predeclare:
+The metadata gate is complete. A subsequent archive audit must enforce:
 
-- exact archive version and checksum;
-- maximum files and bytes to inspect;
-- member-selection rule independent of analyzer output;
-- stop conditions;
-- metadata-only artifact policy;
-- allowed diagnostic claims.
+- exact archive size `1,417,789,651` bytes;
+- exact MD5 `c7bda9d495dd0fd657a8fe0332db4f9c`;
+- maximum archive bytes `1,600,000,000`;
+- maximum uncompressed bytes `20,000,000,000`;
+- maximum member count `50,000`;
+- safe normalized paths, no symlinks, no encryption, and supported compression;
+- transient source deletion;
+- metadata-only artifact output;
+- no analyzer inference, annotation, parameter tuning, or scientific claim promotion.
 
 ### 5. Preserve the release baseline
 

@@ -1,0 +1,35 @@
+{
+  "case_id": "zenodo_silver_tem_saed_metadata_audit",
+  "audit_date": "2026-08-05",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 18942976,
+    "doi": "10.5281/zenodo.18942976",
+    "record_url": "https://zenodo.org/records/18942976",
+    "api_url": "https://zenodo.org/api/records/18942976",
+    "expected_status": "published",
+    "expected_resource_type": "image",
+    "expected_license_id": "cc-by-4.0",
+    "expected_file_count": 3,
+    "target_file": {
+      "key": "TEM_SAED.zip",
+      "checksum": "md5:c7bda9d495dd0fd657a8fe0332db4f9c",
+      "minimum_bytes": 1000000000,
+      "maximum_bytes": 1600000000
+    }
+  },
+  "bounded_plan": {
+    "source_archive_download_authorized": false,
+    "reason": "Metadata and exact byte identity must be pinned and reviewed before the 1.4 GB archive is acquired.",
+    "future_maximum_archive_bytes": 1600000000,
+    "future_maximum_uncompressed_bytes": 20000000000,
+    "future_maximum_member_count": 50000,
+    "source_files_may_be_uploaded_as_artifacts": false,
+    "archive_members_may_be_uploaded_as_artifacts": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "parameter_tuning_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  }
+}
