@@ -1,48 +1,72 @@
 # Zenodo Silver TEM/SAED Archive Audit
 
-This case performs the bounded follow-up to the metadata audit for Zenodo record `10.5281/zenodo.18942976`.
+This case performs the bounded archive audit for Zenodo record `10.5281/zenodo.18942976`.
 
-## Scope
+## Verified result
 
-The workflow transiently downloads exactly one pinned file:
+The live audit completed successfully on 2026-08-05.
 
-- `TEM_SAED.zip`
-- expected bytes: `1,417,789,651`
-- expected MD5: `c7bda9d495dd0fd657a8fe0332db4f9c`
+- archive: `TEM_SAED.zip`
+- bytes: `1,417,789,651`
+- MD5: `c7bda9d495dd0fd657a8fe0332db4f9c`
+- SHA-256: `4569a878be7053c2e84867a5693e9483fd9b937b765ce5e3be15e3f154b5fa12`
+- members: `241`
+- total uncompressed bytes: `1,732,391,068`
+- member CRC and SHA-256 verification: complete
+- unsafe paths, duplicate normalized paths, symlinks, encryption, or unsupported compression: not detected
+- source archive or source members retained in evidence: no
 
-It then:
+### Representation inventory
 
-- computes archive SHA-256;
-- validates the ZIP container;
-- rejects unsafe paths, duplicate normalized paths, symlinks, encryption, unsupported compression, excessive member sizes, excessive compression ratios, and configured byte/member limits;
-- streams every member to verify CRC and compute SHA-256 without extracting source content into the evidence directory;
-- records suffix, representation class, filename role cues, sizes, compression, CRC, and SHA-256;
-- deletes the source archive before evidence upload.
+- TIFF raster exports: `212`
+- text files: `19`
+- DOCX files: `9`
+- XLSX files: `1`
+- native microscopy containers: `0`
+- JPEG-like rendered rasters: `0`
 
-## Frozen limits
+All 241 members are under the top-level `MET/` directory. The folder structure primarily encodes synthesis conditions and sequential image names.
 
-- archive bytes: at most `1,600,000,000`;
-- members: at most `50,000`;
-- total uncompressed bytes: at most `20,000,000,000`;
-- one member: at most `5,000,000,000` bytes;
-- one-member compression ratio: at most `500`;
-- total member hashing budget: `20,000,000,000` bytes.
+Only two members have explicit SAED name cues:
 
-## Scientific boundary
+- `MET/Etanólico/ResultsSAED0016.txt`
+- `MET/Etanólico/ResultsSAED0017.txt`
 
-This is archive and representation validation, not analyzer performance validation.
+The inventory does not provide an unambiguous filename-level mapping from these result files to static diffraction-pattern images. No filename identifies a calibration file, and no native detector container is present.
 
-Prohibited in this case:
+The checksum-bound aggregate result and artifact identity are stored in `verified_snapshot.json`.
 
-- retaining or uploading source archives or image members;
-- cropping, normalization, smoothing, or other image preprocessing;
-- TEM segmentation inference;
-- SAED peak detection or calibration;
-- annotation;
-- parameter tuning;
-- external-validation or engineering-readiness promotion.
+## Scientific closeout
 
-Even if every checksum passes, scientific validation remains blocked until sample/acquisition lineage, raw status, independent TEM labels, static-SAED acquisition, pattern centre, and reciprocal calibration are established.
+### Source identity, archive integrity, and member hashing
+
+**Supported.** The exact public archive, repository MD5, computed archive SHA-256, ZIP safety constraints, member CRC values, and streamed member SHA-256 values were verified.
+
+### TEM external validation
+
+**Inconclusive.** The archive supplies many TIFF images but no independent segmentation labels, immutable sample/acquisition lineage, or confirmed native raw status. It is also silver nanoparticle data rather than the current cobalt-oxide target domain.
+
+### SAED external validation
+
+**Inconclusive.** Two small SAED-named text files exist, but static pattern identity, pattern-to-result mapping, acquisition independence, pattern centre, reciprocal calibration, and source-bound reflection assignments remain unresolved.
+
+Consequently:
+
+- intake is `accepted_for_bounded_diagnostic_only`;
+- analyzer scientific evidence remains `Inconclusive`;
+- external-validation ready remains false;
+- engineering-decision ready remains false;
+- no preprocessing, model inference, annotation, calibration, or parameter tuning was performed.
+
+## Frozen audit behavior
+
+The workflow:
+
+- downloads only the pinned archive into a transient directory;
+- rejects unsafe paths, duplicate normalized paths, symlinks, encryption, unsupported compression, excessive sizes, compression ratios, and configured limits;
+- streams every member to verify CRC and compute SHA-256;
+- records metadata-only evidence;
+- deletes the source archive before artifact upload.
 
 ## Invocation
 
