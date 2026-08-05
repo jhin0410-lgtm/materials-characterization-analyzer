@@ -9,6 +9,7 @@ import pytest
 
 from scripts.audit_fhi_co3o4_tem_saed import (
     FhiCo3O4AuditError,
+    classify_html_authentication_block,
     inspect_zip,
     load_config,
     parse_record_html,
@@ -89,6 +90,18 @@ def test_record_verification_fails_when_target_link_leaves_host() -> None:
     """
     with pytest.raises(FhiCo3O4AuditError, match="leaves pinned host"):
         verify_record(_config(), html)
+
+
+def test_login_form_is_classified_as_authentication_block() -> None:
+    login = b"""
+    <!doctype html><html><body><form method="post" action="/login">
+    <input type="text" name="name">
+    <input type="password" name="password">
+    <input type="hidden" name="mode" value="login">
+    </form></body></html>
+    """
+    assert classify_html_authentication_block(login, "text/html; charset=UTF-8") is True
+    assert classify_html_authentication_block(b"PK\x03\x04", "application/zip") is False
 
 
 def test_zip_inventory_hashes_native_and_saed_members(tmp_path: Path) -> None:
