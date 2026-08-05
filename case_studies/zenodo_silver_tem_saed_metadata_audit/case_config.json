@@ -8,7 +8,7 @@
     "record_url": "https://zenodo.org/records/18942976",
     "api_url": "https://zenodo.org/api/records/18942976",
     "expected_status": "published",
-    "expected_resource_type": "dataset",
+    "expected_resource_type": "image",
     "expected_license_id": "cc-by-4.0",
     "expected_file_count": 3,
     "target_file": {
