@@ -15,7 +15,14 @@ from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO
 
 USER_AGENT = "materials-characterization-analyzer-source-audit/1.0"
-RESULT = "institutional_exact_material_archives_inventoried_but_external_validation_metadata_incomplete"
+RESULT_AVAILABLE = (
+    "institutional_exact_material_archives_inventoried_but_"
+    "external_validation_metadata_incomplete"
+)
+RESULT_AUTH_BLOCKED = (
+    "institutional_exact_material_record_confirmed_but_"
+    "anonymous_source_download_requires_authentication"
+)
 NATIVE_MICROSCOPY_SUFFIXES = {
     ".dm3",
     ".dm4",
@@ -45,7 +52,7 @@ SUPPORTED_COMPRESSION = {
 
 
 class FhiCo3O4AuditError(RuntimeError):
-    """Raised when the institutional source fails the pinned audit contract."""
+    """Raised when the institutional source fails the audit contract."""
 
 
 class _RecordParser(html.parser.HTMLParser):
@@ -68,10 +75,11 @@ class _RecordParser(html.parser.HTMLParser):
         self._anchor_text = []
 
     def handle_data(self, data: str) -> None:
-        if data:
-            self.text_parts.append(data)
-            if self._anchor_href is not None:
-                self._anchor_text.append(data)
+        if not data:
+            return
+        self.text_parts.append(data)
+        if self._anchor_href is not None:
+            self._anchor_text.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         if tag.casefold() != "a" or self._anchor_href is None:
@@ -85,6 +93,57 @@ class _RecordParser(html.parser.HTMLParser):
     @property
     def normalized_text(self) -> str:
         return " ".join(" ".join(self.text_parts).split())
+
+
+class _LoginPageParser(html.parser.HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.form_count = 0
+        self.password_input_count = 0
+        self.username_like_input_count = 0
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        values = dict(attrs)
+        tag = tag.casefold()
+        if tag == "form":
+            self.form_count += 1
+        if tag != "input":
+            return
+        input_type = str(values.get("type", "text")).casefold()
+        name = str(values.get("name", "")).casefold()
+        if input_type == "password":
+            self.password_input_count += 1
+        if input_type in {"text", "email"} and name in {
+            "name",
+            "username",
+            "user",
+            "email",
+            "login",
+        }:
+            self.username_like_input_count += 1
+
+
+class _NoCrossHostRedirect(urllib.request.HTTPRedirectHandler):
+    def __init__(self, expected_host: str) -> None:
+        super().__init__()
+        self.expected_host = expected_host.casefold()
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        target = urllib.parse.urljoin(req.full_url, newurl)
+        parsed = urllib.parse.urlparse(target)
+        if parsed.scheme != "https" or parsed.netloc.casefold() != self.expected_host:
+            raise FhiCo3O4AuditError("download redirect leaves the pinned HTTPS host")
+        return super().redirect_request(req, fp, code, msg, headers, target)
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -105,14 +164,13 @@ def load_config(path: Path) -> dict[str, Any]:
     }
     if set(source) != source_keys:
         raise FhiCo3O4AuditError("unexpected source config keys")
-    limits = payload["limits"]
     limit_keys = {
         "max_members_per_archive",
         "max_total_uncompressed_bytes_per_archive",
         "max_single_member_bytes",
         "max_compression_ratio",
     }
-    if set(limits) != limit_keys:
+    if set(payload["limits"]) != limit_keys:
         raise FhiCo3O4AuditError("unexpected limits config keys")
     targets = source["target_files"]
     if not isinstance(targets, list) or not targets:
@@ -120,20 +178,40 @@ def load_config(path: Path) -> dict[str, Any]:
     names = [str(item.get("name", "")) for item in targets]
     if any(not name for name in names) or len(names) != len(set(names)):
         raise FhiCo3O4AuditError("target filenames must be non-empty and unique")
+    expected_target_keys = {
+        "name",
+        "declared_role",
+        "declared_size",
+        "max_download_bytes",
+    }
     for target in targets:
-        if set(target) != {"name", "declared_role", "declared_size", "max_download_bytes"}:
+        if set(target) != expected_target_keys:
             raise FhiCo3O4AuditError("unexpected target file keys")
-        if not isinstance(target["max_download_bytes"], int) or target["max_download_bytes"] <= 0:
-            raise FhiCo3O4AuditError("max_download_bytes must be a positive integer")
+        if not isinstance(target["max_download_bytes"], int) or target[
+            "max_download_bytes"
+        ] <= 0:
+            raise FhiCo3O4AuditError("max_download_bytes must be positive")
     return payload
 
 
-def _fetch_text(url: str) -> str:
+def _open_same_host(url: str, *, accept: str) -> Any:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        raise FhiCo3O4AuditError("source URL must use HTTPS")
+    opener = urllib.request.build_opener(_NoCrossHostRedirect(parsed.netloc))
     request = urllib.request.Request(
         url,
-        headers={"Accept": "text/html", "User-Agent": USER_AGENT},
+        headers={"Accept": accept, "User-Agent": USER_AGENT},
     )
-    with urllib.request.urlopen(request, timeout=120) as response:
+    return opener.open(request, timeout=180)
+
+
+def _fetch_text(url: str) -> str:
+    with _open_same_host(url, accept="text/html") as response:
+        final = urllib.parse.urlparse(response.geturl())
+        requested = urllib.parse.urlparse(url)
+        if final.netloc.casefold() != requested.netloc.casefold():
+            raise FhiCo3O4AuditError("record request left the pinned host")
         charset = response.headers.get_content_charset() or "utf-8"
         return response.read().decode(charset, errors="strict")
 
@@ -164,15 +242,15 @@ def verify_record(
         raise FhiCo3O4AuditError(f"record page is missing pinned token: {missing[0]}")
 
     target_links: dict[str, str] = {}
+    record_host = urllib.parse.urlparse(source["record_url"]).netloc.casefold()
     for target in source["target_files"]:
         name = target["name"]
         url = links.get(name)
         if not url:
-            raise FhiCo3O4AuditError(f"record page is missing target download link: {name}")
+            raise FhiCo3O4AuditError(f"record page is missing target link: {name}")
         parsed = urllib.parse.urlparse(url)
-        record_host = urllib.parse.urlparse(source["record_url"]).netloc
-        if parsed.scheme != "https" or parsed.netloc != record_host:
-            raise FhiCo3O4AuditError(f"target download leaves pinned host: {name}")
+        if parsed.scheme != "https" or parsed.netloc.casefold() != record_host:
+            raise FhiCo3O4AuditError(f"target link leaves pinned host: {name}")
         if not parsed.path.startswith("/send/"):
             raise FhiCo3O4AuditError(f"unexpected target download path: {name}")
         target_links[name] = url
@@ -190,12 +268,68 @@ def verify_record(
     return target_links, record
 
 
+def classify_html_authentication_block(body: bytes, content_type: str) -> bool:
+    looks_html = "html" in content_type.casefold() or body.lstrip().lower().startswith(
+        (b"<!doctype html", b"<html")
+    )
+    if not looks_html:
+        return False
+    parser = _LoginPageParser()
+    parser.feed(body.decode("utf-8", errors="replace"))
+    parser.close()
+    return (
+        parser.form_count >= 1
+        and parser.password_input_count >= 1
+        and parser.username_like_input_count >= 1
+    )
+
+
+def probe_download(url: str, *, max_probe_bytes: int = 1_000_000) -> dict[str, Any]:
+    with _open_same_host(
+        url,
+        accept="application/zip,application/octet-stream;q=0.9,text/html;q=0.5",
+    ) as response:
+        body = response.read(max_probe_bytes)
+        final_url = response.geturl()
+        content_type = response.headers.get("Content-Type", "")
+        final_path = urllib.parse.urlparse(final_url).path
+        authentication_required = final_path == "/login" or classify_html_authentication_block(
+            body, content_type
+        )
+        looks_zip = body.startswith(b"PK\x03\x04") or body.startswith(b"PK\x05\x06")
+        looks_html = "html" in content_type.casefold() or body.lstrip().lower().startswith(
+            (b"<!doctype html", b"<html")
+        )
+        state = (
+            "authentication_required"
+            if authentication_required
+            else "direct_zip_available"
+            if looks_zip
+            else "unexpected_html_intermediary"
+            if looks_html
+            else "unexpected_binary_response"
+        )
+        return {
+            "requested_url": url,
+            "final_url": final_url,
+            "http_status": response.status,
+            "content_type": content_type,
+            "content_length_header": response.headers.get("Content-Length"),
+            "content_disposition": response.headers.get("Content-Disposition"),
+            "sampled_bytes": len(body),
+            "state": state,
+            "authentication_required": authentication_required,
+            "direct_zip_magic_confirmed": looks_zip,
+        }
+
+
 def _stream_download(url: str, destination: Path, *, max_bytes: int) -> dict[str, Any]:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     sha256 = hashlib.sha256()
     total = 0
     prefix = bytearray()
-    with urllib.request.urlopen(request, timeout=180) as response, destination.open("wb") as handle:
+    with _open_same_host(url, accept="application/zip,application/octet-stream") as response:
+        final_path = urllib.parse.urlparse(response.geturl()).path
+        content_type = response.headers.get("Content-Type", "")
         while chunk := response.read(1024 * 1024):
             total += len(chunk)
             if total > max_bytes:
@@ -204,13 +338,22 @@ def _stream_download(url: str, destination: Path, *, max_bytes: int) -> dict[str
                 )
             if len(prefix) < 512:
                 prefix.extend(chunk[: 512 - len(prefix)])
-            handle.write(chunk)
+            destination.write_bytes(b"") if total == len(chunk) else None
+            with destination.open("ab") as handle:
+                handle.write(chunk)
             sha256.update(chunk)
+    authentication_required = final_path == "/login" or classify_html_authentication_block(
+        bytes(prefix), content_type
+    )
+    if authentication_required:
+        destination.unlink(missing_ok=True)
+        raise FhiCo3O4AuditError(
+            f"anonymous download requires authentication for {destination.name}"
+        )
     if total <= 0:
         raise FhiCo3O4AuditError(f"empty download for {destination.name}")
-    if bytes(prefix).lstrip().lower().startswith((b"<!doctype html", b"<html")):
-        raise FhiCo3O4AuditError(f"download resolved to HTML for {destination.name}")
     if not zipfile.is_zipfile(destination):
+        destination.unlink(missing_ok=True)
         raise FhiCo3O4AuditError(f"download is not a ZIP archive: {destination.name}")
     return {"bytes": total, "sha256": sha256.hexdigest()}
 
@@ -288,35 +431,30 @@ def inspect_zip(
             if not normalized:
                 continue
             if normalized in seen:
-                raise FhiCo3O4AuditError(f"duplicate archive path in {source_name}: {normalized}")
+                raise FhiCo3O4AuditError(f"duplicate archive path: {normalized}")
             seen.add(normalized)
             if _is_symlink(info):
-                raise FhiCo3O4AuditError(f"symlink member in {source_name}: {normalized}")
+                raise FhiCo3O4AuditError(f"symlink member: {normalized}")
             if info.flag_bits & 0x1:
-                raise FhiCo3O4AuditError(f"encrypted member in {source_name}: {normalized}")
+                raise FhiCo3O4AuditError(f"encrypted member: {normalized}")
             if info.compress_type not in SUPPORTED_COMPRESSION:
-                raise FhiCo3O4AuditError(f"unsupported compression in {source_name}: {normalized}")
+                raise FhiCo3O4AuditError(f"unsupported compression: {normalized}")
             if info.file_size > limits["max_single_member_bytes"]:
-                raise FhiCo3O4AuditError(f"oversized member in {source_name}: {normalized}")
+                raise FhiCo3O4AuditError(f"oversized member: {normalized}")
             total_compressed += info.compress_size
             total_uncompressed += info.file_size
             if total_uncompressed > limits["max_total_uncompressed_bytes_per_archive"]:
                 raise FhiCo3O4AuditError(f"archive expands beyond limit: {source_name}")
-            ratio = info.file_size / max(info.compress_size, 1)
-            if ratio > limits["max_compression_ratio"]:
+            if info.file_size / max(info.compress_size, 1) > limits[
+                "max_compression_ratio"
+            ]:
                 raise FhiCo3O4AuditError(f"compression ratio exceeds limit: {normalized}")
-
         for info in infos:
             normalized = _safe_member_name(info.filename)
             if not normalized:
                 continue
-            try:
-                with archive.open(info, "r") as handle:
-                    observed_bytes, sha256 = _hash_member(handle, info.file_size)
-            except (zipfile.BadZipFile, RuntimeError, OSError) as exc:
-                raise FhiCo3O4AuditError(
-                    f"failed to stream and CRC-verify member: {normalized}"
-                ) from exc
+            with archive.open(info, "r") as handle:
+                observed_bytes, sha256 = _hash_member(handle, info.file_size)
             suffix = PurePosixPath(normalized).suffix.casefold()
             rows.append(
                 {
@@ -354,7 +492,29 @@ def _write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+def _write_probe_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    fieldnames = [
+        "name",
+        "declared_role",
+        "declared_size",
+        "requested_url",
+        "final_url",
+        "http_status",
+        "content_type",
+        "content_length_header",
+        "content_disposition",
+        "sampled_bytes",
+        "state",
+        "authentication_required",
+        "direct_zip_magic_confirmed",
+    ]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_member_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     fieldnames = [
         "source_archive",
         "member_path",
@@ -391,11 +551,10 @@ def _manifest(root: Path, artifacts: list[Path]) -> dict[str, Any]:
 
 
 def _report(summary: dict[str, Any]) -> str:
-    counts = summary["representation_counts"]
-    archive_lines = "\n".join(
-        f"- `{item['name']}`: {item['bytes']:,} bytes, SHA-256 `{item['sha256']}`, "
-        f"{item['member_count']} members"
-        for item in summary["archives"]
+    target_lines = "\n".join(
+        f"- `{item['name']}`: `{item['state']}`; final path "
+        f"`{urllib.parse.urlparse(item['final_url']).path}`"
+        for item in summary["download_probes"]
     )
     return f"""# FHI Co3O4 TEM/SAED source audit
 
@@ -405,28 +564,18 @@ def _report(summary: dict[str, Any]) -> str:
 - Evidence level: **Diagnostic**
 - Record: `{summary['record']['record_id']}`
 - Sample number: `{summary['record']['sample_number']}`
+- Anonymous source download available: **{str(summary['anonymous_source_download_available']).lower()}**
 - External-validation ready: **no**
 
-## Observed archives
+## Download probes
 
-{archive_lines}
-
-## Representation inventory
-
-- Native microscopy containers: {counts['native_microscopy_container']}
-- Lossless or lossless-capable raster exports: {counts['lossless_or_lossless_capable_raster_export']}
-- Rendered rasters: {counts['rendered_raster']}
-- Metadata or documents: {counts['metadata_or_document']}
-- Other or unresolved: {counts['other_or_unresolved']}
-- SAED/diffraction filename cues: {summary['role_cue_counts']['saed_or_diffraction_name_cue']}
-- HRTEM filename cues: {summary['role_cue_counts']['hrtem_name_cue']}
-- Calibration/centre filename cues: {summary['role_cue_counts']['calibration_or_centre_name_cue']}
+{target_lines}
 
 ## Scientific closeout
 
-The institutional record, exact-material context, current downloadable archive bytes, archive safety, CRC verification, member paths and member SHA-256 values are supported for this observed audit snapshot. The source repository does not publish archive checksums on the record page, so temporal immutability remains inconclusive until a source-authoritative checksum or versioned manifest is obtained.
+The exact-material institutional record and its public metadata are supported. The record page labels the entry `Open Access`, but the observed anonymous file requests redirect to a login page. Therefore archive bytes, member identities, representations, checksums and calibration metadata are not verified by this audit.
 
-This audit performs no image preprocessing, annotation, model inference, parameter selection or model retraining. It does not establish independent TEM segmentation performance, calibrated SAED accuracy, phase-indexing validity or engineering readiness.
+No credentials were supplied or guessed. No source files were retained, and no image preprocessing, annotation, model inference, parameter selection or model retraining was performed. Independent TEM performance, calibrated SAED accuracy, phase indexing and engineering readiness remain inconclusive.
 """
 
 
@@ -437,78 +586,84 @@ def run_audit(config_path: Path, output_dir: Path) -> dict[str, Any]:
             raise FhiCo3O4AuditError("output directory must be absent or empty")
         output_dir.rmdir()
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-
     stage = Path(tempfile.mkdtemp(prefix=f".{output_dir.name}-", dir=output_dir.parent))
     try:
         html_text = _fetch_text(config["source"]["record_url"])
         links, record = verify_record(config, html_text)
-        member_rows: list[dict[str, Any]] = []
-        archive_rows: list[dict[str, Any]] = []
-        with tempfile.TemporaryDirectory(prefix="fhi-source-") as temp_name:
-            source_root = Path(temp_name)
-            for target in config["source"]["target_files"]:
-                archive_path = source_root / target["name"]
-                identity = _stream_download(
-                    links[target["name"]],
-                    archive_path,
-                    max_bytes=target["max_download_bytes"],
-                )
-                rows, archive_stats = inspect_zip(
-                    archive_path,
-                    target["name"],
-                    config["limits"],
-                )
-                member_rows.extend(rows)
-                archive_rows.append(
-                    {
-                        "name": target["name"],
-                        "declared_role": target["declared_role"],
-                        "declared_size": target["declared_size"],
-                        "download_url": links[target["name"]],
-                        **identity,
-                        **archive_stats,
-                    }
-                )
-
-        representation_counts = {
-            name: sum(row["representation_class"] == name for row in member_rows)
-            for name in (
-                "native_microscopy_container",
-                "lossless_or_lossless_capable_raster_export",
-                "rendered_raster",
-                "metadata_or_document",
-                "other_or_unresolved",
+        probes: list[dict[str, Any]] = []
+        for target in config["source"]["target_files"]:
+            probes.append(
+                {
+                    "name": target["name"],
+                    "declared_role": target["declared_role"],
+                    "declared_size": target["declared_size"],
+                    **probe_download(links[target["name"]]),
+                }
             )
-        }
-        cue_names = (
-            "saed_or_diffraction_name_cue",
-            "hrtem_name_cue",
-            "tem_name_cue",
-            "beam_damage_name_cue",
-            "calibration_or_centre_name_cue",
-        )
-        role_cue_counts = {
-            cue: sum(cue in row["role_cues"] for row in member_rows) for cue in cue_names
-        }
+
+        auth_blocked = all(item["authentication_required"] for item in probes)
+        direct_available = all(item["state"] == "direct_zip_available" for item in probes)
+        if not auth_blocked and not direct_available:
+            states = ", ".join(sorted({str(item["state"]) for item in probes}))
+            raise FhiCo3O4AuditError(f"download probes are inconsistent or unsafe: {states}")
+
+        archive_rows: list[dict[str, Any]] = []
+        member_rows: list[dict[str, Any]] = []
+        if direct_available:
+            with tempfile.TemporaryDirectory(prefix="fhi-source-") as temp_name:
+                source_root = Path(temp_name)
+                for target in config["source"]["target_files"]:
+                    archive_path = source_root / target["name"]
+                    identity = _stream_download(
+                        links[target["name"]],
+                        archive_path,
+                        max_bytes=target["max_download_bytes"],
+                    )
+                    rows, stats = inspect_zip(
+                        archive_path,
+                        target["name"],
+                        config["limits"],
+                    )
+                    member_rows.extend(rows)
+                    archive_rows.append(
+                        {
+                            "name": target["name"],
+                            "declared_role": target["declared_role"],
+                            "declared_size": target["declared_size"],
+                            **identity,
+                            **stats,
+                        }
+                    )
+
         summary = {
             "schema_version": "1.0",
             "case_id": config["case_id"],
             "audit_date": config["audit_date"],
-            "status": RESULT,
+            "status": RESULT_AVAILABLE if direct_available else RESULT_AUTH_BLOCKED,
             "record": record,
+            "download_probes": probes,
+            "anonymous_source_download_available": direct_available,
             "archives": archive_rows,
             "total_member_count": len(member_rows),
-            "representation_counts": representation_counts,
-            "role_cue_counts": role_cue_counts,
+            "metadata_quality_flags": [
+                "The institutional record page displays Open Access while both observed anonymous file requests redirect to /login."
+            ]
+            if auth_blocked
+            else [],
             "evidence_assessment": {
                 "institutional_record_identity": "Supported",
-                "current_download_snapshot_identity": "Supported",
-                "archive_safety_crc_and_member_hashing": "Supported",
-                "repository_published_checksum_or_versioned_manifest": "Inconclusive",
+                "exact_co3o4_material_context": "Supported",
+                "anonymous_public_downloadability": (
+                    "Unsupported" if auth_blocked else "Supported"
+                ),
+                "archive_and_member_identity": (
+                    "Inconclusive" if auth_blocked else "Supported"
+                ),
                 "independent_tem_segmentation_validation": "Inconclusive",
                 "calibrated_static_saed_validation": "Inconclusive",
             },
             "processing": {
+                "credentials_supplied_or_guessed": False,
                 "source_files_retained": False,
                 "pixels_extracted_or_modified": False,
                 "preprocessing_performed": False,
@@ -521,13 +676,19 @@ def run_audit(config_path: Path, output_dir: Path) -> dict[str, Any]:
                 "external_validation_ready": False,
                 "engineering_decision_ready": False,
                 "allowed_use": [
+                    "record-level source triage",
+                    "authentication-blocker evidence",
+                    "author or repository access request specification",
+                ]
+                if auth_blocked
+                else [
                     "checksum-bound observed-source snapshot",
-                    "archive and member representation diagnostics",
+                    "archive and representation diagnostics",
                     "metadata-gap assessment",
-                    "author follow-up specification",
                 ],
             },
             "unresolved": [
+                "anonymous or explicitly authorized source access",
                 "source-authoritative archive checksums or versioned manifest",
                 "member-level sample and acquisition identifiers",
                 "independence and minimum count of samples and acquisitions",
@@ -539,16 +700,18 @@ def run_audit(config_path: Path, output_dir: Path) -> dict[str, Any]:
         }
 
         summary_path = stage / "fhi_co3o4_tem_saed_audit_summary.json"
-        inventory_path = stage / "fhi_co3o4_tem_saed_member_inventory.csv"
+        probe_path = stage / "fhi_co3o4_tem_saed_download_probe.csv"
         report_path = stage / "fhi_co3o4_tem_saed_audit_report.md"
+        member_path = stage / "fhi_co3o4_tem_saed_member_inventory.csv"
         manifest_path = stage / "fhi_co3o4_tem_saed_audit_manifest.json"
         _write_json(summary_path, summary)
-        _write_csv(inventory_path, member_rows)
+        _write_probe_csv(probe_path, probes)
         report_path.write_text(_report(summary), encoding="utf-8")
-        _write_json(
-            manifest_path,
-            _manifest(stage, [summary_path, inventory_path, report_path]),
-        )
+        artifacts = [summary_path, probe_path, report_path]
+        if member_rows:
+            _write_member_csv(member_path, member_rows)
+            artifacts.append(member_path)
+        _write_json(manifest_path, _manifest(stage, artifacts))
         leaked = [
             path
             for path in stage.rglob("*")
@@ -565,7 +728,10 @@ def run_audit(config_path: Path, output_dir: Path) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Audit the FHI exact-material Co3O4 TEM/HRTEM/SAED archives without retaining source images."
+        description=(
+            "Audit the FHI exact-material Co3O4 TEM/HRTEM/SAED record, "
+            "recording authentication blockers without bypassing access controls."
+        )
     )
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
