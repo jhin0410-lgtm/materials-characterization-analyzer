@@ -1,0 +1,49 @@
+{
+  "case_id": "fhi_co3o4_tem_saed_source_audit",
+  "audit_date": "2026-08-05",
+  "source": {
+    "repository": "Fritz Haber Institute AC/CATLAB Archive",
+    "record_id": "D63268",
+    "record_url": "https://ac.archive.fhi.mpg.de/D63268",
+    "expected_title": "Data to: Local Solid-State Processes Adjust the Selectivity in Catalytic Oxidation Reactions on Cobalt Oxides",
+    "expected_document_type": "RAW DATA",
+    "expected_sample_number": "S32564",
+    "required_methods": [
+      "OTEM",
+      "SAED"
+    ],
+    "target_files": [
+      {
+        "name": "TEM.zip",
+        "declared_role": "General TEM characterization of the catalyst",
+        "declared_size": "5.6 MB",
+        "max_download_bytes": 20000000
+      },
+      {
+        "name": "OTEM_2.zip",
+        "declared_role": "Beam damage studies, HRTEM and SAED",
+        "declared_size": "175.6 MB",
+        "max_download_bytes": 400000000
+      }
+    ]
+  },
+  "limits": {
+    "max_members_per_archive": 20000,
+    "max_total_uncompressed_bytes_per_archive": 20000000000,
+    "max_single_member_bytes": 5000000000,
+    "max_compression_ratio": 500
+  },
+  "scientific_boundary": {
+    "record_is_exact_material": true,
+    "repository_checksum_is_publicly_available": false,
+    "source_arrays_may_be_downloaded_transiently_for_inventory": true,
+    "source_arrays_must_not_be_retained": true,
+    "pixel_preprocessing_authorized": false,
+    "annotation_authorized": false,
+    "model_inference_authorized": false,
+    "parameter_selection_authorized": false,
+    "model_retraining_authorized": false,
+    "external_performance_claim_authorized": false,
+    "engineering_release_authorized": false
+  }
+}
