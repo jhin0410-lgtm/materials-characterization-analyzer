@@ -17,7 +17,9 @@ def test_open_tem_saed_candidate_registry_is_fail_closed() -> None:
 
     assert payload["schema_version"] == "1.0"
     assert payload["snapshot_date"] == "2026-08-05"
-    assert payload["snapshot_status"] == "updated_after_repod_live_source_audit"
+    assert payload["snapshot_status"] == (
+        "updated_after_repod_source_audit_and_zenodo_silver_metadata_audit"
+    )
     assert payload["current_decision"]["scientific_evidence_level"] == "Inconclusive"
     assert payload["current_decision"]["external_validation_ready_count"] == 0
     assert payload["current_decision"]["download_now"] == []
@@ -70,10 +72,25 @@ def test_open_tem_saed_registry_preserves_mode_and_domain_boundaries() -> None:
     assert repod["external_validation_ready"] is False
     assert "TEM segmentation performance" in repod["prohibited_claims"]
 
+    silver = by_id["zenodo_18942976_silver_tem_saed"]
+    assert silver["status"] == (
+        "metadata_audit_complete_archive_download_not_yet_authorized"
+    )
+    assert silver["priority"] == "metadata_audit_complete_archive_inventory_pending"
+    assert silver["metadata_audit"]["record_identity_and_file_inventory"] == "Supported"
+    assert silver["metadata_audit"]["temporal_metadata_consistency"] == "Inconclusive"
+    assert silver["metadata_audit"]["target_archive_bytes"] == 1417789651
+    assert silver["metadata_audit"]["resource_type_id"] == "image"
+    assert silver["external_validation_ready"] is False
+    assert silver["metadata_quality_flags"]
+
     current = payload["current_decision"]
     assert current["source_audit_complete_diagnostic_only"] == [
         "repod_siowh6_cofeni_tem_saed"
     ]
-    assert current["audit_after_bounded_plan"] == [
+    assert current["metadata_audit_complete_archive_inventory_pending"] == [
+        "zenodo_18942976_silver_tem_saed"
+    ]
+    assert current["archive_inventory_authorization_pending_review"] == [
         "zenodo_18942976_silver_tem_saed"
     ]
