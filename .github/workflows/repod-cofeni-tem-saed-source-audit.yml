@@ -1,0 +1,96 @@
+name: RepOD CoFeNi TEM SAED source audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/repod_cofeni_tem_saed_source_audit/**"
+      - "case_studies/open_tem_saed_candidates/**"
+      - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
+      - "scripts/audit_repod_cofeni_tem_saed.py"
+      - "tests/test_repod_cofeni_tem_saed_source_audit.py"
+      - "tests/test_open_tem_saed_candidate_registry.py"
+      - ".github/workflows/repod-cofeni-tem-saed-source-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/repod_cofeni_tem_saed_source_audit/**"
+      - "case_studies/open_tem_saed_candidates/**"
+      - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
+      - "scripts/audit_repod_cofeni_tem_saed.py"
+      - "tests/test_repod_cofeni_tem_saed_source_audit.py"
+      - "tests/test_open_tem_saed_candidate_registry.py"
+      - ".github/workflows/repod-cofeni-tem-saed-source-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repod-cofeni-tem-saed-source-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and audit dependencies
+        run: python -m pip install -e ".[dev]" pillow
+      - name: Run focused regressions
+        run: |
+          pytest -q \
+            tests/test_repod_cofeni_tem_saed_source_audit.py \
+            tests/test_open_tem_saed_candidate_registry.py
+      - name: Run live checksum-bound RepOD audit
+        run: |
+          python scripts/audit_repod_cofeni_tem_saed.py \
+            --config case_studies/repod_cofeni_tem_saed_source_audit/case_config.json \
+            --output outputs/repod_cofeni_tem_saed_source_audit
+      - name: Verify metadata-only fail-closed evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/repod_cofeni_tem_saed_source_audit")
+          forbidden_suffixes = {
+              ".zip", ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp",
+              ".tif", ".tiff", ".dm3", ".dm4", ".emd", ".ser",
+              ".mrc", ".mrcs", ".h5", ".hdf5",
+          }
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden_suffixes
+          ]
+          if leaked:
+              raise SystemExit(f"source files leaked into evidence: {leaked}")
+          summary = json.loads(
+              (root / "repod_cofeni_tem_saed_source_audit_summary.json").read_text()
+          )
+          assert summary["result"] == (
+              "checksum_verified_public_tem_saed_archives_but_validation_metadata_incomplete"
+          )
+          assert summary["record_file_count"] == 12
+          assert summary["target_file_count"] == 3
+          assert summary["archive_count"] == 2
+          assert summary["audited_member_count"] > 0
+          assert not summary["source_archives_retained"]
+          assert not summary["source_images_retained"]
+          assert not summary["model_inference_performed"]
+          assert not summary["annotation_performed"]
+          assert not summary["primary_parameters_changed"]
+          assert not summary["external_validation_ready"]
+          assert not summary["engineering_decision_ready"]
+          assert summary["analyzer_scientific_evidence_level"] == "Inconclusive"
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: repod-cofeni-tem-saed-source-audit-evidence
+          path: outputs/repod_cofeni_tem_saed_source_audit
+          if-no-files-found: warn
+          retention-days: 30
