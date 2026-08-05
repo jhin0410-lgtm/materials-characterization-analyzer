@@ -1,13 +1,15 @@
 {
   "schema_version": "1.0",
   "snapshot_date": "2026-08-05",
-  "purpose": "Dated addendum for newly identified public TEM and SAED sources. This file does not replace the technique-specific candidate registries and does not promote any source to external-validation-ready status.",
+  "snapshot_status": "updated_after_repod_live_source_audit",
+  "purpose": "Dated addendum for public TEM and SAED sources. Public availability, source-audit completion, and external-validation readiness are intentionally separate states.",
   "authoritative_registries": {
     "tem": "case_studies/tem_external_validation_candidate_registry/case_config.json",
     "saed": "case_studies/saed_public_candidate_registry/case_config.json"
   },
   "decision_rule": {
     "source_audit_ready_is_not_evaluation_ready": true,
+    "source_audit_supported_does_not_promote_analyzer_evidence": true,
     "external_validation_requires": [
       "checksum-bound raw or demonstrably lossless files",
       "explicit reuse terms",
@@ -51,8 +53,8 @@
         "verified non-use in analyzer development"
       ],
       "tem_role": "cross-material unlabeled source audit and ingestion diagnostic",
-      "saed_role": "high-priority bounded static-SAED source-audit candidate, subject to acquisition-mode confirmation",
-      "priority": "high",
+      "saed_role": "bounded static-SAED source-audit candidate, subject to acquisition-mode confirmation",
+      "priority": "next_bounded_audit_after_predeclared_plan",
       "status": "ready_for_bounded_source_audit",
       "allowed_use": [
         "archive integrity audit",
@@ -65,7 +67,7 @@
         "phase or reflection assignment",
         "engineering readiness"
       ],
-      "next_action": "Download only after pinning the record metadata; compute SHA-256; inspect the archive without altering files; bind members to sample and acquisition context; stop before analyzer execution if center or calibration evidence is absent.",
+      "next_action": "Write and review a bounded member-selection and byte-budget plan before downloading the 1.4 GB archive; stop before analyzer execution if center, calibration, lineage, or independent labels are absent.",
       "external_validation_ready": false
     },
     {
@@ -80,52 +82,75 @@
       "public_files": [
         {
           "name": "TEM_SAED.zip",
-          "size": "8.6 MB",
-          "repository_checksum": "md5:fbc9ab9944a398a0c4a3271e809f04ef"
+          "bytes": 9015001,
+          "repository_checksum": "md5:fbc9ab9944a398a0c4a3271e809f04ef",
+          "verified_sha256": "e30476e8b0f21e4c2cf215aa65c472d2c13969a860c2fe62783e94dce15c6c94"
         },
         {
           "name": "HRTEM_SAED.zip",
-          "size": "8.1 MB",
-          "repository_checksum": "md5:470b9996ea17f31b7fbe915e84d2d8d7"
+          "bytes": 8506160,
+          "repository_checksum": "md5:470b9996ea17f31b7fbe915e84d2d8d7",
+          "verified_sha256": "ec1660985c5f9a8b48901951f887d8b925131d7e09c9359ccec1a1561569ad63"
         },
         {
           "name": "HAADF_STEM.tif",
-          "size": "216.7 KB",
-          "repository_checksum": "md5:4b8c137fd605995d9660223f4c971ff1"
+          "bytes": 221864,
+          "repository_checksum": "md5:4b8c137fd605995d9660223f4c971ff1",
+          "verified_sha256": "49cfc069ef6baeb3eeeaa51127408221db58e81695dbe096619edf73066d19d1"
         }
       ],
       "reuse_license": "CC BY 4.0",
+      "source_audit": {
+        "completed_at": "2026-08-05T06:49:29Z",
+        "workflow_run_id": 30982659178,
+        "artifact_id": 8920746010,
+        "artifact_digest": "sha256:f40d6d309ee195605b6d4570f11bde4f54e110f1d35d5689d3b04622d2da2c27",
+        "verified_snapshot": "case_studies/repod_cofeni_tem_saed_source_audit/verified_snapshot.json",
+        "record_file_count": 12,
+        "audited_target_count": 3,
+        "audited_member_count": 7,
+        "lossless_raster_member_count": 7,
+        "native_microscopy_member_count": 0,
+        "rendered_raster_member_count": 0,
+        "saed_named_member_count": 3,
+        "tem_or_hrtem_named_member_count": 2,
+        "source_identity_and_archive_integrity": "Supported"
+      },
       "source_metadata_confirmed": [
-        "The dataset page binds the microscopy files to figure-level TEM/HRTEM/SAED results.",
-        "The repository exposes checksums for each public archive.",
-        "The archives are small enough for a bounded source audit."
+        "RepOD version 1.0, file-level CC BY 4.0 licence, 12-file inventory, target MD5 values, and computed SHA-256 values were verified live.",
+        "Both ZIP archives passed integrity, CRC, safe-path, duplicate-path, and symlink checks.",
+        "Seven single-frame TIFF raster exports were inventoried: BF, DF, three SAED-named images, HRTEM, and HAADF-STEM.",
+        "No native microscopy container or rendered JPEG-like raster was present in the audited subset.",
+        "Embedded metadata were limited to basic raster fields."
       ],
       "unresolved": [
-        "archive member inventory and member checksums",
-        "raw detector versus exported figure-image status",
-        "accelerating voltage used for each pattern",
-        "sample and acquisition identifiers",
+        "native detector files and raw-detector status",
+        "accelerating voltage, detector, camera length, and pixel geometry per pattern",
+        "immutable sample and acquisition identifiers",
+        "independence of the three SAED-named members",
         "pattern center and reciprocal calibration",
-        "source reflection assignments at member level",
-        "independent TEM labels",
+        "member-level source reflection assignments",
+        "independent TEM segmentation labels",
         "verified non-use in analyzer development"
       ],
-      "tem_role": "cross-material morphology and file-integrity diagnostic",
-      "saed_role": "highest-priority small-archive static-SAED source-audit candidate",
-      "priority": "high",
-      "status": "ready_for_bounded_source_audit",
+      "tem_role": "cross-material lossless-raster format and metadata diagnostic",
+      "saed_role": "cross-material uncalibrated static-pattern candidate for metadata resolution only",
+      "priority": "diagnostic_audit_complete",
+      "status": "bounded_source_audit_complete_diagnostic_only",
       "allowed_use": [
-        "checksum-bound archive audit",
-        "member inventory and metadata assessment",
-        "software diagnostics after fail-closed intake"
+        "checksum-bound source identity evidence",
+        "archive and TIFF representation diagnostics",
+        "metadata-gap assessment",
+        "author follow-up specification"
       ],
       "prohibited_claims": [
         "cobalt-oxide model generalization",
-        "calibrated d-spacing accuracy before traceable calibration",
-        "zone-axis or phase confirmation from analyzer output alone",
+        "TEM segmentation performance",
+        "calibrated d-spacing accuracy",
+        "phase, reflection, or zone-axis confirmation from analyzer output alone",
         "engineering readiness"
       ],
-      "next_action": "Acquire both archives through the repository API; verify MD5 and compute SHA-256; inspect TIFF/DM file metadata; confirm at least two independent patterns or acquisitions and obtain traceable center/calibration evidence before SAED evaluation.",
+      "next_action": "Do not run performance evaluation or tune parameters. Seek native files, member-level sample/acquisition lineage, independent TEM labels, and traceable SAED center/calibration from the authors or use a task-matched independent cobalt-oxide source.",
       "external_validation_ready": false
     },
     {
@@ -164,7 +189,7 @@
       ],
       "tem_role": "cross-material irradiation-domain robustness source after inventory resolution",
       "saed_role": "materials-domain static-SAED candidate after file-inventory and calibration resolution",
-      "priority": "medium",
+      "priority": "metadata_resolution",
       "status": "metadata_or_file_inventory_resolution_required",
       "allowed_use": [
         "record-level source triage",
@@ -268,11 +293,24 @@
     }
   ],
   "current_decision": {
-    "download_now": ["repod_siowh6_cofeni_tem_saed"],
-    "audit_after_bounded_plan": ["zenodo_18942976_silver_tem_saed"],
-    "resolve_metadata_first": ["zenodo_10512357_wtacrv_tem_saed"],
-    "diagnostic_only": ["zenodo_20411896_nemi_2026_workshop"],
-    "not_selected": ["empiar_general_archive"],
+    "download_now": [],
+    "source_audit_complete_diagnostic_only": [
+      "repod_siowh6_cofeni_tem_saed"
+    ],
+    "audit_after_bounded_plan": [
+      "zenodo_18942976_silver_tem_saed"
+    ],
+    "resolve_metadata_first": [
+      "zenodo_10512357_wtacrv_tem_saed"
+    ],
+    "diagnostic_only": [
+      "repod_siowh6_cofeni_tem_saed",
+      "zenodo_20411896_nemi_2026_workshop"
+    ],
+    "not_selected": [
+      "empiar_general_archive"
+    ],
+    "next_execution_priority": "write_bounded_zenodo_18942976_member_selection_plan",
     "scientific_evidence_level": "Inconclusive",
     "external_validation_ready_count": 0
   }
