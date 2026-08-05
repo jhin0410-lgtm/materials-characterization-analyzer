@@ -1,0 +1,126 @@
+name: Dryad TiSe2 SAED HRTEM source audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/audit_dryad_tise2_saed_hrtem.py"
+      - "tests/test_audit_dryad_tise2_saed_hrtem.py"
+      - "case_studies/dryad_tise2_saed_hrtem_source_audit/**"
+      - ".github/workflows/dryad-tise2-saed-hrtem-source-audit.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/audit_dryad_tise2_saed_hrtem.py"
+      - "tests/test_audit_dryad_tise2_saed_hrtem.py"
+      - "case_studies/dryad_tise2_saed_hrtem_source_audit/**"
+      - ".github/workflows/dryad-tise2-saed-hrtem-source-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dryad-tise2-saed-hrtem-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install bounded audit dependencies
+        run: python -m pip install pillow pytest
+
+      - name: Run focused fail-closed tests
+        run: |
+          python -m py_compile scripts/audit_dryad_tise2_saed_hrtem.py
+          pytest -q tests/test_audit_dryad_tise2_saed_hrtem.py
+
+      - name: Run live transient Dryad archive audit
+        run: |
+          python scripts/audit_dryad_tise2_saed_hrtem.py \
+            --config case_studies/dryad_tise2_saed_hrtem_source_audit/case_config.json \
+            --output outputs/dryad_tise2_saed_hrtem_source_audit
+
+      - name: Verify metadata-only evidence and scientific boundary
+        run: |
+          python - <<'PY'
+          import csv
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/dryad_tise2_saed_hrtem_source_audit")
+          summary = json.loads(
+              (root / "dryad_tise2_saed_hrtem_audit_summary.json").read_text()
+          )
+          assert summary["status"] == (
+              "checksum_bound_archive_inventory_completed_with_"
+              "experimental_simulation_separation_but_calibration_lineage_incomplete"
+          )
+          assert summary["evidence_level"] == "Diagnostic"
+          assert summary["source"]["doi"] == "10.5061/dryad.6djh9w1hw"
+          assert summary["source"]["primary_file_id"] == 4808550
+          assert summary["source"]["primary_filename"] == "Data_TiSe2.zip"
+          assert summary["source"]["license"]
+          assert 1_500_000_000 <= summary["archive"]["bytes"] <= 2_300_000_000
+          assert len(summary["archive"]["md5"]) == 32
+          assert len(summary["archive"]["sha256"]) == 64
+          assert summary["member_count"] > 10
+          assert summary["total_uncompressed_bytes"] > 0
+          assert "Fig2_Data" in summary["experimental_folders"]
+          assert "Fig3_Data" in summary["simulated_or_computational_folders"]
+          assert "Fig4_Data" in summary["simulated_or_computational_folders"]
+          assert summary["evidence_assessment"]["dryad_dataset_identity"] == "Supported"
+          assert summary["evidence_assessment"]["archive_integrity"] == "Supported"
+          assert summary["readiness"]["calibrated_saed_validation_ready"] is False
+          assert summary["readiness"]["external_scientific_validation_ready"] is False
+          assert summary["readiness"]["engineering_decision_ready"] is False
+          assert summary["processing"]["source_archive_retained"] is False
+          assert summary["processing"]["source_members_retained"] is False
+          assert summary["processing"]["pixel_arrays_exported"] is False
+          assert summary["processing"]["model_inference_performed"] is False
+          assert summary["processing"]["parameter_tuning_performed"] is False
+          assert summary["processing"]["model_retraining_performed"] is False
+          assert summary["processing"]["phase_indexing_performed"] is False
+
+          with (root / "dryad_tise2_member_inventory.csv").open(newline="") as handle:
+              inventory = list(csv.DictReader(handle))
+          assert len(inventory) == summary["member_count"]
+          assert any(row["folder"] == "Fig2_Data" for row in inventory)
+          assert any(row["folder"] == "Fig3_Data" for row in inventory)
+
+          manifest = json.loads(
+              (root / "dryad_tise2_saed_hrtem_audit_manifest.json").read_text()
+          )
+          assert manifest["artifact_count"] == len(manifest["artifacts"])
+          for item in manifest["artifacts"]:
+              path = root / item["path"]
+              assert path.stat().st_size == item["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+
+          forbidden = {
+              ".zip", ".tif", ".tiff", ".bmp", ".png", ".dm3", ".dm4",
+              ".emd", ".ser", ".emi", ".mrc", ".mrcs", ".xlsx", ".xls"
+          }
+          assert not [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.lower() in forbidden
+          ]
+          PY
+
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dryad-tise2-saed-hrtem-source-audit-evidence
+          path: outputs/dryad_tise2_saed_hrtem_source_audit
+          if-no-files-found: error
+          retention-days: 30
