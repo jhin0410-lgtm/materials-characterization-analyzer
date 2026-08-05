@@ -29,7 +29,10 @@ The live workflow:
 6. requires the record-declared central TEM/SAED DM3 basenames to occur exactly once;
 7. extracts only bounded DM3 microscopy members into transient storage;
 8. computes selected-member SHA-256 values and records metadata exposed by ExifTool;
-9. deletes all source files before publishing metadata-only evidence.
+9. preserves ExifTool warnings when complete JSON is still returned for every selected member;
+10. deletes all source files before publishing metadata-only evidence.
+
+ExifTool may return exit code `1` for recoverable DM3 warnings even when complete JSON is produced. The public runner accepts only exit codes `0` or `1`, requires one JSON object per selected file, and records every sanitized warning. It does not silently convert a warning into clean metadata evidence.
 
 The audit rejects unsafe or duplicate paths, encrypted or linked entries, excessive member counts, oversized members, excessive expanded size and excessive compression ratios.
 
@@ -41,7 +44,7 @@ Ubuntu/Debian requires `p7zip-full` and ExifTool:
 sudo apt-get update
 sudo apt-get install -y p7zip-full libimage-exiftool-perl
 
-python scripts/audit_zenodo_ge_dm3_tem_saed.py \
+python scripts/run_zenodo_ge_dm3_tem_saed_audit.py \
   --config case_studies/zenodo_ge_dm3_tem_saed_source_audit/case_config.json \
   --output outputs/zenodo_ge_dm3_tem_saed_source_audit
 ```
