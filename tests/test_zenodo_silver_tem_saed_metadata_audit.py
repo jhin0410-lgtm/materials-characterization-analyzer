@@ -35,7 +35,7 @@ def _payload(*, checksum: str = "md5:c7bda9d495dd0fd657a8fe0332db4f9c"):
         "metadata": {
             "title": "Raw data for silver nanoparticles",
             "publication_date": "2026-03-10",
-            "resource_type": {"id": "dataset"},
+            "resource_type": {"id": "image"},
             "license": {"id": "cc-by-4.0"},
         },
         "files": [
@@ -70,6 +70,7 @@ def test_config_is_metadata_only_and_fail_closed() -> None:
     source = config["source"]
     assert source["record_id"] == 18942976
     assert source["doi"] == "10.5281/zenodo.18942976"
+    assert source["expected_resource_type"] == "image"
     assert source["expected_license_id"] == "cc-by-4.0"
     assert source["target_file"]["checksum"] == (
         "md5:c7bda9d495dd0fd657a8fe0332db4f9c"
@@ -86,6 +87,7 @@ def test_record_normalization_and_verification() -> None:
     config = module.load_config(CONFIG)
     record = module.normalize_record(_payload())
     target, files = module.verify_record(config, record)
+    assert record["resource_type_id"] == "image"
     assert len(files) == 3
     assert target["key"] == "TEM_SAED.zip"
     assert target["size"] == 1400000000
@@ -106,6 +108,7 @@ def test_run_writes_metadata_only_plan(tmp_path: Path, monkeypatch) -> None:
     output = tmp_path / "audit"
     summary = module.run(CONFIG, output)
     assert summary["metadata_audit_closeout"]["status"] == "Supported"
+    assert summary["source"]["resource_type_id"] == "image"
     assert summary["source_archive_downloaded"] is False
     assert summary["archive_member_inventory_complete"] is False
     assert summary["external_validation_ready"] is False
