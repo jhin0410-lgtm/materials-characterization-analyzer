@@ -7,10 +7,12 @@ This case audits the public Zenodo record `10.5281/zenodo.18942976` without down
 The first gate is to pin:
 
 - record identity and publication status;
-- dataset resource type;
+- Zenodo API resource classification;
 - CC BY 4.0 licence;
 - exact record file count;
 - target archive filename, exact byte count, content URL, and MD5 checksum.
+
+The Zenodo API currently classifies this record as resource type `image`, even though the landing page describes a collection of raw experimental outputs. The audit preserves the API value rather than silently normalizing it to `dataset`.
 
 The audit then generates a bounded archive-acquisition plan. It does not inspect archive members or run an analyzer.
 
