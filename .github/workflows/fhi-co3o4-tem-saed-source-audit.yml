@@ -29,7 +29,7 @@ concurrency:
 jobs:
   source-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -47,115 +47,20 @@ jobs:
           python -m py_compile scripts/audit_fhi_co3o4_tem_saed.py
           pytest -q tests/test_audit_fhi_co3o4_tem_saed.py
 
-      - name: Inspect public download intermediary without logging field values
-        run: |
-          python - <<'PY'
-          from __future__ import annotations
-
-          import html.parser
-          import urllib.parse
-          import urllib.request
-
-          URLS = [
-              "https://ac.archive.fhi.mpg.de/send/1xp3a32ViMBG",
-              "https://ac.archive.fhi.mpg.de/send/9bYLLr3bOFra",
-          ]
-
-          class Parser(html.parser.HTMLParser):
-              def __init__(self, base: str) -> None:
-                  super().__init__(convert_charrefs=True)
-                  self.base = base
-                  self.anchors = []
-                  self.forms = []
-                  self.inputs = []
-                  self.buttons = []
-                  self.meta = []
-
-              def handle_starttag(self, tag, attrs):
-                  values = dict(attrs)
-                  tag = tag.casefold()
-                  if tag == "a" and values.get("href"):
-                      self.anchors.append(
-                          urllib.parse.urljoin(self.base, values["href"])
-                      )
-                  elif tag == "form":
-                      self.forms.append({
-                          "method": str(values.get("method", "get")).casefold(),
-                          "action": urllib.parse.urljoin(
-                              self.base, values.get("action", "")
-                          ),
-                      })
-                  elif tag == "input":
-                      self.inputs.append({
-                          "name": values.get("name"),
-                          "type": values.get("type", "text"),
-                          "has_value": values.get("value") is not None,
-                          "value_length": len(values.get("value", "")),
-                      })
-                  elif tag == "button":
-                      self.buttons.append({
-                          "name": values.get("name"),
-                          "type": values.get("type", "submit"),
-                          "has_value": values.get("value") is not None,
-                      })
-                  elif tag == "meta" and values.get("http-equiv"):
-                      self.meta.append({
-                          "http_equiv": values.get("http-equiv"),
-                          "content": values.get("content", "")[:200],
-                      })
-
-          for url in URLS:
-              request = urllib.request.Request(
-                  url,
-                  headers={
-                      "Accept": "text/html,application/zip;q=0.9,*/*;q=0.8",
-                      "User-Agent": "materials-characterization-analyzer-source-audit/1.0",
-                  },
-              )
-              with urllib.request.urlopen(request, timeout=120) as response:
-                  body = response.read(1_000_000)
-                  content_type = response.headers.get("Content-Type", "")
-                  print({
-                      "requested_url": url,
-                      "final_url": response.geturl(),
-                      "status": response.status,
-                      "content_type": content_type,
-                      "content_length_header": response.headers.get("Content-Length"),
-                      "content_disposition": response.headers.get("Content-Disposition"),
-                      "sampled_bytes": len(body),
-                  })
-                  if "html" not in content_type.casefold() and not body.lstrip().lower().startswith((b"<!doctype html", b"<html")):
-                      print({"terminal_binary_response": True})
-                      continue
-                  charset = response.headers.get_content_charset() or "utf-8"
-                  parser = Parser(response.geturl())
-                  parser.feed(body.decode(charset, errors="replace"))
-                  parser.close()
-                  print({
-                      "same_host_anchors": [
-                          item for item in parser.anchors
-                          if urllib.parse.urlparse(item).netloc == "ac.archive.fhi.mpg.de"
-                      ],
-                      "forms": parser.forms,
-                      "inputs": parser.inputs,
-                      "buttons": parser.buttons,
-                      "meta": parser.meta,
-                  })
-          PY
-
-      - name: Audit institutional record and bounded archives
+      - name: Audit institutional record and anonymous download state
         run: |
           python scripts/audit_fhi_co3o4_tem_saed.py \
             --config case_studies/fhi_co3o4_tem_saed_source_audit/case_config.json \
             --output outputs/fhi_co3o4_tem_saed_source_audit
 
-      - name: Verify diagnostic-only evidence and artifact integrity
+      - name: Verify diagnostic-only blocker evidence
         run: |
           python - <<'PY'
           import csv
           import hashlib
           import json
           from pathlib import Path
+          from urllib.parse import urlparse
 
           root = Path("outputs/fhi_co3o4_tem_saed_source_audit")
           summary = json.loads(
@@ -164,35 +69,40 @@ jobs:
               )
           )
           assert summary["status"] == (
-              "institutional_exact_material_archives_inventoried_but_external_validation_metadata_incomplete"
+              "institutional_exact_material_record_confirmed_but_"
+              "anonymous_source_download_requires_authentication"
           )
           assert summary["record"]["record_id"] == "D63268"
           assert summary["record"]["sample_number"] == "S32564"
-          assert [item["name"] for item in summary["archives"]] == [
+          assert summary["anonymous_source_download_available"] is False
+          assert summary["archives"] == []
+          assert summary["total_member_count"] == 0
+          assert len(summary["download_probes"]) == 2
+          assert [item["name"] for item in summary["download_probes"]] == [
               "TEM.zip",
               "OTEM_2.zip",
           ]
-          assert all(item["bytes"] > 0 for item in summary["archives"])
-          assert all(len(item["sha256"]) == 64 for item in summary["archives"])
-          assert all(item["member_hashing_complete"] for item in summary["archives"])
-          assert all(item["crc_verification_complete"] for item in summary["archives"])
-          assert summary["total_member_count"] > 0
+          assert all(item["authentication_required"] for item in summary["download_probes"])
+          assert all(item["state"] == "authentication_required" for item in summary["download_probes"])
+          assert all(urlparse(item["final_url"]).path == "/login" for item in summary["download_probes"])
           assert summary["evidence_assessment"]["institutional_record_identity"] == "Supported"
-          assert summary["evidence_assessment"][
-              "repository_published_checksum_or_versioned_manifest"
-          ] == "Inconclusive"
+          assert summary["evidence_assessment"]["exact_co3o4_material_context"] == "Supported"
+          assert summary["evidence_assessment"]["anonymous_public_downloadability"] == "Unsupported"
+          assert summary["evidence_assessment"]["archive_and_member_identity"] == "Inconclusive"
           assert summary["readiness"]["external_validation_ready"] is False
           assert summary["readiness"]["engineering_decision_ready"] is False
+          assert summary["processing"]["credentials_supplied_or_guessed"] is False
           assert summary["processing"]["source_files_retained"] is False
           assert summary["processing"]["model_inference_performed"] is False
           assert summary["processing"]["model_retraining_performed"] is False
+          assert not (root / "fhi_co3o4_tem_saed_member_inventory.csv").exists()
 
-          with (root / "fhi_co3o4_tem_saed_member_inventory.csv").open(
+          with (root / "fhi_co3o4_tem_saed_download_probe.csv").open(
               newline="", encoding="utf-8"
           ) as handle:
               rows = list(csv.DictReader(handle))
-          assert len(rows) == summary["total_member_count"]
-          assert all(len(row["sha256"]) == 64 for row in rows)
+          assert len(rows) == 2
+          assert all(row["authentication_required"] == "True" for row in rows)
 
           manifest = json.loads(
               (root / "fhi_co3o4_tem_saed_audit_manifest.json").read_text(
