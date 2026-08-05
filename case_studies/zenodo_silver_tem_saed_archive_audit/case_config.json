@@ -1,0 +1,41 @@
+{
+  "case_id": "zenodo_silver_tem_saed_archive_audit",
+  "audit_date": "2026-08-05",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 18942976,
+    "doi": "10.5281/zenodo.18942976",
+    "record_url": "https://zenodo.org/records/18942976",
+    "api_url": "https://zenodo.org/api/records/18942976",
+    "expected_status": "published",
+    "expected_resource_type": "image",
+    "expected_license_id": "cc-by-4.0",
+    "target_file": {
+      "key": "TEM_SAED.zip",
+      "exact_bytes": 1417789651,
+      "md5": "c7bda9d495dd0fd657a8fe0332db4f9c"
+    }
+  },
+  "limits": {
+    "maximum_archive_bytes": 1600000000,
+    "maximum_member_count": 50000,
+    "maximum_total_uncompressed_bytes": 20000000000,
+    "maximum_single_member_bytes": 5000000000,
+    "maximum_member_compression_ratio": 500.0,
+    "maximum_total_member_hash_bytes": 20000000000
+  },
+  "scientific_boundary": {
+    "source_archive_download_authorized": true,
+    "source_archive_retention_authorized": false,
+    "source_files_may_be_uploaded_as_artifacts": false,
+    "archive_members_may_be_uploaded_as_artifacts": false,
+    "archive_member_inventory_authorized": true,
+    "archive_member_hashing_authorized": true,
+    "image_preprocessing_authorized": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "parameter_tuning_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  }
+}
