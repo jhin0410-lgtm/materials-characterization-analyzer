@@ -5,15 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
 
 from .analyzer_readiness import (
     AnalyzerReadinessError,
     generate_analyzer_readiness_registry,
-)
-
-DEFAULT_CONFIG = Path(
-    "case_studies/analyzer_readiness_registry/readiness_registry.json"
 )
 
 
@@ -28,8 +23,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--config",
-        default=str(DEFAULT_CONFIG),
-        help="Versioned readiness-registry JSON.",
+        required=True,
+        help=(
+            "Versioned readiness-registry JSON. This evidence configuration is not "
+            "bundled into the wheel; provide an explicit reviewed file."
+        ),
     )
     parser.add_argument("--output", required=True, help="New output directory.")
     return parser
