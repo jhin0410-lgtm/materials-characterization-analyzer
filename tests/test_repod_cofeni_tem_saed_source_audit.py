@@ -115,3 +115,71 @@ def test_summary_never_promotes_public_archives() -> None:
     assert summary["engineering_decision_ready"] is False
     assert summary["model_inference_performed"] is False
     assert summary["primary_parameters_changed"] is False
+
+
+def test_run_removes_transient_before_evidence_scan(tmp_path: Path, monkeypatch) -> None:
+    module = _load_module()
+    config = module.load_config(CONFIG)
+    targets = config["source"]["target_files"]
+
+    files = []
+    for index in range(12):
+        name = f"other-{index}.txt"
+        content_type = "text/plain"
+        md5 = f"{index:032x}"
+        if index < len(targets):
+            target = targets[index]
+            name = target["name"]
+            content_type = target["content_type"]
+            md5 = target["md5"]
+        files.append(
+            {
+                "restricted": False,
+                "licenseName": config["source"]["file_license_name"],
+                "dataFile": {
+                    "id": index + 1,
+                    "filename": name,
+                    "filesize": 1,
+                    "contentType": content_type,
+                    "checksum": {"type": "MD5", "value": md5},
+                },
+            }
+        )
+    payload = {
+        "status": "OK",
+        "data": {
+            "latestVersion": {
+                "versionNumber": 1,
+                "versionMinorNumber": 0,
+                "versionState": "RELEASED",
+                "files": files,
+            }
+        },
+    }
+    monkeypatch.setattr(module, "_fetch_json", lambda _url: payload)
+
+    def fake_download(url, destination, *, expected_bytes, expected_md5):
+        del url, expected_bytes
+        if destination.suffix == ".zip":
+            with zipfile.ZipFile(destination, "w") as archive:
+                archive.writestr("sample/SAED_pattern.txt", "diagnostic")
+        else:
+            Image.new("L", (4, 4), color=1).save(destination, format="TIFF")
+        return {
+            "bytes": destination.stat().st_size,
+            "md5": expected_md5,
+            "sha256": "0" * 64,
+        }
+
+    monkeypatch.setattr(module, "_stream_download", fake_download)
+    output = tmp_path / "evidence"
+    summary = module.run(CONFIG, output)
+    assert summary["external_validation_ready"] is False
+    assert not (output / "_transient").exists()
+    assert (output / "repod_cofeni_tem_saed_source_audit_summary.json").is_file()
+    leaked = [
+        path
+        for path in output.rglob("*")
+        if path.is_file() and path.suffix.casefold() in module.FORBIDDEN_SOURCE_SUFFIXES
+    ]
+    assert leaked == []
