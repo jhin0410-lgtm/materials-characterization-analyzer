@@ -10,7 +10,7 @@
     "expected_status": "published",
     "expected_resource_type": "dataset",
     "expected_title": "Dataset for \"Highly strained Ge nanostructures and direct bandgap transition induced by femtosecond laser\"",
-    "expected_license_id": null,
+    "expected_license_id": "cc-by-4.0",
     "target_file": {
       "key": "10.5281zenodo.15082448.7z",
       "md5": "535f513e05d88a9b14a3bc6fde8ae3bd"
@@ -26,7 +26,7 @@
       "w0 diff.dm3"
     ],
     "source_quality_flags": [
-      "The public record has no licence identifier; reuse authorization is unresolved.",
+      "The current official Zenodo API reports CC BY 4.0; earlier parsed landing-page evidence did not expose the licence field and is superseded by the API snapshot.",
       "The record states that the scale bar in w0 diff.dm3 is mislabeled as 10 nm and that the correct value is 5 reciprocal nanometres.",
       "The source is laser-processed germanium and is not an in-domain cobalt-oxide validation cohort.",
       "Record-declared same-location TEM and SAED pairing does not by itself establish immutable acquisition identifiers or independent acquisition lineage."
