@@ -1,0 +1,306 @@
+{
+  "schema_version": "1.0",
+  "snapshot_date": "2026-08-05",
+  "scope": {
+    "primary_targets": [
+      "independent cobalt-oxide TEM or HRTEM data suitable for future segmentation validation",
+      "raw or demonstrably lossless static selected-area electron diffraction data suitable for future calibrated-pattern validation"
+    ],
+    "repositories_searched": [
+      "AC/CATLAB Archive at Fritz Haber Institute of the Max Planck Society",
+      "Zenodo",
+      "Dryad",
+      "Mendeley Data",
+      "RepOD",
+      "NIST Public Data Repository",
+      "Figshare and ACS Figshare",
+      "4TU.ResearchData",
+      "Materials Cloud",
+      "NOMAD",
+      "DOE Data Explorer and OSTI",
+      "OSF",
+      "EMPIAR"
+    ],
+    "limitations": [
+      "This is a dated, repository-bounded search snapshot rather than proof that every dataset on the internet has been found.",
+      "Search-result descriptions and repository records do not substitute for checksum-bound archive and member inspection.",
+      "Repository reputation does not establish task suitability, sample independence, calibration traceability, or external-validation readiness."
+    ]
+  },
+  "decision_rules": {
+    "external_validation_ready_requires": [
+      "stable source identity and version",
+      "explicit reuse authorization",
+      "checksum-bound raw or demonstrably lossless source files",
+      "source-assigned sample and acquisition identity",
+      "at least two independent samples or acquisitions",
+      "task-matched acquisition mode",
+      "verified non-use in analyzer training, threshold selection, tuning, and model selection",
+      "independent blinded labels for TEM segmentation or traceable pattern centre and reciprocal calibration for SAED",
+      "frozen evaluation and reference protocol before model inference"
+    ],
+    "prohibited_shortcuts": [
+      "infer sample or acquisition identity from row order or filenames",
+      "treat publication figures as detector data",
+      "treat continuous-rotation 3DED, PED, SPED, or 4D-STEM frames as static SAED without a declared mode-shift study",
+      "use source-model predictions as independent TEM ground truth",
+      "tune analyzer parameters after viewing candidate results"
+    ]
+  },
+  "candidates": [
+    {
+      "candidate_id": "fhi_ac_catlab_d63268_co3o4_otem_saed",
+      "priority_tier": "A1_immediate_bounded_source_audit",
+      "repository": "Fritz Haber Institute AC/CATLAB Archive",
+      "record_id": "D63268",
+      "record_url": "https://ac.archive.fhi.mpg.de/D63268",
+      "title": "Data to: Local Solid-State Processes Adjust the Selectivity in Catalytic Oxidation Reactions on Cobalt Oxides",
+      "material_domain": ["phase-pure Co3O4 platelets", "operando Co3O4 to CoO evolution"],
+      "modalities": ["TEM", "HRTEM", "operando TEM", "SAED", "XRD", "NAP-XPS", "NEXAFS"],
+      "declared_files": [
+        {"name": "TEM.zip", "declared_size": "5.6 MB", "role": "general TEM characterization"},
+        {"name": "OTEM_1.zip", "declared_size": "653.3 MB", "role": "operando bright-field images"},
+        {"name": "OTEM_2.zip", "declared_size": "175.6 MB", "role": "beam-damage studies, HRTEM and SAED"}
+      ],
+      "confirmed_metadata": [
+        "institutional open-access RAW DATA record",
+        "sample number S32564",
+        "exact Co3O4 material and operando reaction context",
+        "peer-reviewed Nature Catalysis article with public raw-data link",
+        "300 keV image-corrected Titan 80-300, Gatan Imaging Filter Tridiem, TVIPS TemCam-XF 416R CMOS and DENSsolutions Climate holder reported in the article",
+        "article describes centre finding, distortion correction and reciprocal-space SAED analysis"
+      ],
+      "unresolved": [
+        "archive and member checksums",
+        "member formats, dimensions, dtypes and embedded metadata",
+        "whether native detector containers or only raster exports are present",
+        "member-level acquisition identifiers and independent acquisition count",
+        "pattern-specific centres and reciprocal calibration",
+        "data-specific reuse licence rather than article licence alone",
+        "independent TEM segmentation labels",
+        "analyzer-development non-use attestation",
+        "minimum two independent samples"
+      ],
+      "allowed_use_now": ["record-level triage", "bounded metadata-only source audit"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_15082448_ge_tem_saed_dm3",
+      "priority_tier": "A2_immediate_bounded_source_audit",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.15082448",
+      "title": "Dataset for Highly strained Ge nanostructures and direct bandgap transition induced by femtosecond laser",
+      "material_domain": ["laser-processed germanium nanostructures"],
+      "modalities": ["TEM", "HRTEM", "SAED", "EDS", "SEM", "Raman", "XRD"],
+      "declared_archive": {"name": "10.5281zenodo.15082448.7z", "declared_size": "270.5 MB", "md5": "535f513e05d88a9b14a3bc6fde8ae3bd"},
+      "confirmed_metadata": [
+        "native DM3 TEM, HRTEM and SAED files",
+        "three low-resolution TEM images paired with corresponding SAED patterns from the same locations",
+        "one HRTEM location paired with a SAED pattern",
+        "JEOL JEM-2200FS context for TEM and EDS",
+        "source explicitly corrects one mislabeled SAED scale bar to 5 reciprocal nanometres"
+      ],
+      "unresolved": [
+        "record-level data reuse licence is blank in the parsed public record",
+        "source-assigned sample and acquisition identifiers",
+        "pattern centre and camera calibration provenance beyond the corrected scale-bar note",
+        "independence of paired acquisitions",
+        "analyzer-development non-use attestation"
+      ],
+      "role": "high-value cross-material native-format static-SAED and paired TEM/SAED interoperability source",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "dryad_6djh9w1hw_tise2_saed_hrtem",
+      "priority_tier": "A2_immediate_bounded_source_audit",
+      "repository": "Dryad",
+      "doi": "10.5061/dryad.6djh9w1hw",
+      "title": "Revisiting the charge-density-wave superlattice of 1T-TiSe2",
+      "material_domain": ["1T-TiSe2 charge-density-wave phases"],
+      "modalities": ["static selected-area electron diffraction", "HRTEM"],
+      "declared_archive": {"name": "Data_TiSe2.zip", "declared_size": "1.89 GB"},
+      "confirmed_metadata": [
+        "Brookhaven National Laboratory-led dataset",
+        "experimental diffraction patterns along [1-10] and [001] zone axes",
+        "raw diffraction and HRTEM images separated from simulated patterns by figure folders",
+        "TIF and BMP image files with per-folder readmes and processed XLSX tables"
+      ],
+      "unresolved": [
+        "exact checksum and member inventory",
+        "lossless detector-intensity status of BMP and TIF members",
+        "pattern centres and reciprocal calibration",
+        "source-assigned sample and acquisition identifiers",
+        "analyzer-development non-use attestation"
+      ],
+      "role": "cross-material static-SAED zone-axis and experimental-versus-simulation separation diagnostic",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_10999587_bir_microed_200kev",
+      "priority_tier": "A2_metadata_resolution_then_bounded_two_series_audit",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.10999587",
+      "material_domain": ["AVAAGA", "thiostrepton", "proteinase K"],
+      "modalities": ["static selected-area electron diffraction"],
+      "native_format": "MRC",
+      "confirmed_metadata": ["200 keV", "multiple named static diffraction series", "archive-level MD5 checksums", "dry and vitrified AVAAGA conditions"],
+      "unresolved": ["detector", "pixel geometry", "pattern centre", "reciprocal calibration", "immutable sample lineage", "reuse licence", "analyzer-development non-use"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_10995139_bir_microed_300kev",
+      "priority_tier": "A2_metadata_resolution_then_bounded_two_series_audit",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.10995139",
+      "material_domain": ["Zn(II)-histidine", "Co(II) meso-tetraphenyl porphyrin", "AVAAGA"],
+      "modalities": ["static selected-area electron diffraction"],
+      "native_format": "TVIPS",
+      "confirmed_metadata": ["300 keV", "multiple named static diffraction series", "archive-level MD5 checksums"],
+      "unresolved": ["detector pixel geometry", "pattern centre", "reciprocal calibration", "immutable sample lineage", "reuse licence", "analyzer-development non-use"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "mendeley_fcwyz3kv3k_change5_original_tem_saed",
+      "priority_tier": "B_inventory_resolution",
+      "repository": "Mendeley Data",
+      "doi": "10.17632/fcwyz3kv3k.1",
+      "material_domain": ["Chang'E-5 lunar minerals"],
+      "modalities": ["bright-field TEM", "HRTEM", "SAED", "EDS", "SEM"],
+      "reuse_licence": "CC BY 4.0",
+      "confirmed_metadata": ["record declares original TEM, HRTEM and SAED data used in figures"],
+      "unresolved": ["exact file and member inventory", "checksums", "native versus rendered representations", "instrument and calibration metadata", "sample and acquisition identifiers"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "mendeley_w5jjhfp7v3_lunar_implantation_tem_saed",
+      "priority_tier": "B_inventory_resolution",
+      "repository": "Mendeley Data",
+      "doi": "10.17632/w5jjhfp7v3.1",
+      "material_domain": ["D+-implanted lunar and experimental minerals"],
+      "modalities": ["bright-field TEM", "HRTEM", "SAED"],
+      "reuse_licence": "CC BY 4.0",
+      "confirmed_metadata": ["record declares original TEM, HRTEM and SAED patterns"],
+      "unresolved": ["exact file and member inventory", "checksums", "native versus rendered representations", "instrument and calibration metadata", "sample and acquisition identifiers"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "dryad_qnk98sfr1_fcc_extra_diffraction",
+      "priority_tier": "B_bounded_experiments_archive_audit",
+      "repository": "Dryad",
+      "doi": "10.5061/dryad.qnk98sfr1",
+      "material_domain": ["concentrated fcc metals and alloys"],
+      "modalities": ["electron diffraction"],
+      "declared_files": [{"name": "experiments.zip", "declared_size": "132 MB"}],
+      "confirmed_metadata": ["Lawrence Berkeley National Laboratory-led dataset", "experimental and computational archives are separately named"],
+      "unresolved": ["experimental member inventory", "static-SAED acquisition mode", "instrument and calibration metadata", "sample and acquisition lineage"],
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "nist_mds2_2344_tem_tomography",
+      "priority_tier": "C_trustworthy_tem_format_and_provenance_stress_test",
+      "repository": "NIST Public Data Repository",
+      "doi": "10.18434/mds2-2344",
+      "material_domain": ["vertically aligned carbon nanotube epoxy composites"],
+      "modalities": ["TEM tomography"],
+      "declared_archive": {"name": "NIST_VACNT_3D_TEM.7z", "declared_size": "49.6 GB", "sha256": "8c0df54f16e66712c5f485de48f8408cd174512845247694b717c836b455212a"},
+      "confirmed_metadata": ["NIST versioned record", "raw and processed TEM tomography images", "file-organization readme with SHA-256"],
+      "role": "large-scale trustworthy TEM archive, provenance and streaming-I/O stress test; not cobalt-oxide or static-SAED validation",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_11161891_cobalt_tungstate_native_em",
+      "priority_tier": "C_cross_phase_native_format_diagnostic",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.11161891",
+      "material_domain": ["cobalt tungstate"],
+      "modalities": ["STEM", "TEM", "EDS", "XRD"],
+      "native_formats": ["DM3", "DM4", "EMD", "TIFF", "PNG"],
+      "reuse_licence": "CC BY 4.0",
+      "role": "cobalt-containing cross-phase native microscopy interoperability source; not in-domain Co3O4 validation",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_18205062_feo_fe3o4_native_tem",
+      "priority_tier": "C_oxide_native_format_diagnostic",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.18205062",
+      "material_domain": ["FeO@Fe3O4 oxide nanoparticles"],
+      "modalities": ["TEM"],
+      "native_formats": ["DM3", "SER", "EMI"],
+      "role": "cross-oxide native detector-container interoperability source",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_15052661_indium_oxide_insitu_tem",
+      "priority_tier": "C_temporal_segmentation_diagnostic",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.15052661",
+      "material_domain": ["supported indium oxide catalysts"],
+      "modalities": ["in-situ TEM"],
+      "declared_archive": {"name": "set280624.h5", "declared_size": "21.0 GB", "md5": "180806a38837390615da23126fbcabee"},
+      "role": "cross-material temporal-image and large-HDF5 diagnostic; deposited model weights require strict source and model overlap controls",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_5595292_cu_ag_precession_diffraction",
+      "priority_tier": "C_mode_shift_native_detector_diagnostic",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.5595292",
+      "material_domain": ["Cu-Ag alloy"],
+      "modalities": ["precession electron diffraction", "nanobeam diffraction"],
+      "native_format": "TVIPS",
+      "confirmed_metadata": ["JEOL JEM-2200FS at 200 kV", "15 cm camera length", "TemCam-XF416", "2k images"],
+      "role": "native detector and calibration-metadata diagnostic only; acquisition mode is not static SAED",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_20300700_srtio3_4dstem_saed",
+      "priority_tier": "C_mode_shift_and_saed_inventory_resolution",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.20300700",
+      "material_domain": ["SrTiO3"],
+      "modalities": ["4D-STEM", "SAED"],
+      "declared_files": [{"name": "SAED.zip", "declared_size": "25.9 MB", "md5": "0c830a9b276a491e91037872891cb440"}],
+      "role": "SAED archive inventory and 4D-STEM mode-boundary diagnostic",
+      "external_validation_ready": false
+    }
+  ],
+  "excluded_or_nonprimary_sources": [
+    {
+      "class": "publication-only supplementary files",
+      "examples": ["ACS Figshare journal-contribution PDFs and figures without source detector files"],
+      "reason": "publication figures cannot establish raw intensity, acquisition identity or calibration"
+    },
+    {
+      "class": "wrong acquisition mode",
+      "examples": ["continuous-rotation 3DED", "SPED", "PED", "4D-STEM", "electron ptychography"],
+      "reason": "useful for interoperability or mode-shift diagnostics but not interchangeable with static SAED"
+    },
+    {
+      "class": "wrong modality",
+      "examples": ["Co3O4 SEM and XPS-only records"],
+      "reason": "cannot validate TEM segmentation"
+    },
+    {
+      "class": "target development source or creator-overlap source",
+      "examples": ["Zenodo 14927582", "PhaseT3M Co3O4 processed tilt series"],
+      "reason": "cannot establish independent external validation without stronger lineage evidence"
+    }
+  ],
+  "ranked_next_actions": [
+    "Run a fail-closed metadata-only archive audit of FHI D63268 TEM.zip and OTEM_2.zip without retaining source images or running analyzer inference.",
+    "Audit Zenodo 15082448 archive structure and DM3 metadata, preserving the source-reported scale-bar correction as a quality flag.",
+    "Audit the Dryad TiSe2 archive while separating experimental and simulated patterns before any scientific use.",
+    "Continue authoritative metadata resolution for BIR-MicroED 200 and 300 keV before downloading a bounded two-series subset.",
+    "Resolve Mendeley native-versus-rendered file inventories for the two lunar TEM and SAED records.",
+    "Do not retrain the TEM model or tune SAED parameters using any candidate in this snapshot."
+  ],
+  "scientific_closeout": {
+    "evidence_level": "Diagnostic",
+    "result": "Several trustworthy public sources have been identified, including one exact-material institutional Co3O4 operando TEM, HRTEM and SAED archive and multiple native-format static-SAED sources. None is yet independently external-validation-ready.",
+    "strongest_evidence": "FHI D63268 combines exact Co3O4 material identity, institutional raw-data hosting, a peer-reviewed article, named microscopy hardware and a public TEM, HRTEM and SAED archive.",
+    "primary_limitation": "Checksum-bound member inspection, source-assigned acquisition lineage, independent labels or traceable centre and calibration, reuse authorization and analyzer-development independence remain incomplete.",
+    "suitable_for": ["source triage", "bounded archive audits", "format and metadata diagnostics", "author follow-up specification"],
+    "not_suitable_for": ["TEM performance claims", "calibrated SAED accuracy claims", "phase confirmation from analyzer output", "model retraining", "engineering decisions"]
+  }
+}

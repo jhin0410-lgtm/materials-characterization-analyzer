@@ -1,0 +1,136 @@
+name: FHI Co3O4 TEM SAED source audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/audit_fhi_co3o4_tem_saed.py"
+      - "tests/test_audit_fhi_co3o4_tem_saed.py"
+      - "case_studies/fhi_co3o4_tem_saed_source_audit/**"
+      - "case_studies/open_tem_saed_candidates/trusted_search_snapshot_2026-08-05.json"
+      - ".github/workflows/fhi-co3o4-tem-saed-source-audit.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/audit_fhi_co3o4_tem_saed.py"
+      - "tests/test_audit_fhi_co3o4_tem_saed.py"
+      - "case_studies/fhi_co3o4_tem_saed_source_audit/**"
+      - "case_studies/open_tem_saed_candidates/trusted_search_snapshot_2026-08-05.json"
+      - ".github/workflows/fhi-co3o4-tem-saed-source-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fhi-co3o4-tem-saed-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run focused fail-closed tests
+        run: |
+          python -m py_compile scripts/audit_fhi_co3o4_tem_saed.py
+          pytest -q tests/test_audit_fhi_co3o4_tem_saed.py
+
+      - name: Audit institutional record and anonymous download state
+        run: |
+          python scripts/audit_fhi_co3o4_tem_saed.py \
+            --config case_studies/fhi_co3o4_tem_saed_source_audit/case_config.json \
+            --output outputs/fhi_co3o4_tem_saed_source_audit
+
+      - name: Verify diagnostic-only blocker evidence
+        run: |
+          python - <<'PY'
+          import csv
+          import hashlib
+          import json
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          root = Path("outputs/fhi_co3o4_tem_saed_source_audit")
+          summary = json.loads(
+              (root / "fhi_co3o4_tem_saed_audit_summary.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert summary["status"] == (
+              "institutional_exact_material_record_confirmed_but_"
+              "anonymous_source_download_requires_authentication"
+          )
+          assert summary["record"]["record_id"] == "D63268"
+          assert summary["record"]["sample_number"] == "S32564"
+          assert summary["anonymous_source_download_available"] is False
+          assert summary["archives"] == []
+          assert summary["total_member_count"] == 0
+          assert len(summary["download_probes"]) == 2
+          assert [item["name"] for item in summary["download_probes"]] == [
+              "TEM.zip",
+              "OTEM_2.zip",
+          ]
+          assert all(item["authentication_required"] for item in summary["download_probes"])
+          assert all(item["state"] == "authentication_required" for item in summary["download_probes"])
+          assert all(urlparse(item["final_url"]).path == "/login" for item in summary["download_probes"])
+          assert summary["evidence_assessment"]["institutional_record_identity"] == "Supported"
+          assert summary["evidence_assessment"]["exact_co3o4_material_context"] == "Supported"
+          assert summary["evidence_assessment"]["anonymous_public_downloadability"] == "Unsupported"
+          assert summary["evidence_assessment"]["archive_and_member_identity"] == "Inconclusive"
+          assert summary["readiness"]["external_validation_ready"] is False
+          assert summary["readiness"]["engineering_decision_ready"] is False
+          assert summary["processing"]["credentials_supplied_or_guessed"] is False
+          assert summary["processing"]["source_files_retained"] is False
+          assert summary["processing"]["model_inference_performed"] is False
+          assert summary["processing"]["model_retraining_performed"] is False
+          assert not (root / "fhi_co3o4_tem_saed_member_inventory.csv").exists()
+
+          with (root / "fhi_co3o4_tem_saed_download_probe.csv").open(
+              newline="", encoding="utf-8"
+          ) as handle:
+              rows = list(csv.DictReader(handle))
+          assert len(rows) == 2
+          assert all(row["authentication_required"] == "True" for row in rows)
+
+          manifest = json.loads(
+              (root / "fhi_co3o4_tem_saed_audit_manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert manifest["artifact_count"] == len(manifest["artifacts"])
+          for item in manifest["artifacts"]:
+              path = root / item["path"]
+              assert path.stat().st_size == item["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+
+          forbidden = {
+              ".zip", ".dm3", ".dm4", ".emd", ".ser", ".emi", ".mrc",
+              ".mrcs", ".tvips", ".h5", ".hdf5", ".tif", ".tiff", ".png",
+              ".jpg", ".jpeg", ".bmp", ".gif", ".webp"
+          }
+          assert not [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.lower() in forbidden
+          ]
+          PY
+
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fhi-co3o4-tem-saed-source-audit-evidence
+          path: outputs/fhi_co3o4_tem_saed_source_audit
+          if-no-files-found: error
+          retention-days: 30

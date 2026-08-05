@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "case_id": "fhi_co3o4_tem_saed_source_audit",
+  "verified_at": "2026-08-05T14:22:41Z",
+  "workflow_run_id": 31014809226,
+  "artifact_id": 8934012834,
+  "artifact_digest": "sha256:7ad8d3bde73f88144b2c935071a6816ac9844beb292ca0af4fff97231af2aa3e",
+  "status": "institutional_exact_material_record_confirmed_but_anonymous_source_download_requires_authentication",
+  "record": {
+    "repository": "Fritz Haber Institute AC/CATLAB Archive",
+    "record_id": "D63268",
+    "sample_number": "S32564",
+    "document_type": "RAW DATA",
+    "open_access_marker_confirmed": true,
+    "exact_co3o4_material_context": "Supported"
+  },
+  "download_probes": [
+    {
+      "name": "TEM.zip",
+      "declared_size": "5.6 MB",
+      "final_path": "/login",
+      "http_status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "content_length_header": 1326,
+      "authentication_required": true,
+      "direct_zip_magic_confirmed": false
+    },
+    {
+      "name": "OTEM_2.zip",
+      "declared_size": "175.6 MB",
+      "final_path": "/login",
+      "http_status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "content_length_header": 1326,
+      "authentication_required": true,
+      "direct_zip_magic_confirmed": false
+    }
+  ],
+  "evidence_assessment": {
+    "institutional_record_identity": "Supported",
+    "anonymous_public_downloadability": "Unsupported",
+    "archive_and_member_identity": "Inconclusive",
+    "independent_tem_segmentation_validation": "Inconclusive",
+    "calibrated_static_saed_validation": "Inconclusive"
+  },
+  "processing": {
+    "credentials_supplied_or_guessed": false,
+    "source_files_retained": false,
+    "pixels_extracted_or_modified": false,
+    "model_inference_performed": false,
+    "parameter_selection_performed": false,
+    "model_retraining_performed": false
+  },
+  "external_validation_ready": false,
+  "engineering_decision_ready": false
+}
