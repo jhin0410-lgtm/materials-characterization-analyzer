@@ -36,7 +36,42 @@ REAL_DATA_STATUSES = {
     "public_real_data_diagnostic_exercised",
     "public_real_data_method_suitability_exercised",
 }
-EVIDENCE_LEVELS = {"Supported", "Diagnostic", "Inconclusive", "Unsupported"}
+SCIENTIFIC_CONTRACTS = {
+    "xrd": ("Diagnostic", "diagnostic_not_phase_validated"),
+    "sem": (
+        "Diagnostic",
+        "diagnostic_method_suitability_not_quantitatively_validated",
+    ),
+    "eds": ("Diagnostic", "diagnostic_not_quantitatively_validated"),
+    "raman": ("Diagnostic", "diagnostic_not_assignment_validated"),
+    "xps": ("Diagnostic", "diagnostic_not_chemical_state_validated"),
+    "ftir": ("Diagnostic", "diagnostic_not_functional_group_validated"),
+    "tga": ("Diagnostic", "diagnostic_not_event_identity_validated"),
+    "dsc": (
+        "Diagnostic",
+        "diagnostic_not_event_identity_or_quantitative_enthalpy_validated",
+    ),
+    "tem": (
+        "Inconclusive",
+        "inconclusive_independent_segmentation_validation_blocked",
+    ),
+    "saed": (
+        "Inconclusive",
+        "inconclusive_crystallographic_validation_blocked",
+    ),
+}
+REPRESENTATIVE_CASE_IDS = {
+    "public_rwgs_xrd_sem_eds",
+    "public_carbon_multimodal",
+    "public_carbon_four_materials",
+    "public_zr15nb_dsc",
+    "public_cobalt_oxide_tem_masks",
+    "phaset3m_co3o4_candidate_audit",
+    "tem_external_validation_candidate_registry",
+    "public_finds_saed",
+    "saed_external_validation_candidate_registry",
+    "saed_bir_200kev_metadata_audit",
+}
 OUTPUT_STATUS = "analyzer_readiness_registry_generated"
 CSV_NAME = "analyzer_readiness.csv"
 SUMMARY_NAME = "analyzer_readiness_summary.json"
@@ -95,15 +130,14 @@ def generate_analyzer_readiness_registry(
         )
         report_path.write_text(_build_report(summary, rows), encoding="utf-8")
 
-        artifact_records = []
-        for artifact in (csv_path, summary_path, report_path):
-            artifact_records.append(
-                {
-                    "path": artifact.name,
-                    "size_bytes": artifact.stat().st_size,
-                    "sha256": _sha256_file(artifact),
-                }
-            )
+        artifact_records = [
+            {
+                "path": artifact.name,
+                "size_bytes": artifact.stat().st_size,
+                "sha256": _sha256_file(artifact),
+            }
+            for artifact in (csv_path, summary_path, report_path)
+        ]
         manifest = {
             "schema_version": REGISTRY_SCHEMA_VERSION,
             "status": OUTPUT_STATUS,
@@ -169,8 +203,7 @@ def _validate_registry(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
         "registry_boundary",
     ):
         _required_text(scope, key)
-    analyzer_ids = scope.get("analyzer_ids")
-    if analyzer_ids != list(EXPECTED_ANALYZER_IDS):
+    if scope.get("analyzer_ids") != list(EXPECTED_ANALYZER_IDS):
         raise AnalyzerReadinessError(
             "scope.analyzer_ids must match the exact ordered public analyzer inventory"
         )
@@ -189,15 +222,12 @@ def _validate_registry(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
         _only(raw, set(_ROW_FIELDS), f"analyzers[{index}]")
         row = dict(raw)
         analyzer_id = _required_text(row, "analyzer_id")
+        if analyzer_id not in SCIENTIFIC_CONTRACTS:
+            raise AnalyzerReadinessError(f"unknown analyzer_id: {analyzer_id}")
         if analyzer_id in seen:
             raise AnalyzerReadinessError(f"duplicate analyzer_id: {analyzer_id}")
         seen.add(analyzer_id)
-        for key in (
-            "display_name",
-            "scientific_validation_status",
-            "primary_limitation",
-            "next_required_evidence",
-        ):
+        for key in ("display_name", "primary_limitation", "next_required_evidence"):
             _required_text(row, key)
         if row.get("software_readiness") not in SOFTWARE_STATUSES:
             raise AnalyzerReadinessError(f"invalid software_readiness for {analyzer_id}")
@@ -209,9 +239,14 @@ def _validate_registry(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
             raise AnalyzerReadinessError(
                 f"software_evidence_level must be Supported for {analyzer_id}"
             )
-        if row.get("scientific_evidence_level") not in EVIDENCE_LEVELS:
+        expected_level, expected_status = SCIENTIFIC_CONTRACTS[analyzer_id]
+        if row.get("scientific_evidence_level") != expected_level:
             raise AnalyzerReadinessError(
-                f"invalid scientific_evidence_level for {analyzer_id}"
+                f"scientific_evidence_level for {analyzer_id} must remain {expected_level}"
+            )
+        if row.get("scientific_validation_status") != expected_status:
+            raise AnalyzerReadinessError(
+                f"scientific_validation_status for {analyzer_id} must remain {expected_status}"
             )
         for key in ("representative_cases", "supported_uses", "blocked_claims"):
             value = row.get(key)
@@ -219,6 +254,11 @@ def _validate_registry(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
                 raise AnalyzerReadinessError(f"{key} must be a non-empty list for {analyzer_id}")
             if any(not isinstance(item, str) or not item.strip() for item in value):
                 raise AnalyzerReadinessError(f"{key} contains a blank value for {analyzer_id}")
+        unknown_cases = sorted(set(row["representative_cases"]) - REPRESENTATIVE_CASE_IDS)
+        if unknown_cases:
+            raise AnalyzerReadinessError(
+                f"representative_cases contains unknown case for {analyzer_id}: {unknown_cases[0]}"
+            )
         for key in (
             "independent_external_validation_ready",
             "engineering_decision_ready",
@@ -251,14 +291,21 @@ def _build_summary(payload: Mapping[str, Any], rows: list[dict[str, Any]]) -> di
         "public_real_data_exercised_count": len(rows),
         "diagnostic_use_status_counts": dict(sorted(use_counts.items())),
         "scientific_evidence_level_counts": dict(sorted(scientific_counts.items())),
-        "independent_external_validation_ready_count": sum(
-            bool(row["independent_external_validation_ready"]) for row in rows
-        ),
-        "engineering_decision_ready_count": sum(
-            bool(row["engineering_decision_ready"]) for row in rows
-        ),
+        "independent_external_validation_ready_count": 0,
+        "engineering_decision_ready_count": 0,
         "analyzers_requiring_new_external_evidence": [
             row["analyzer_id"] for row in rows
+        ],
+        "analyzers": [
+            {
+                "analyzer_id": row["analyzer_id"],
+                "scientific_evidence_level": row["scientific_evidence_level"],
+                "scientific_validation_status": row["scientific_validation_status"],
+                "representative_cases": list(row["representative_cases"]),
+                "supported_uses": list(row["supported_uses"]),
+                "blocked_claims": list(row["blocked_claims"]),
+            }
+            for row in rows
         ],
         "scientific_closeout": {
             "result": "software_baselines_supported_scientific_claims_remain_bounded",
@@ -299,6 +346,7 @@ def _write_csv(rows: list[dict[str, Any]], path: Path) -> None:
         "software_evidence_level",
         "scientific_evidence_level",
         "representative_cases",
+        "supported_uses",
         "primary_limitation",
         "next_required_evidence",
         "independent_external_validation_ready",
@@ -310,6 +358,7 @@ def _write_csv(rows: list[dict[str, Any]], path: Path) -> None:
         for row in rows:
             rendered = {key: row[key] for key in csv_fields}
             rendered["representative_cases"] = "|".join(row["representative_cases"])
+            rendered["supported_uses"] = "|".join(row["supported_uses"])
             writer.writerow(rendered)
 
 
@@ -335,12 +384,14 @@ def _build_report(summary: Mapping[str, Any], rows: list[dict[str, Any]]) -> str
             f"`{row['scientific_evidence_level']}` | "
             f"`{row['scientific_validation_status']}` |"
         )
-    lines.extend(["", "## Technique-specific blockers", ""])
+    lines.extend(["", "## Technique-specific boundaries", ""])
     for row in rows:
         lines.extend(
             [
                 f"### {row['display_name']} (`{row['analyzer_id']}`)",
                 "",
+                "- **Representative cases:** " + "; ".join(row["representative_cases"]) + ".",
+                "- **Supported uses:** " + "; ".join(row["supported_uses"]) + ".",
                 f"- **Primary limitation:** {row['primary_limitation']}",
                 f"- **Next required evidence:** {row['next_required_evidence']}",
                 "- **Blocked claims:** " + "; ".join(row["blocked_claims"]) + ".",
