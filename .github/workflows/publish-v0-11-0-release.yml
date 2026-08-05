@@ -178,7 +178,7 @@ jobs:
           )" = "${RELEASE_VERSION}"
           git fetch --tags origin
 
-          existing_tag_commit="$(git rev-parse "${RELEASE_TAG}^{commit}" 2>/dev/null || true)"
+          existing_tag_commit="$(git rev-parse --verify --quiet "${RELEASE_TAG}^{commit}" || true)"
           if [[ -n "${existing_tag_commit}" ]]; then
             test "${existing_tag_commit}" = "${GITHUB_SHA}"
           else
