@@ -84,30 +84,44 @@ jobs:
           )
           assert summary["status"] == (
               "checksum_verified_native_dm3_tem_saed_inventory_completed_but_"
-              "calibration_and_lineage_metadata_incomplete"
+              "embedded_metadata_calibration_and_lineage_incomplete"
           )
           assert summary["record"]["id"] == 15082448
           assert summary["record"]["doi"] == "10.5281/zenodo.15082448"
           assert summary["record"]["license_id"] == "cc-by-4.0"
           assert summary["archive"]["key"] == "10.5281zenodo.15082448.7z"
+          assert summary["archive"]["bytes"] == 270536309
           assert summary["archive"]["md5"] == "535f513e05d88a9b14a3bc6fde8ae3bd"
-          assert 250_000_000 < summary["archive"]["bytes"] < 400_000_000
-          assert len(summary["archive"]["sha256"]) == 64
+          assert summary["archive"]["sha256"] == (
+              "c4c95688a6a61d1b32aaab26ecd54a7da4b2240862dc28ec58a6d430ef855186"
+          )
           assert summary["archive"]["integrity_test_passed"] is True
-          assert summary["member_count"] >= 8
-          assert summary["representation_counts"]["native_microscopy_container"] >= 8
-          assert summary["role_cue_counts"]["static_saed_name_cue"] >= 4
-          assert summary["role_cue_counts"]["tem_name_cue"] >= 4
+          assert summary["member_count"] == 92
+          assert summary["total_uncompressed_bytes"] == 519636951
+          assert summary["representation_counts"] == {
+              "native_microscopy_container": 15,
+              "lossless_or_lossless_capable_raster_export": 37,
+              "rendered_raster": 8,
+              "metadata_or_document": 13,
+              "other_or_unresolved": 19,
+          }
+          assert summary["role_cue_counts"] == {
+              "static_saed_name_cue": 4,
+              "tem_name_cue": 4,
+              "hrtem_name_cue": 6,
+              "eds_name_cue": 8,
+              "calibration_or_centre_name_cue": 0,
+          }
           assert len(summary["required_members"]) == 8
-          assert summary["selected_dm3_member_count"] >= 8
+          assert summary["selected_dm3_member_count"] == 15
           assert summary["evidence_assessment"]["record_and_archive_identity"] == "Supported"
           assert summary["evidence_assessment"]["native_dm3_tem_saed_representation"] == "Supported"
+          assert summary["evidence_assessment"]["native_dm3_header_identity"] == "Supported"
+          assert summary["evidence_assessment"]["embedded_dm3_metadata_extraction"] == (
+              "Unsupported_by_ExifTool_unknown_file_type"
+          )
           assert summary["evidence_assessment"]["pattern_centre_and_reciprocal_calibration"] == "Inconclusive"
           assert summary["evidence_assessment"]["reuse_authorization"] == "Supported"
-          assert summary["evidence_assessment"]["dm3_metadata_extraction"] in {
-              "Supported",
-              "Supported_with_recorded_ExifTool_warnings",
-          }
           assert summary["readiness"]["external_validation_ready"] is False
           assert summary["readiness"]["engineering_decision_ready"] is False
           assert summary["processing"]["source_archive_retained"] is False
@@ -120,38 +134,53 @@ jobs:
           assert any("w0 diff.dm3" in item for item in summary["source_quality_flags"])
           assert any("CC BY 4.0" in item for item in summary["source_quality_flags"])
           assert "explicit dataset reuse licence or written permission" not in summary["unresolved"]
+          assert "embedded DM3 instrument and acquisition metadata" in summary["unresolved"]
 
           software = summary["software_quality_flags"]
+          assert software["dm3_header_versions"] == [3]
           assert set(software["exiftool_exit_codes"]).issubset({0, 1})
-          assert software["exiftool_warning_count"] == len(software["exiftool_warnings"])
-          assert all("/home/runner/" not in item for item in software["exiftool_warnings"])
+          assert software["exiftool_error_values"] == ["Unknown file type"]
+          assert software["exiftool_unknown_file_type_member_count"] == 15
+          assert software["embedded_microscopy_metadata_field_total"] == 0
+          assert software["exiftool_stderr_line_count"] == len(
+              software["exiftool_stderr_lines"]
+          )
+          assert all("/home/runner/" not in item for item in software["exiftool_stderr_lines"])
 
           with (root / "zenodo_ge_dm3_tem_saed_member_inventory.csv").open(
               newline="", encoding="utf-8"
           ) as handle:
               inventory = list(csv.DictReader(handle))
-          assert len(inventory) == summary["member_count"]
-          assert sum(row["suffix"].lower() == ".dm3" for row in inventory) >= 8
+          assert len(inventory) == 92
+          assert sum(row["suffix"].lower() == ".dm3" for row in inventory) == 15
 
           with (root / "zenodo_ge_dm3_selected_member_identity.csv").open(
               newline="", encoding="utf-8"
           ) as handle:
               selected = list(csv.DictReader(handle))
-          assert len(selected) == summary["selected_dm3_member_count"]
+          assert len(selected) == 15
           assert all(len(row["sha256"]) == 64 for row in selected)
           assert all(int(row["bytes"]) > 0 for row in selected)
+          assert all(int(row["dm3_header_version"]) == 3 for row in selected)
+          assert all(
+              int(row["embedded_microscopy_metadata_field_count"]) == 0
+              for row in selected
+          )
+          assert all(row["exiftool_error"] == "Unknown file type" for row in selected)
 
           metadata = json.loads(
               (root / "zenodo_ge_dm3_selected_metadata.json").read_text(
                   encoding="utf-8"
               )
           )
-          assert len(metadata) == summary["selected_dm3_member_count"]
-          assert all(item["metadata_field_count"] >= 1 for item in metadata)
+          assert len(metadata) == 15
           assert all(not Path(item["member_path"]).is_absolute() for item in metadata)
+          assert all(item["dm3_header_version"] == 3 for item in metadata)
+          assert all(item["embedded_microscopy_metadata_field_count"] == 0 for item in metadata)
+          assert all(item["exiftool_error"] == "Unknown file type" for item in metadata)
           assert all(item["exiftool_exit_code"] in {0, 1} for item in metadata)
           assert all(
-              item["exiftool_warning_count"] == len(item["exiftool_warnings"])
+              item["exiftool_stderr_line_count"] == len(item["exiftool_stderr_lines"])
               for item in metadata
           )
 
