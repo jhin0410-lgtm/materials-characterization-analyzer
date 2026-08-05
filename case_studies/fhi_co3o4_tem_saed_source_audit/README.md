@@ -1,32 +1,30 @@
 # FHI Co3O4 TEM/SAED source audit
 
-This case audits the institutional AC/CATLAB raw-data record `D63268` associated with the open-access Nature Catalysis article **Local solid-state processes adjust the selectivity in catalytic oxidation reactions on cobalt oxides**.
+This case audits the institutional AC/CATLAB record `D63268` associated with the open-access Nature Catalysis article **Local solid-state processes adjust the selectivity in catalytic oxidation reactions on cobalt oxides**.
 
-The record is the highest-priority public candidate currently identified for the unresolved cobalt-oxide TEM and SAED evidence lines because it combines:
+The record remains the highest-priority exact-material candidate identified for the unresolved cobalt-oxide TEM and SAED evidence lines because it combines:
 
-- exact phase-pure `Co3O4` material identity;
-- an institutional Max Planck raw-data archive;
-- general TEM, operando bright-field TEM, HRTEM and SAED files;
+- phase-pure `Co3O4` material identity;
+- an institutional Max Planck `RAW DATA` record;
+- listed general TEM, operando bright-field TEM, HRTEM and SAED archives;
 - sample number `S32564`;
 - a peer-reviewed article reporting the microscope, accelerating voltage, detector and operando holder;
 - an article-level description of SAED centre finding, distortion correction and reciprocal-space analysis.
 
-## Bounded audit
+## Observed access state
 
-The live audit downloads only:
+The public record page displays `Open Access` and lists:
 
 - `TEM.zip` — general TEM characterization;
 - `OTEM_2.zip` — beam-damage studies, HRTEM and SAED.
 
-The source archives are held only in a transient directory. Every archive member is streamed to verify its declared ZIP size and CRC and to compute SHA-256 without extraction. The final workflow artifact contains only:
+However, the live anonymous requests to both listed `/send/...` links redirect to the repository `/login` page and return an HTML login form. The workflow therefore records:
 
-- the observed archive hashes and sizes;
-- a member-level path, size, CRC, SHA-256, suffix and representation inventory;
-- filename-based TEM, HRTEM, SAED and calibration cues;
-- a diagnostic scientific closeout;
-- a checksum manifest for the metadata-only evidence.
+```text
+institutional_exact_material_record_confirmed_but_anonymous_source_download_requires_authentication
+```
 
-The workflow rejects unsafe paths, duplicate normalized paths, symlinks, encrypted members, unsupported compression, oversized archives or members and excessive compression ratios.
+No credentials are supplied, guessed or bypassed. The audit does not claim that the listed archives were downloaded, hashed or inspected.
 
 ## Run
 
@@ -38,16 +36,32 @@ python scripts/audit_fhi_co3o4_tem_saed.py \
 
 The output directory must be absent or empty.
 
+Current metadata-only outputs are:
+
+- `fhi_co3o4_tem_saed_audit_summary.json`;
+- `fhi_co3o4_tem_saed_download_probe.csv`;
+- `fhi_co3o4_tem_saed_audit_report.md`;
+- `fhi_co3o4_tem_saed_audit_manifest.json`.
+
+If the repository later permits an anonymous ZIP response, the same implementation can apply the bounded archive checks before publishing any member inventory. Those checks reject unsafe paths, duplicate normalized paths, symlinks, encrypted members, unsupported compression, oversized archives or members and excessive compression ratios. Source arrays remain transient and excluded from evidence artifacts.
+
 ## Scientific boundary
 
-The institutional record does not expose archive checksums or a versioned file manifest on its public page. The audit therefore supports the identity of the **observed download snapshot**, not immutable source identity across time.
+Supported:
 
-This case does not authorize:
+- institutional record identity;
+- exact `Co3O4` material context;
+- listed file names, roles and declared sizes;
+- the observed authentication blocker.
 
-- image preprocessing or annotation;
-- TEM segmentation inference or performance evaluation;
-- SAED parameter tuning, calibrated d-spacing evaluation or phase indexing;
-- U-Net retraining;
-- scientific generalization or engineering decisions.
+Not yet supported:
 
-External validation remains blocked until source-authoritative checksums or a versioned manifest, member-level acquisition lineage, at least two independent samples or acquisitions, reuse authorization, independent TEM labels or traceable SAED centres and reciprocal calibration, and analyzer-development non-use are resolved.
+- archive or member identity and checksums;
+- native-detector versus raster representation;
+- member-level sample and acquisition lineage;
+- independent TEM segmentation labels;
+- traceable SAED centre and reciprocal calibration;
+- data-specific reuse authorization;
+- analyzer-development non-use.
+
+This case does not authorize image preprocessing, annotation, TEM inference, SAED parameter tuning, phase indexing, U-Net retraining, scientific generalization or engineering decisions.
