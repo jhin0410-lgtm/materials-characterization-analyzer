@@ -1,4 +1,279 @@
 {
   "schema_version": "1.0",
-  "status": "draft"
+  "snapshot_date": "2026-08-05",
+  "purpose": "Dated addendum for newly identified public TEM and SAED sources. This file does not replace the technique-specific candidate registries and does not promote any source to external-validation-ready status.",
+  "authoritative_registries": {
+    "tem": "case_studies/tem_external_validation_candidate_registry/case_config.json",
+    "saed": "case_studies/saed_public_candidate_registry/case_config.json"
+  },
+  "decision_rule": {
+    "source_audit_ready_is_not_evaluation_ready": true,
+    "external_validation_requires": [
+      "checksum-bound raw or demonstrably lossless files",
+      "explicit reuse terms",
+      "immutable or source-bound sample and acquisition identity",
+      "verified non-use in target model development and selection",
+      "task-matched metadata and acquisition mode",
+      "a frozen evaluation and reference protocol",
+      "independent labels for TEM segmentation or traceable center and reciprocal calibration for SAED",
+      "at least two independent samples or acquisitions"
+    ]
+  },
+  "candidates": [
+    {
+      "candidate_id": "zenodo_18942976_silver_tem_saed",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.18942976",
+      "record_url": "https://zenodo.org/records/18942976",
+      "title": "Raw data for: Solvothermal Synthesis and Antibiofilm Activity of Silver Nanoparticles (rAgNP-Et)",
+      "material_domain": ["silver nanoparticles"],
+      "modalities": ["TEM", "SAED"],
+      "public_files": [
+        {
+          "name": "TEM_SAED.zip",
+          "size": "1.4 GB",
+          "repository_checksum": "md5:c7bda9d495dd0fd657a8fe0332db4f9c"
+        }
+      ],
+      "reuse_license": "CC BY 4.0",
+      "source_metadata_confirmed": [
+        "The record describes original experimental outputs.",
+        "The deposited archive explicitly combines TEM and SAED data.",
+        "The repository exposes an archive-level MD5 checksum."
+      ],
+      "unresolved": [
+        "archive member inventory and member checksums",
+        "raw detector versus rendered or exported image status",
+        "sample and acquisition identifiers",
+        "TEM image calibration and acquisition conditions",
+        "SAED acquisition mode, detector metadata, pattern center, and reciprocal calibration",
+        "independent TEM segmentation labels",
+        "verified non-use in analyzer development"
+      ],
+      "tem_role": "cross-material unlabeled source audit and ingestion diagnostic",
+      "saed_role": "high-priority bounded static-SAED source-audit candidate, subject to acquisition-mode confirmation",
+      "priority": "high",
+      "status": "ready_for_bounded_source_audit",
+      "allowed_use": [
+        "archive integrity audit",
+        "file-format and metadata inventory",
+        "cross-material software diagnostics after intake"
+      ],
+      "prohibited_claims": [
+        "cobalt-oxide in-domain TEM segmentation performance",
+        "SAED d-spacing accuracy",
+        "phase or reflection assignment",
+        "engineering readiness"
+      ],
+      "next_action": "Download only after pinning the record metadata; compute SHA-256; inspect the archive without altering files; bind members to sample and acquisition context; stop before analyzer execution if center or calibration evidence is absent.",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "repod_siowh6_cofeni_tem_saed",
+      "repository": "RepOD",
+      "doi": "10.18150/SIOWH6",
+      "record_url": "https://repod.icm.edu.pl/dataset.xhtml?persistentId=doi:10.18150/SIOWH6",
+      "title": "Electrodeposited CoFeNi MEA coating on a Cu substrate from chlorides solution with enhanced corrosion resistance",
+      "material_domain": ["CoFeNi medium-entropy alloy coating"],
+      "modalities": ["TEM", "HRTEM", "SAED", "HAADF-STEM"],
+      "instrument_metadata": ["S/TEM TITAN 80-300 (FEI Company)"],
+      "public_files": [
+        {
+          "name": "TEM_SAED.zip",
+          "size": "8.6 MB",
+          "repository_checksum": "md5:fbc9ab9944a398a0c4a3271e809f04ef"
+        },
+        {
+          "name": "HRTEM_SAED.zip",
+          "size": "8.1 MB",
+          "repository_checksum": "md5:470b9996ea17f31b7fbe915e84d2d8d7"
+        },
+        {
+          "name": "HAADF_STEM.tif",
+          "size": "216.7 KB",
+          "repository_checksum": "md5:4b8c137fd605995d9660223f4c971ff1"
+        }
+      ],
+      "reuse_license": "CC BY 4.0",
+      "source_metadata_confirmed": [
+        "The dataset page binds the microscopy files to figure-level TEM/HRTEM/SAED results.",
+        "The repository exposes checksums for each public archive.",
+        "The archives are small enough for a bounded source audit."
+      ],
+      "unresolved": [
+        "archive member inventory and member checksums",
+        "raw detector versus exported figure-image status",
+        "accelerating voltage used for each pattern",
+        "sample and acquisition identifiers",
+        "pattern center and reciprocal calibration",
+        "source reflection assignments at member level",
+        "independent TEM labels",
+        "verified non-use in analyzer development"
+      ],
+      "tem_role": "cross-material morphology and file-integrity diagnostic",
+      "saed_role": "highest-priority small-archive static-SAED source-audit candidate",
+      "priority": "high",
+      "status": "ready_for_bounded_source_audit",
+      "allowed_use": [
+        "checksum-bound archive audit",
+        "member inventory and metadata assessment",
+        "software diagnostics after fail-closed intake"
+      ],
+      "prohibited_claims": [
+        "cobalt-oxide model generalization",
+        "calibrated d-spacing accuracy before traceable calibration",
+        "zone-axis or phase confirmation from analyzer output alone",
+        "engineering readiness"
+      ],
+      "next_action": "Acquire both archives through the repository API; verify MD5 and compute SHA-256; inspect TIFF/DM file metadata; confirm at least two independent patterns or acquisitions and obtain traceable center/calibration evidence before SAED evaluation.",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_10512357_wtacrv_tem_saed",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.10512357",
+      "record_url": "https://zenodo.org/record/10512357",
+      "title": "The microstructure and He+ ion irradiation behavior of novel low-activation W-Ta-Cr-V refractory high entropy alloy for nuclear applications",
+      "material_domain": [
+        "W-Ta-Cr-V refractory high-entropy alloy",
+        "as-deposited and He-irradiated conditions"
+      ],
+      "modalities": ["TEM", "SAED", "EDS mapping", "SEM", "TKD"],
+      "public_files": [
+        {
+          "name": "linked Zenodo file archives",
+          "size": "not resolved in this snapshot",
+          "repository_checksum": null
+        }
+      ],
+      "reuse_license": "ODbL 1.0",
+      "source_metadata_confirmed": [
+        "The record explicitly states that the TEM folder contains raw TEM images and SAED patterns.",
+        "The source distinguishes as-deposited and He-irradiated conditions.",
+        "The record links two downloadable Zenodo archive records."
+      ],
+      "unresolved": [
+        "exact file and member inventory",
+        "archive and member checksums",
+        "pattern count and acquisition independence",
+        "detector and accelerating-voltage metadata per pattern",
+        "pattern center and reciprocal calibration",
+        "member-level sample identifiers",
+        "independent TEM labels",
+        "verified non-use in analyzer development"
+      ],
+      "tem_role": "cross-material irradiation-domain robustness source after inventory resolution",
+      "saed_role": "materials-domain static-SAED candidate after file-inventory and calibration resolution",
+      "priority": "medium",
+      "status": "metadata_or_file_inventory_resolution_required",
+      "allowed_use": [
+        "record-level source triage",
+        "bounded archive audit after exact files are resolved"
+      ],
+      "prohibited_claims": [
+        "external validation before member-level lineage is established",
+        "calibrated d-spacing or phase claims",
+        "engineering readiness"
+      ],
+      "next_action": "Resolve the two linked record versions, pin exact files and checksums, and select a predeclared two-condition subset without viewing analyzer outputs.",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "zenodo_20411896_nemi_2026_workshop",
+      "repository": "Zenodo",
+      "doi": "10.5281/zenodo.20411896",
+      "record_url": "https://zenodo.org/records/20411896",
+      "title": "NEMI workshop on (automatic) (S)TEM data collection and analysis 2026: datasets",
+      "material_domain": ["mixed teaching and workshop materials"],
+      "modalities": ["TEM", "STEM", "ABF", "ADF", "SPED"],
+      "public_files": [
+        {
+          "name": "ABF_image.hspy",
+          "size": "4.7 MB",
+          "repository_checksum": "md5:9c6219375106bb682551820d4c598a6f"
+        },
+        {
+          "name": "ADF_image.hspy",
+          "size": "4.9 MB",
+          "repository_checksum": "md5:8302a7ffd90e54aa9d1a06ed418b2f2b"
+        },
+        {
+          "name": "cpu_sample_sped.zspy",
+          "size": "2.1 GB",
+          "repository_checksum": "md5:4cf0be289e5f8bfe7e23de438ec5c873"
+        }
+      ],
+      "reuse_license": "not verified in this snapshot",
+      "source_metadata_confirmed": [
+        "The record is a public collection of TEM/STEM datasets used for a 2026 workshop.",
+        "The source exposes native HyperSpy and zspy-style files.",
+        "The diffraction example is SPED rather than static selected-area diffraction."
+      ],
+      "unresolved": [
+        "reuse license",
+        "sample and acquisition lineage",
+        "calibration metadata by file",
+        "independent labels",
+        "verified non-use in analyzer development"
+      ],
+      "tem_role": "file-format and native-metadata interoperability diagnostic",
+      "saed_role": "mode-shift diagnostic only; SPED must not be relabeled as static SAED",
+      "priority": "low",
+      "status": "diagnostic_only_mode_or_domain_shift",
+      "allowed_use": [
+        "HyperSpy and zspy ingestion diagnostics",
+        "metadata-preservation tests",
+        "explicit SPED mode-shift experiments"
+      ],
+      "prohibited_claims": [
+        "static SAED validation",
+        "cobalt-oxide segmentation performance",
+        "phase or d-spacing accuracy"
+      ],
+      "next_action": "Use only if a concrete native-format interoperability gap is identified; do not download the 2.1 GB SPED file merely to expand the dataset list.",
+      "external_validation_ready": false
+    },
+    {
+      "candidate_id": "empiar_general_archive",
+      "repository": "EMPIAR",
+      "doi": null,
+      "record_url": "https://www.ebi.ac.uk/empiar/",
+      "title": "Electron Microscopy Public Image Archive",
+      "material_domain": ["primarily biological cryo-EM and volume electron microscopy"],
+      "modalities": ["raw electron microscopy images", "tomography", "volume EM"],
+      "public_files": [],
+      "reuse_license": "CC0",
+      "source_metadata_confirmed": [
+        "EMPIAR is an established public archive for raw electron microscopy data.",
+        "Its stated purpose includes method development, validation, and machine-learning reuse."
+      ],
+      "unresolved": [
+        "a task-matched inorganic nanoparticle TEM segmentation cohort",
+        "static SAED patterns with traceable reciprocal calibration",
+        "material, acquisition, and annotation comparability to the current target"
+      ],
+      "tem_role": "archive discovery source, not a selected target-domain cohort",
+      "saed_role": "not selected for the current static materials-SAED task",
+      "priority": "not_selected",
+      "status": "not_selected_general_archive",
+      "allowed_use": [
+        "archive-level discovery when a task-matched record is identified"
+      ],
+      "prohibited_claims": [
+        "that archive reputation alone establishes dataset comparability",
+        "external validation based on unrelated cryo-EM data"
+      ],
+      "next_action": "Do not bulk-collect EMPIAR data. Revisit only for a specifically identified record that satisfies the target contract.",
+      "external_validation_ready": false
+    }
+  ],
+  "current_decision": {
+    "download_now": ["repod_siowh6_cofeni_tem_saed"],
+    "audit_after_bounded_plan": ["zenodo_18942976_silver_tem_saed"],
+    "resolve_metadata_first": ["zenodo_10512357_wtacrv_tem_saed"],
+    "diagnostic_only": ["zenodo_20411896_nemi_2026_workshop"],
+    "not_selected": ["empiar_general_archive"],
+    "scientific_evidence_level": "Inconclusive",
+    "external_validation_ready_count": 0
+  }
 }
