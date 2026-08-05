@@ -47,6 +47,102 @@ jobs:
           python -m py_compile scripts/audit_fhi_co3o4_tem_saed.py
           pytest -q tests/test_audit_fhi_co3o4_tem_saed.py
 
+      - name: Inspect public download intermediary without logging field values
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import html.parser
+          import urllib.parse
+          import urllib.request
+
+          URLS = [
+              "https://ac.archive.fhi.mpg.de/send/1xp3a32ViMBG",
+              "https://ac.archive.fhi.mpg.de/send/9bYLLr3bOFra",
+          ]
+
+          class Parser(html.parser.HTMLParser):
+              def __init__(self, base: str) -> None:
+                  super().__init__(convert_charrefs=True)
+                  self.base = base
+                  self.anchors = []
+                  self.forms = []
+                  self.inputs = []
+                  self.buttons = []
+                  self.meta = []
+
+              def handle_starttag(self, tag, attrs):
+                  values = dict(attrs)
+                  tag = tag.casefold()
+                  if tag == "a" and values.get("href"):
+                      self.anchors.append(
+                          urllib.parse.urljoin(self.base, values["href"])
+                      )
+                  elif tag == "form":
+                      self.forms.append({
+                          "method": str(values.get("method", "get")).casefold(),
+                          "action": urllib.parse.urljoin(
+                              self.base, values.get("action", "")
+                          ),
+                      })
+                  elif tag == "input":
+                      self.inputs.append({
+                          "name": values.get("name"),
+                          "type": values.get("type", "text"),
+                          "has_value": values.get("value") is not None,
+                          "value_length": len(values.get("value", "")),
+                      })
+                  elif tag == "button":
+                      self.buttons.append({
+                          "name": values.get("name"),
+                          "type": values.get("type", "submit"),
+                          "has_value": values.get("value") is not None,
+                      })
+                  elif tag == "meta" and values.get("http-equiv"):
+                      self.meta.append({
+                          "http_equiv": values.get("http-equiv"),
+                          "content": values.get("content", "")[:200],
+                      })
+
+          for url in URLS:
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "Accept": "text/html,application/zip;q=0.9,*/*;q=0.8",
+                      "User-Agent": "materials-characterization-analyzer-source-audit/1.0",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  body = response.read(1_000_000)
+                  content_type = response.headers.get("Content-Type", "")
+                  print({
+                      "requested_url": url,
+                      "final_url": response.geturl(),
+                      "status": response.status,
+                      "content_type": content_type,
+                      "content_length_header": response.headers.get("Content-Length"),
+                      "content_disposition": response.headers.get("Content-Disposition"),
+                      "sampled_bytes": len(body),
+                  })
+                  if "html" not in content_type.casefold() and not body.lstrip().lower().startswith((b"<!doctype html", b"<html")):
+                      print({"terminal_binary_response": True})
+                      continue
+                  charset = response.headers.get_content_charset() or "utf-8"
+                  parser = Parser(response.geturl())
+                  parser.feed(body.decode(charset, errors="replace"))
+                  parser.close()
+                  print({
+                      "same_host_anchors": [
+                          item for item in parser.anchors
+                          if urllib.parse.urlparse(item).netloc == "ac.archive.fhi.mpg.de"
+                      ],
+                      "forms": parser.forms,
+                      "inputs": parser.inputs,
+                      "buttons": parser.buttons,
+                      "meta": parser.meta,
+                  })
+          PY
+
       - name: Audit institutional record and bounded archives
         run: |
           python scripts/audit_fhi_co3o4_tem_saed.py \
