@@ -532,6 +532,7 @@ def run(config_path: Path, output: Path) -> dict[str, Any]:
                 "repod_cofeni_tem_saed_source_audit_report.md",
             ],
         )
+        shutil.rmtree(transient, ignore_errors=True)
         for path in output.rglob("*"):
             if path.is_file() and path.suffix.casefold() in FORBIDDEN_SOURCE_SUFFIXES:
                 raise RepodCoFeNiAuditError(f"source file leaked into evidence: {path}")
