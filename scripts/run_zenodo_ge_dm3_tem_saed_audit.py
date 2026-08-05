@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import subprocess
 import sys
@@ -15,17 +16,36 @@ from scripts import audit_zenodo_ge_dm3_tem_saed as engine
 
 FINAL_RESULT = (
     "checksum_verified_native_dm3_tem_saed_inventory_completed_but_"
-    "calibration_and_lineage_metadata_incomplete"
+    "embedded_metadata_calibration_and_lineage_incomplete"
 )
 
 
-def _sanitize_warning(line: str, extraction_root: Path) -> str:
+def _sanitize_stderr_line(line: str, extraction_root: Path) -> str:
     value = line.strip()
     if not value:
         return ""
     root = str(extraction_root.resolve())
-    value = value.replace(root, "<transient-source-root>")
-    return value
+    return value.replace(root, "<transient-source-root>")
+
+
+def probe_dm3_header(path: Path) -> dict[str, Any]:
+    with path.open("rb") as handle:
+        header = handle.read(12)
+    if len(header) != 12:
+        raise engine.ZenodoGeDm3AuditError(
+            f"DM3 member is too short for the 12-byte file header: {path.name}"
+        )
+    version = int.from_bytes(header[:4], byteorder="big", signed=False)
+    if version != 3:
+        raise engine.ZenodoGeDm3AuditError(
+            f"DM3 version marker mismatch for {path.name}: {version}"
+        )
+    return {
+        "dm3_header_version": version,
+        "dm3_header_byte_order_marker": int.from_bytes(
+            header[8:12], byteorder="big", signed=False
+        ),
+    }
 
 
 def inspect_dm3_metadata_with_warning_capture(
@@ -46,13 +66,13 @@ def inspect_dm3_metadata_with_warning_capture(
             "ExifTool failed to execute safely for selected DM3 members"
         ) from exc
 
-    warnings = [
+    stderr_lines = [
         sanitized
         for line in result.stderr.splitlines()
-        if (sanitized := _sanitize_warning(line, extraction_root))
+        if (sanitized := _sanitize_stderr_line(line, extraction_root))
     ]
     if result.returncode not in {0, 1}:
-        detail = warnings[-1] if warnings else "no stderr"
+        detail = stderr_lines[-1] if stderr_lines else "no stderr"
         raise engine.ZenodoGeDm3AuditError(
             f"ExifTool returned unexpected code {result.returncode}: {detail}"
         )
@@ -93,20 +113,49 @@ def inspect_dm3_metadata_with_warning_capture(
             for key, value in item.items()
             if key != "SourceFile" and not key.casefold().endswith("directory")
         }
+        embedded_keys = [
+            key
+            for key in sanitized_metadata
+            if not key.startswith("System:") and not key.startswith("ExifTool:")
+        ]
+        exiftool_error = sanitized_metadata.get("ExifTool:Error")
         rows.append(
             {
                 "member_path": relative,
                 "bytes": path.stat().st_size,
                 "sha256": engine._hash_file(path),
+                **probe_dm3_header(path),
                 "metadata_field_count": len(sanitized_metadata),
+                "embedded_microscopy_metadata_field_count": len(embedded_keys),
+                "embedded_microscopy_metadata_keys": sorted(embedded_keys),
                 "metadata": sanitized_metadata,
                 "exiftool_exit_code": result.returncode,
-                "exiftool_warning_count": len(warnings),
-                "exiftool_warnings": warnings,
+                "exiftool_error": exiftool_error,
+                "exiftool_stderr_line_count": len(stderr_lines),
+                "exiftool_stderr_lines": stderr_lines,
             }
         )
     rows.sort(key=lambda item: str(item["member_path"]).casefold())
     return rows
+
+
+def _rewrite_selected_identity(path: Path, rows: Sequence[dict[str, Any]]) -> None:
+    fields = [
+        "member_path",
+        "bytes",
+        "sha256",
+        "dm3_header_version",
+        "dm3_header_byte_order_marker",
+        "metadata_field_count",
+        "embedded_microscopy_metadata_field_count",
+        "exiftool_exit_code",
+        "exiftool_error",
+    ]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row.get(field) for field in fields})
 
 
 def _finalize_evidence(output_dir: Path) -> dict[str, Any]:
@@ -119,12 +168,12 @@ def _finalize_evidence(output_dir: Path) -> dict[str, Any]:
 
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    warning_lines = sorted(
+    stderr_lines = sorted(
         {
-            warning
+            line
             for item in metadata
-            for warning in item.get("exiftool_warnings", [])
-            if isinstance(warning, str) and warning.strip()
+            for line in item.get("exiftool_stderr_lines", [])
+            if isinstance(line, str) and line.strip()
         }
     )
     exit_codes = sorted(
@@ -134,21 +183,48 @@ def _finalize_evidence(output_dir: Path) -> dict[str, Any]:
             if isinstance(item, dict)
         }
     )
+    errors = sorted(
+        {
+            str(item.get("exiftool_error"))
+            for item in metadata
+            if item.get("exiftool_error") not in {None, ""}
+        }
+    )
+    unknown_type_count = sum(
+        item.get("exiftool_error") == "Unknown file type" for item in metadata
+    )
+    embedded_field_total = sum(
+        int(item.get("embedded_microscopy_metadata_field_count", 0))
+        for item in metadata
+    )
+    header_versions = sorted(
+        {int(item["dm3_header_version"]) for item in metadata}
+    )
+    if header_versions != [3]:
+        raise engine.ZenodoGeDm3AuditError(
+            f"selected files do not share the DM3 version marker: {header_versions}"
+        )
 
     summary["status"] = FINAL_RESULT
     summary["evidence_assessment"]["reuse_authorization"] = "Supported"
-    summary["evidence_assessment"]["dm3_metadata_extraction"] = (
-        "Supported_with_recorded_ExifTool_warnings"
-        if warning_lines or any(code != 0 for code in exit_codes)
-        else "Supported"
+    summary["evidence_assessment"]["native_dm3_header_identity"] = "Supported"
+    summary["evidence_assessment"]["embedded_dm3_metadata_extraction"] = (
+        "Unsupported_by_ExifTool_unknown_file_type"
+        if unknown_type_count == len(metadata) and embedded_field_total == 0
+        else "Inconclusive"
     )
     summary["software_quality_flags"] = {
+        "dm3_header_versions": header_versions,
         "exiftool_exit_codes": exit_codes,
-        "exiftool_warning_count": len(warning_lines),
-        "exiftool_warnings": warning_lines,
+        "exiftool_error_values": errors,
+        "exiftool_unknown_file_type_member_count": unknown_type_count,
+        "embedded_microscopy_metadata_field_total": embedded_field_total,
+        "exiftool_stderr_line_count": len(stderr_lines),
+        "exiftool_stderr_lines": stderr_lines,
         "policy": (
-            "ExifTool exit code 1 is accepted only when complete JSON for every "
-            "selected member is present; warnings are retained in metadata evidence."
+            "Native DM3 identity is checked from each transient file header. "
+            "ExifTool system-level JSON is retained, but an Unknown file type "
+            "result is not represented as successful embedded microscopy metadata extraction."
         ),
     }
     summary["unresolved"] = [
@@ -156,6 +232,11 @@ def _finalize_evidence(output_dir: Path) -> dict[str, Any]:
         for item in summary["unresolved"]
         if item != "explicit dataset reuse licence or written permission"
     ]
+    if "embedded DM3 instrument and acquisition metadata" not in summary["unresolved"]:
+        summary["unresolved"].insert(
+            0, "embedded DM3 instrument and acquisition metadata"
+        )
+    _rewrite_selected_identity(selected_path, metadata)
     engine._write_json(summary_path, summary)
 
     report_path.write_text(
@@ -168,23 +249,25 @@ def _finalize_evidence(output_dir: Path) -> dict[str, Any]:
 - DOI: `{summary['record']['doi']}`
 - Licence: `{summary['record']['license_id']}`
 - Archive SHA-256: `{summary['archive']['sha256']}`
+- Archive members: {summary['member_count']}
 - Native microscopy members: {summary['representation_counts']['native_microscopy_container']}
-- Static-SAED filename cues: {summary['role_cue_counts']['static_saed_name_cue']}
-- TEM filename cues: {summary['role_cue_counts']['tem_name_cue']}
-- HRTEM filename cues: {summary['role_cue_counts']['hrtem_name_cue']}
 - Selected DM3 members inspected: {summary['selected_dm3_member_count']}
-- ExifTool warning count: {len(warning_lines)}
+- DM3 header versions: {header_versions}
+- ExifTool `Unknown file type` members: {unknown_type_count}
+- Embedded microscopy metadata fields exposed by ExifTool: {embedded_field_total}
 - External-validation ready: **no**
 
 ## Supported
 
-The official Zenodo record identity, `CC BY 4.0` reuse licence, archive MD5 and observed SHA-256, archive integrity, safe member inventory, required paired TEM/SAED member names, native DM3 representation and selected-member identities are supported for this source version.
+The official Zenodo record identity, `CC BY 4.0` reuse licence, archive MD5 and observed SHA-256, archive integrity, safe member inventory, required paired TEM/SAED member names, selected-member SHA-256 values, and the DM3 version-3 header marker on every selected file are supported for this source version.
 
-ExifTool produced complete JSON for every selected DM3 member. Any non-zero informational or warning exit state is recorded rather than silently discarded.
+## Not supported by the current metadata tool
+
+ExifTool returned `Unknown file type` for all selected DM3 members and exposed no microscopy-specific embedded metadata fields. Its system-level JSON and stderr are retained as software evidence, but this is not reported as successful instrument, acquisition, centre, camera-length, pixel-geometry, or reciprocal-calibration metadata extraction.
 
 ## Limitations
 
-This is a cross-material germanium source. Source-assigned sample/acquisition IDs, pattern centres, reciprocal-calibration provenance, acquisition independence, complete preprocessing state and analyzer-development non-use remain unresolved. The record-reported correction for `w0 diff.dm3` is retained as a quality flag rather than silently changed.
+This is a cross-material germanium source. Source-assigned sample/acquisition IDs, embedded acquisition metadata, pattern centres, reciprocal-calibration provenance, acquisition independence, complete preprocessing state and analyzer-development non-use remain unresolved. The source-reported correction for `w0 diff.dm3` is retained as a quality flag rather than silently changed.
 
 No pixel arrays are exported, no image preprocessing or annotation is performed, and no analyzer inference, parameter tuning, model retraining, d-spacing validation or phase indexing is authorized.
 """,
@@ -214,7 +297,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Run the Zenodo Ge native-DM3 TEM/SAED audit while preserving "
-            "non-fatal ExifTool warnings and finalizing licence-aware evidence."
+            "ExifTool limitations and finalizing licence-aware evidence."
         )
     )
     parser.add_argument("--config", type=Path, required=True)
