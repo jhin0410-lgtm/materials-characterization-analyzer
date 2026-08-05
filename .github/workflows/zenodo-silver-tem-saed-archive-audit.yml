@@ -10,6 +10,7 @@ on:
       - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
       - "scripts/audit_zenodo_silver_tem_saed_archive.py"
       - "tests/test_zenodo_silver_tem_saed_archive_audit.py"
+      - "tests/test_zenodo_silver_tem_saed_archive_snapshot.py"
       - ".github/workflows/zenodo-silver-tem-saed-archive-audit.yml"
   push:
     branches: [main]
@@ -20,6 +21,7 @@ on:
       - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
       - "scripts/audit_zenodo_silver_tem_saed_archive.py"
       - "tests/test_zenodo_silver_tem_saed_archive_audit.py"
+      - "tests/test_zenodo_silver_tem_saed_archive_snapshot.py"
       - ".github/workflows/zenodo-silver-tem-saed-archive-audit.yml"
 
 permissions:
@@ -41,7 +43,10 @@ jobs:
       - name: Install package and tests
         run: python -m pip install -e ".[dev]"
       - name: Run focused regressions
-        run: pytest -q tests/test_zenodo_silver_tem_saed_archive_audit.py
+        run: |
+          pytest -q \
+            tests/test_zenodo_silver_tem_saed_archive_audit.py \
+            tests/test_zenodo_silver_tem_saed_archive_snapshot.py
       - name: Run live transient archive audit
         run: |
           python scripts/audit_zenodo_silver_tem_saed_archive.py \
@@ -51,6 +56,7 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          from collections import Counter
           from pathlib import Path
 
           root = Path("outputs/zenodo_silver_tem_saed_archive_audit")
@@ -68,11 +74,29 @@ jobs:
           assert summary["archive"]["key"] == "TEM_SAED.zip"
           assert summary["archive"]["bytes"] == 1417789651
           assert summary["archive"]["md5"] == "c7bda9d495dd0fd657a8fe0332db4f9c"
-          assert len(summary["archive"]["sha256"]) == 64
-          assert summary["archive"]["member_count"] > 0
+          assert summary["archive"]["sha256"] == (
+              "4569a878be7053c2e84867a5693e9483fd9b937b765ce5e3be15e3f154b5fa12"
+          )
+          assert summary["archive"]["member_count"] == 241
+          assert summary["archive"]["total_uncompressed_bytes"] == 1732391068
           assert summary["archive"]["member_hashing_complete"]
           assert summary["archive"]["crc_verification_complete"]
-          assert inventory["member_count"] == summary["archive"]["member_count"]
+          assert summary["representation_counts"] == {
+              "native_microscopy_container": 0,
+              "lossless_or_lossless-capable_raster_export": 212,
+              "rendered_raster": 0,
+              "metadata_or_document": 20,
+              "other_or_unresolved": 9,
+          }
+          assert summary["name_cue_counts"]["saed_or_diffraction"] == 2
+          assert summary["name_cue_counts"]["calibration"] == 0
+          assert inventory["member_count"] == 241
+          assert Counter(row["suffix"] for row in inventory["members"]) == {
+              ".tif": 212,
+              ".txt": 19,
+              ".docx": 9,
+              ".xlsx": 1,
+          }
           assert all(len(row["sha256"]) == 64 for row in inventory["members"])
           assert not summary["source_archive_retained"]
           assert not summary["source_members_retained"]
