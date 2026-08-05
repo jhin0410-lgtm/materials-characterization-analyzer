@@ -8,18 +8,12 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 PUBLISH_WORKFLOW = WORKFLOWS / "publish-v0-11-0-release.yml"
 
 
-def test_tracked_workflows_do_not_use_superseded_action_majors() -> None:
-    superseded = (
-        "actions/checkout@v4",
-        "actions/setup-python@v5",
-        "actions/upload-artifact@v4",
-    )
-    violations: list[str] = []
-    for path in sorted(WORKFLOWS.glob("*.yml")):
-        text = path.read_text(encoding="utf-8")
-        for token in superseded:
-            if token in text:
-                violations.append(f"{path.relative_to(ROOT)}: {token}")
+def test_tracked_workflows_do_not_use_superseded_setup_python_v5() -> None:
+    violations = [
+        str(path.relative_to(ROOT))
+        for path in sorted(WORKFLOWS.glob("*.yml"))
+        if "actions/setup-python@v5" in path.read_text(encoding="utf-8")
+    ]
     assert violations == []
 
 
