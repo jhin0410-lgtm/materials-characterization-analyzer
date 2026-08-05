@@ -80,7 +80,7 @@ jobs:
           )
           assert summary["record"]["id"] == 15082448
           assert summary["record"]["doi"] == "10.5281/zenodo.15082448"
-          assert summary["record"]["license_id"] is None
+          assert summary["record"]["license_id"] == "cc-by-4.0"
           assert summary["archive"]["key"] == "10.5281zenodo.15082448.7z"
           assert summary["archive"]["md5"] == "535f513e05d88a9b14a3bc6fde8ae3bd"
           assert 250_000_000 < summary["archive"]["bytes"] < 400_000_000
@@ -106,6 +106,7 @@ jobs:
           assert summary["processing"]["model_retraining_performed"] is False
           assert summary["processing"]["phase_indexing_performed"] is False
           assert any("w0 diff.dm3" in item for item in summary["source_quality_flags"])
+          assert any("CC BY 4.0" in item for item in summary["source_quality_flags"])
 
           with (root / "zenodo_ge_dm3_tem_saed_member_inventory.csv").open(
               newline="", encoding="utf-8"
