@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_ge_dm3_tem_saed_source_audit",
+  "verified_at": "2026-08-05T15:18:53Z",
+  "workflow_run_id": 31019356788,
+  "artifact_id": 8936018585,
+  "artifact_digest": "sha256:66b55268ec8b3f3e8df22e1067290dfffe99fe7bc417c4a0a3275ea812c5e3be",
+  "status": "checksum_verified_native_dm3_tem_saed_inventory_completed_but_embedded_metadata_calibration_and_lineage_incomplete",
+  "record": {
+    "repository": "Zenodo",
+    "record_id": 15082448,
+    "doi": "10.5281/zenodo.15082448",
+    "status": "published",
+    "resource_type": "dataset",
+    "license_id": "cc-by-4.0",
+    "publication_date": "2025-03-25"
+  },
+  "archive": {
+    "key": "10.5281zenodo.15082448.7z",
+    "bytes": 270536309,
+    "md5": "535f513e05d88a9b14a3bc6fde8ae3bd",
+    "sha256": "c4c95688a6a61d1b32aaab26ecd54a7da4b2240862dc28ec58a6d430ef855186",
+    "integrity_test_passed": true,
+    "member_count": 92,
+    "total_uncompressed_bytes": 519636951
+  },
+  "representation_counts": {
+    "native_microscopy_container": 15,
+    "lossless_or_lossless_capable_raster_export": 37,
+    "rendered_raster": 8,
+    "metadata_or_document": 13,
+    "other_or_unresolved": 19
+  },
+  "role_cue_counts": {
+    "static_saed_name_cue": 4,
+    "tem_name_cue": 4,
+    "hrtem_name_cue": 6,
+    "eds_name_cue": 8,
+    "calibration_or_centre_name_cue": 0
+  },
+  "required_members": {
+    "d1 TEM 30k.dm3": "Figure 3/Lo/d1 TEM 30k.dm3",
+    "f1 TEM 25k.dm3": "Figure 3/Lo/f1 TEM 25k.dm3",
+    "h2 TEM 25k.dm3": "Figure 3/Lo/h2 TEM 25k.dm3",
+    "d1 diff.dm3": "Figure 3/Lo/d1 diff.dm3",
+    "f1 diff rings.dm3": "Figure 3/Lo/f1 diff rings.dm3",
+    "h1 diff.dm3": "Figure 3/Lo/h1 diff.dm3",
+    "w0 150k.dm3": "Figure 3/Hi/w0 150k.dm3",
+    "w0 diff.dm3": "Figure 3/Hi/w0 diff.dm3"
+  },
+  "selected_dm3": {
+    "member_count": 15,
+    "header_versions": [3],
+    "byte_order_markers": [1],
+    "all_member_sha256_recorded": true,
+    "exiftool_version": 12.76,
+    "exiftool_exit_codes": [1],
+    "exiftool_error_values": ["Unknown file type"],
+    "unknown_file_type_member_count": 15,
+    "embedded_microscopy_metadata_field_total": 0
+  },
+  "evidence_assessment": {
+    "record_and_archive_identity": "Supported",
+    "archive_integrity_and_safe_inventory": "Supported",
+    "reuse_authorization": "Supported",
+    "native_dm3_tem_saed_representation": "Supported",
+    "native_dm3_header_identity": "Supported",
+    "record_declared_same_location_tem_saed_pairs": "Supported",
+    "embedded_dm3_metadata_extraction": "Unsupported_by_ExifTool_unknown_file_type",
+    "source_assigned_sample_and_acquisition_lineage": "Inconclusive",
+    "pattern_centre_and_reciprocal_calibration": "Inconclusive",
+    "independent_tem_segmentation_validation": "Inconclusive",
+    "calibrated_static_saed_validation": "Inconclusive"
+  },
+  "processing": {
+    "source_archive_retained": false,
+    "source_members_retained": false,
+    "pixel_arrays_exported": false,
+    "image_preprocessing_performed": false,
+    "annotations_created": false,
+    "model_inference_performed": false,
+    "parameter_tuning_performed": false,
+    "model_retraining_performed": false,
+    "phase_indexing_performed": false
+  },
+  "external_validation_ready": false,
+  "engineering_decision_ready": false
+}
