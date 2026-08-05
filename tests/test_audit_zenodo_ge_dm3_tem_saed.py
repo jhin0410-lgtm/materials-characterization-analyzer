@@ -42,7 +42,7 @@ def _config() -> dict[str, object]:
             "expected_status": "published",
             "expected_resource_type": "dataset",
             "expected_title": "Dataset for \"Highly strained Ge nanostructures and direct bandgap transition induced by femtosecond laser\"",
-            "expected_license_id": None,
+            "expected_license_id": "cc-by-4.0",
             "target_file": {
                 "key": "10.5281zenodo.15082448.7z",
                 "md5": "535f513e05d88a9b14a3bc6fde8ae3bd",
@@ -82,6 +82,7 @@ def _record() -> dict[str, object]:
         "metadata": {
             "title": "Dataset for \"Highly strained Ge nanostructures and direct bandgap transition induced by femtosecond laser\"",
             "resource_type": {"id": "dataset"},
+            "license": {"id": "cc-by-4.0"},
             "publication_date": "2025-03-25",
         },
         "files": [
@@ -126,20 +127,20 @@ def _member(path: str, *, size: int = 1000, packed: int = 800, encrypted: str = 
     )
 
 
-def test_record_normalization_and_verification_preserve_missing_license() -> None:
+def test_record_normalization_and_verification_preserve_cc_by_license() -> None:
     normalized = normalize_record(_record())
-    assert normalized["license_id"] is None
+    assert normalized["license_id"] == "cc-by-4.0"
     assert normalized["resource_type_id"] == "dataset"
     target = verify_record(_config(), normalized)
     assert target["key"] == "10.5281zenodo.15082448.7z"
     assert target["bytes"] == 270_500_000
 
 
-def test_record_verification_rejects_added_license_or_checksum_drift() -> None:
-    licensed = _record()
-    licensed["metadata"]["license"] = {"id": "cc-by-4.0"}  # type: ignore[index]
+def test_record_verification_rejects_missing_license_or_checksum_drift() -> None:
+    unlicensed = _record()
+    del unlicensed["metadata"]["license"]  # type: ignore[index]
     with pytest.raises(ZenodoGeDm3AuditError, match="license_id"):
-        verify_record(_config(), normalize_record(licensed))
+        verify_record(_config(), normalize_record(unlicensed))
 
     changed = _record()
     changed["files"][0]["checksum"] = "md5:00000000000000000000000000000000"  # type: ignore[index]
@@ -219,7 +220,7 @@ def test_repository_config_is_pinned_and_fail_closed() -> None:
         root / "case_studies/zenodo_ge_dm3_tem_saed_source_audit/case_config.json"
     )
     assert config["source"]["record_id"] == 15082448
-    assert config["source"]["expected_license_id"] is None
+    assert config["source"]["expected_license_id"] == "cc-by-4.0"
     assert config["source"]["target_file"]["md5"] == (
         "535f513e05d88a9b14a3bc6fde8ae3bd"
     )
