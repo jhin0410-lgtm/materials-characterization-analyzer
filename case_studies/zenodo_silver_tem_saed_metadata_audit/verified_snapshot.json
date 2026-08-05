@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "verified_at": "2026-08-05T07:08:43Z",
+  "workflow_run_id": 30983860525,
+  "workflow_artifact": {
+    "name": "zenodo-silver-tem-saed-metadata-audit-evidence",
+    "artifact_id": 8921239995,
+    "digest": "sha256:a6a005b964896bcd9066a9e0863974fd245323b1988d3e2d4635fbf9aea36741"
+  },
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 18942976,
+    "doi": "10.5281/zenodo.18942976",
+    "status": "published",
+    "resource_type_id": "image",
+    "license_id": "cc-by-4.0",
+    "publication_date": "2027-05-10",
+    "created": "2026-05-21T18:46:36.052447+00:00",
+    "updated": "2026-05-21T18:46:36.460780+00:00",
+    "file_count": 3
+  },
+  "files": [
+    {
+      "id": "af2bd16d-f7d5-49ea-ba45-8cf827f7bb00",
+      "key": "CMI_Halo_biofilm.xlsx",
+      "bytes": 99515,
+      "checksum": "md5:0d2a27047f7f26895bc41e6adef305e5"
+    },
+    {
+      "id": "dad003b9-230b-40cc-bb00-48865ef7e832",
+      "key": "TEM_SAED.zip",
+      "bytes": 1417789651,
+      "checksum": "md5:c7bda9d495dd0fd657a8fe0332db4f9c"
+    },
+    {
+      "id": "9c87a414-6dbf-427a-b4c6-951284ac02fa",
+      "key": "UV_Vis.xlsx",
+      "bytes": 39789,
+      "checksum": "md5:a59916a765420147a7c63d68b4f5bad7"
+    }
+  ],
+  "quality_flags": [
+    {
+      "code": "publication_date_after_audit_date",
+      "severity": "warning",
+      "observed_value": "2027-05-10",
+      "audit_date": "2026-08-05",
+      "interpretation": "The API publication_date is later than the live audit date even though the record status is published. The reason is unresolved and must not be silently corrected or reinterpreted."
+    },
+    {
+      "code": "resource_type_image_for_multifile_raw_data_record",
+      "severity": "warning",
+      "observed_value": "image",
+      "interpretation": "The API classifies the multi-file raw experimental record as image. The value is preserved rather than normalized to dataset."
+    }
+  ],
+  "bounded_plan": {
+    "target_archive": "TEM_SAED.zip",
+    "exact_bytes": 1417789651,
+    "checksum": "md5:c7bda9d495dd0fd657a8fe0332db4f9c",
+    "maximum_archive_bytes": 1600000000,
+    "maximum_uncompressed_bytes": 20000000000,
+    "maximum_member_count": 50000,
+    "source_archive_download_authorized": false,
+    "source_artifact_upload_authorized": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "parameter_tuning_authorized": false
+  },
+  "closeout": {
+    "record_identity_and_file_inventory": "Supported",
+    "temporal_metadata_consistency": "Inconclusive",
+    "archive_member_inventory": "Inconclusive",
+    "analyzer_scientific_evidence_level": "Inconclusive",
+    "external_validation_ready": false,
+    "engineering_decision_ready": false,
+    "source_archive_downloaded": false,
+    "primary_limitation": "The archive contents, raw status, sample/acquisition lineage, independent TEM labels, SAED centre, and reciprocal calibration remain unresolved. The future publication_date also requires explicit provenance handling."
+  }
+}
