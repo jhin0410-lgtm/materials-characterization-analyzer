@@ -1,0 +1,95 @@
+name: Zenodo silver TEM SAED metadata audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_silver_tem_saed_metadata_audit/**"
+      - "case_studies/open_tem_saed_candidates/**"
+      - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
+      - "scripts/audit_zenodo_silver_tem_saed_metadata.py"
+      - "tests/test_zenodo_silver_tem_saed_metadata_audit.py"
+      - ".github/workflows/zenodo-silver-tem-saed-metadata-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_silver_tem_saed_metadata_audit/**"
+      - "case_studies/open_tem_saed_candidates/**"
+      - "docs/TEM_SAED_OPEN_DATA_ROADMAP.md"
+      - "scripts/audit_zenodo_silver_tem_saed_metadata.py"
+      - "tests/test_zenodo_silver_tem_saed_metadata_audit.py"
+      - ".github/workflows/zenodo-silver-tem-saed-metadata-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-silver-tem-saed-metadata-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_zenodo_silver_tem_saed_metadata_audit.py
+      - name: Run live metadata-only audit
+        run: |
+          python scripts/audit_zenodo_silver_tem_saed_metadata.py \
+            --config case_studies/zenodo_silver_tem_saed_metadata_audit/case_config.json \
+            --output outputs/zenodo_silver_tem_saed_metadata_audit
+      - name: Verify fail-closed metadata evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_silver_tem_saed_metadata_audit")
+          summary = json.loads(
+              (root / "zenodo_silver_tem_saed_metadata_audit_summary.json").read_text()
+          )
+          plan = json.loads(
+              (root / "bounded_archive_acquisition_plan.json").read_text()
+          )
+          assert summary["result"] == (
+              "zenodo_record_and_archive_identity_verified_without_source_download"
+          )
+          assert summary["source"]["record_id"] == 18942976
+          assert summary["source"]["file_count"] == 3
+          assert summary["target_archive"]["key"] == "TEM_SAED.zip"
+          assert summary["target_archive"]["checksum"] == (
+              "md5:c7bda9d495dd0fd657a8fe0332db4f9c"
+          )
+          assert 1_000_000_000 <= summary["target_archive"]["bytes"] <= 1_600_000_000
+          assert not summary["source_archive_downloaded"]
+          assert not summary["source_files_retained"]
+          assert not summary["model_inference_performed"]
+          assert not summary["annotation_performed"]
+          assert not summary["primary_parameters_changed"]
+          assert not summary["archive_member_inventory_complete"]
+          assert not summary["external_validation_ready"]
+          assert not summary["engineering_decision_ready"]
+          assert summary["analyzer_scientific_evidence_level"] == "Inconclusive"
+          assert not plan["authorization"]["source_archive_download_authorized"]
+          forbidden = {".zip", ".tif", ".tiff", ".dm3", ".dm4", ".emd", ".ser"}
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden
+          ]
+          if leaked:
+              raise SystemExit(f"source content leaked into metadata evidence: {leaked}")
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-silver-tem-saed-metadata-audit-evidence
+          path: outputs/zenodo_silver_tem_saed_metadata_audit
+          if-no-files-found: warn
+          retention-days: 30
