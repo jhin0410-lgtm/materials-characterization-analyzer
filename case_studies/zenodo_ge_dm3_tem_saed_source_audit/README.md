@@ -6,22 +6,23 @@ It is a high-value **cross-material static-SAED interoperability source**, not a
 
 ## Why this source is useful
 
-The public record explicitly declares:
+The current official Zenodo API declares:
 
+- a `CC BY 4.0` licence;
 - three low-resolution TEM images and corresponding SAED patterns collected at the same locations;
 - one low-resolution TEM location paired with a SAED pattern and a related HRTEM series;
 - native `.dm3` files rather than only rendered figures;
 - a JEOL JEM-2200FS TEM/EDS context;
 - a source-reported quality correction: the scale bar in `w0 diff.dm3` is mislabeled as `10 nm`; the correct value is `5 1/nm`.
 
-The record does **not** expose a licence identifier. Sample/acquisition IDs, pattern centres, reciprocal calibration provenance, acquisition independence and analyzer-development non-use also remain unresolved.
+Earlier landing-page parsing did not expose the licence field; the official API snapshot supersedes that incomplete observation. Sample/acquisition IDs, pattern centres, reciprocal calibration provenance, acquisition independence and analyzer-development non-use remain unresolved.
 
 ## Bounded audit
 
 The live workflow:
 
 1. fetches the official Zenodo API record;
-2. verifies record ID, DOI, title, publication state, resource type, missing licence state, target filename and repository MD5;
+2. verifies record ID, DOI, title, publication state, resource type, `CC BY 4.0` licence, target filename and repository MD5;
 3. downloads the single `270.5 MB` `.7z` archive into a transient directory;
 4. verifies the observed byte count, MD5 and SHA-256;
 5. runs `7z t` and a fail-closed member inventory;
@@ -60,6 +61,8 @@ No `.7z`, `.dm3`, raster image or pixel array is retained in the output.
 
 ## Scientific boundary
 
+The `CC BY 4.0` licence supports reuse with attribution, but it does not establish scientific comparability, acquisition independence, calibration traceability or external-validation readiness.
+
 This case may support native-format parsing, source identity, same-location pairing diagnostics and metadata-gap analysis. It does not support:
 
 - cobalt-oxide TEM segmentation performance;
@@ -69,4 +72,4 @@ This case may support native-format parsing, source identity, same-location pair
 - model retraining;
 - engineering decisions.
 
-Any later analyzer run must use frozen parameters and remain a cross-material software diagnostic unless authoritative licence, acquisition lineage, centre/calibration and reference metadata are resolved first.
+Any later analyzer run must use frozen parameters and remain a cross-material software diagnostic unless authoritative acquisition lineage, centre/calibration and reference metadata are resolved first.
