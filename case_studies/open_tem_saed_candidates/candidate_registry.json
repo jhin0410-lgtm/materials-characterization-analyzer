@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "snapshot_date": "2026-08-05",
-  "snapshot_status": "updated_after_repod_live_source_audit",
-  "purpose": "Dated addendum for public TEM and SAED sources. Public availability, source-audit completion, and external-validation readiness are intentionally separate states.",
+  "snapshot_status": "updated_after_repod_source_audit_and_zenodo_silver_metadata_audit",
+  "purpose": "Dated addendum for public TEM and SAED sources. Public availability, metadata-audit completion, source-audit completion, and external-validation readiness are intentionally separate states.",
   "authoritative_registries": {
     "tem": "case_studies/tem_external_validation_candidate_registry/case_config.json",
     "saed": "case_studies/saed_public_candidate_registry/case_config.json"
@@ -10,6 +10,7 @@
   "decision_rule": {
     "source_audit_ready_is_not_evaluation_ready": true,
     "source_audit_supported_does_not_promote_analyzer_evidence": true,
+    "metadata_quality_flags_must_not_be_silently_normalized": true,
     "external_validation_requires": [
       "checksum-bound raw or demonstrably lossless files",
       "explicit reuse terms",
@@ -33,15 +34,35 @@
       "public_files": [
         {
           "name": "TEM_SAED.zip",
-          "size": "1.4 GB",
+          "bytes": 1417789651,
           "repository_checksum": "md5:c7bda9d495dd0fd657a8fe0332db4f9c"
         }
       ],
       "reuse_license": "CC BY 4.0",
+      "metadata_audit": {
+        "completed_at": "2026-08-05T07:08:43Z",
+        "workflow_run_id": 30983860525,
+        "artifact_id": 8921239995,
+        "artifact_digest": "sha256:a6a005b964896bcd9066a9e0863974fd245323b1988d3e2d4635fbf9aea36741",
+        "verified_snapshot": "case_studies/zenodo_silver_tem_saed_metadata_audit/verified_snapshot.json",
+        "record_id": 18942976,
+        "record_status": "published",
+        "resource_type_id": "image",
+        "license_id": "cc-by-4.0",
+        "record_file_count": 3,
+        "target_archive_bytes": 1417789651,
+        "record_identity_and_file_inventory": "Supported",
+        "temporal_metadata_consistency": "Inconclusive"
+      },
+      "metadata_quality_flags": [
+        "Zenodo API publication_date is 2027-05-10, later than the 2026-08-05 audit date although record status is published.",
+        "Zenodo API classifies the multi-file raw experimental record as resource type image."
+      ],
       "source_metadata_confirmed": [
-        "The record describes original experimental outputs.",
-        "The deposited archive explicitly combines TEM and SAED data.",
-        "The repository exposes an archive-level MD5 checksum."
+        "The live API confirms the record ID, DOI, published status, CC BY 4.0 licence, and three-file inventory.",
+        "TEM_SAED.zip is exactly 1,417,789,651 bytes with MD5 c7bda9d495dd0fd657a8fe0332db4f9c.",
+        "The target archive has a valid public content link.",
+        "No source archive was downloaded during the metadata audit."
       ],
       "unresolved": [
         "archive member inventory and member checksums",
@@ -50,16 +71,18 @@
         "TEM image calibration and acquisition conditions",
         "SAED acquisition mode, detector metadata, pattern center, and reciprocal calibration",
         "independent TEM segmentation labels",
-        "verified non-use in analyzer development"
+        "verified non-use in analyzer development",
+        "meaning of the future publication_date"
       ],
-      "tem_role": "cross-material unlabeled source audit and ingestion diagnostic",
-      "saed_role": "bounded static-SAED source-audit candidate, subject to acquisition-mode confirmation",
-      "priority": "next_bounded_audit_after_predeclared_plan",
-      "status": "ready_for_bounded_source_audit",
+      "tem_role": "cross-material unlabeled source and representation audit candidate",
+      "saed_role": "bounded static-SAED archive audit candidate, subject to acquisition-mode confirmation",
+      "priority": "metadata_audit_complete_archive_inventory_pending",
+      "status": "metadata_audit_complete_archive_download_not_yet_authorized",
       "allowed_use": [
-        "archive integrity audit",
+        "record identity and checksum evidence",
+        "bounded transient archive inventory after explicit authorization",
         "file-format and metadata inventory",
-        "cross-material software diagnostics after intake"
+        "cross-material software diagnostics only after fail-closed intake"
       ],
       "prohibited_claims": [
         "cobalt-oxide in-domain TEM segmentation performance",
@@ -67,7 +90,7 @@
         "phase or reflection assignment",
         "engineering readiness"
       ],
-      "next_action": "Write and review a bounded member-selection and byte-budget plan before downloading the 1.4 GB archive; stop before analyzer execution if center, calibration, lineage, or independent labels are absent.",
+      "next_action": "Review the frozen exact-byte acquisition plan, preserve the future publication-date warning, and execute only a transient metadata-only archive inventory with no inference, annotation, or parameter tuning.",
       "external_validation_ready": false
     },
     {
@@ -297,7 +320,10 @@
     "source_audit_complete_diagnostic_only": [
       "repod_siowh6_cofeni_tem_saed"
     ],
-    "audit_after_bounded_plan": [
+    "metadata_audit_complete_archive_inventory_pending": [
+      "zenodo_18942976_silver_tem_saed"
+    ],
+    "archive_inventory_authorization_pending_review": [
       "zenodo_18942976_silver_tem_saed"
     ],
     "resolve_metadata_first": [
@@ -310,7 +336,7 @@
     "not_selected": [
       "empiar_general_archive"
     ],
-    "next_execution_priority": "write_bounded_zenodo_18942976_member_selection_plan",
+    "next_execution_priority": "execute_zenodo_18942976_transient_archive_inventory_after_review",
     "scientific_evidence_level": "Inconclusive",
     "external_validation_ready_count": 0
   }
