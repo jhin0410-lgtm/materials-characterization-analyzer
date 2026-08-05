@@ -26,3 +26,11 @@ def test_release_publish_job_sets_up_python_before_metadata_check() -> None:
     assert setup < metadata_check
     assert "permissions:\n      contents: write" in publish
     assert 'GH_TOKEN: ${{ github.token }}' in publish
+
+
+def test_release_publish_job_verifies_missing_tag_quietly() -> None:
+    text = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
+    publish = text.split("  publish-github-release:\n", maxsplit=1)[1]
+
+    assert 'git rev-parse --verify --quiet "${RELEASE_TAG}^{commit}"' in publish
+    assert 'git rev-parse "${RELEASE_TAG}^{commit}" 2>/dev/null' not in publish
