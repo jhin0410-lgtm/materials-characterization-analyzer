@@ -7,6 +7,7 @@ on:
       - "scripts/audit_zenodo_ge_dm3_tem_saed.py"
       - "scripts/run_zenodo_ge_dm3_tem_saed_audit.py"
       - "tests/test_audit_zenodo_ge_dm3_tem_saed.py"
+      - "tests/test_run_zenodo_ge_dm3_tem_saed_audit.py"
       - "case_studies/zenodo_ge_dm3_tem_saed_source_audit/**"
       - ".github/workflows/zenodo-ge-dm3-tem-saed-source-audit.yml"
   push:
@@ -16,6 +17,7 @@ on:
       - "scripts/audit_zenodo_ge_dm3_tem_saed.py"
       - "scripts/run_zenodo_ge_dm3_tem_saed_audit.py"
       - "tests/test_audit_zenodo_ge_dm3_tem_saed.py"
+      - "tests/test_run_zenodo_ge_dm3_tem_saed_audit.py"
       - "case_studies/zenodo_ge_dm3_tem_saed_source_audit/**"
       - ".github/workflows/zenodo-ge-dm3-tem-saed-source-audit.yml"
 
@@ -56,7 +58,9 @@ jobs:
           python -m py_compile \
             scripts/audit_zenodo_ge_dm3_tem_saed.py \
             scripts/run_zenodo_ge_dm3_tem_saed_audit.py
-          pytest -q tests/test_audit_zenodo_ge_dm3_tem_saed.py
+          pytest -q \
+            tests/test_audit_zenodo_ge_dm3_tem_saed.py \
+            tests/test_run_zenodo_ge_dm3_tem_saed_audit.py
 
       - name: Run live transient native-DM3 audit
         run: |
