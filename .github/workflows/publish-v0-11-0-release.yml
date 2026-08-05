@@ -152,6 +152,11 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Set up Python for release metadata verification
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
       - name: Download validated release assets
         uses: actions/download-artifact@v7
         with:
