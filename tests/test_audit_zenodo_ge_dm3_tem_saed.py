@@ -205,10 +205,12 @@ def test_required_member_must_resolve_exactly_once() -> None:
         verify_required_members(rows, ["missing.dm3"])
 
 
-def test_role_cues_do_not_convert_3d_ed_or_4d_stem_to_static_saed() -> None:
+def test_diffraction_cues_are_filename_diagnostics_not_mode_authority() -> None:
     assert "static_saed_name_cue" not in role_cues("3D_ED/rotation_series_001.dm3")
-    assert "static_saed_name_cue" not in role_cues("4DSTEM/diffraction_frame.dm3")
+    assert "static_saed_name_cue" in role_cues("4DSTEM/diffraction_frame.dm3")
     assert "static_saed_name_cue" in role_cues("Figure 3/Lo/w0 diff.dm3")
+    # The record-level acquisition-mode contract, not this cue, determines whether a
+    # member may be treated as static SAED.
 
 
 def test_repository_config_is_pinned_and_fail_closed() -> None:
