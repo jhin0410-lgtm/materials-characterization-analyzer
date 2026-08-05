@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0",
+  "snapshot_date": "2026-08-05",
+  "source_registry": "trusted_search_snapshot_2026-08-05.json",
+  "purpose": "Post-search disposition update after live access probes. This file preserves the original search snapshot while recording which next actions are executable now.",
+  "dispositions": [
+    {
+      "candidate_id": "fhi_ac_catlab_d63268_co3o4_otem_saed",
+      "record_evidence": "Supported",
+      "exact_material_relation": "Supported",
+      "anonymous_downloadability": "Unsupported",
+      "observed_access_state": "both listed /send links redirect to /login and return a login form",
+      "source_archive_audit": "blocked_authentication_required",
+      "external_validation_ready": false,
+      "next_action": "Request explicitly authorized access, archive checksums or a versioned manifest, data reuse terms, and member-level acquisition and calibration metadata from the repository or source authors. Do not supply, guess or bypass credentials."
+    },
+    {
+      "candidate_id": "zenodo_15082448_ge_tem_saed_dm3",
+      "record_evidence": "Supported",
+      "anonymous_downloadability": "Supported by the public Zenodo record",
+      "source_archive_audit": "next_executable_priority",
+      "external_validation_ready": false,
+      "next_action": "Run a checksum-bound archive and native-DM3 metadata audit. Preserve the source-reported SAED scale-bar correction and do not run analyzer inference or tune parameters."
+    },
+    {
+      "candidate_id": "dryad_6djh9w1hw_tise2_saed_hrtem",
+      "record_evidence": "Supported",
+      "anonymous_downloadability": "reported public; exact binary access and checksum remain to be verified",
+      "source_archive_audit": "second_executable_priority",
+      "external_validation_ready": false,
+      "next_action": "Resolve the exact Dryad file version and checksum, then audit experimental and simulated folders separately."
+    },
+    {
+      "candidate_id": "zenodo_10999587_bir_microed_200kev",
+      "record_evidence": "Supported",
+      "anonymous_downloadability": "Supported",
+      "source_archive_audit": "blocked_metadata_resolution_before_bounded_download",
+      "external_validation_ready": false,
+      "next_action": "Await or follow up on the author metadata request for detector, pixel geometry, centre, reciprocal calibration, sample lineage, reuse rights and analyzer-development non-use."
+    },
+    {
+      "candidate_id": "zenodo_10995139_bir_microed_300kev",
+      "record_evidence": "Supported",
+      "anonymous_downloadability": "Supported",
+      "source_archive_audit": "metadata_resolution_required",
+      "external_validation_ready": false,
+      "next_action": "Use the same authoritative metadata requirements as the 200 keV series before selecting a bounded two-series subset."
+    }
+  ],
+  "current_priority_order": [
+    "zenodo_15082448_ge_tem_saed_dm3",
+    "dryad_6djh9w1hw_tise2_saed_hrtem",
+    "mendeley_fcwyz3kv3k_change5_original_tem_saed",
+    "mendeley_w5jjhfp7v3_lunar_implantation_tem_saed",
+    "dryad_qnk98sfr1_fcc_extra_diffraction"
+  ],
+  "scientific_closeout": {
+    "evidence_level": "Diagnostic",
+    "result": "The exact-material FHI source remains the scientifically strongest record, but it is not anonymously downloadable despite the Open Access marker. Executable source auditing therefore moves to public native-format static-SAED candidates while FHI access is resolved.",
+    "tem_external_validation": "Inconclusive",
+    "saed_external_validation": "Inconclusive",
+    "engineering_readiness": "Unsupported"
+  }
+}
