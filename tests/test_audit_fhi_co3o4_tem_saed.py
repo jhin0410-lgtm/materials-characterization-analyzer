@@ -134,7 +134,7 @@ def test_zip_inventory_rejects_path_traversal(tmp_path: Path) -> None:
         inspect_zip(archive, archive.name, LIMITS)
 
 
-def test_live_config_and_trusted_snapshot_remain_fail_closed() -> None:
+def test_live_config_and_trusted_registries_remain_fail_closed() -> None:
     root = Path(__file__).resolve().parents[1]
     config = load_config(
         root / "case_studies/fhi_co3o4_tem_saed_source_audit/case_config.json"
@@ -147,11 +147,11 @@ def test_live_config_and_trusted_snapshot_remain_fail_closed() -> None:
     assert config["scientific_boundary"]["model_inference_authorized"] is False
     assert config["scientific_boundary"]["model_retraining_authorized"] is False
 
+    registry_root = root / "case_studies/open_tem_saed_candidates"
     snapshot = json.loads(
-        (
-            root
-            / "case_studies/open_tem_saed_candidates/trusted_search_snapshot_2026-08-05.json"
-        ).read_text(encoding="utf-8")
+        (registry_root / "trusted_search_snapshot_2026-08-05.json").read_text(
+            encoding="utf-8"
+        )
     )
     candidates = snapshot["candidates"]
     assert len(candidates) >= 10
@@ -159,3 +159,15 @@ def test_live_config_and_trusted_snapshot_remain_fail_closed() -> None:
     assert all(item["external_validation_ready"] is False for item in candidates)
     assert candidates[0]["candidate_id"] == "fhi_ac_catlab_d63268_co3o4_otem_saed"
     assert snapshot["scientific_closeout"]["evidence_level"] == "Diagnostic"
+
+    addendum = json.loads(
+        (registry_root / "trusted_search_addendum_2026-08-05.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    added = addendum["candidates"]
+    assert len(added) >= 5
+    assert len({item["candidate_id"] for item in added}) == len(added)
+    assert all(item["external_validation_ready"] is False for item in added)
+    assert added[0]["candidate_id"] == "zenodo_10512463_w_ta_cr_v_raw_tem_saed"
+    assert addendum["scientific_closeout"]["evidence_level"] == "Diagnostic"
