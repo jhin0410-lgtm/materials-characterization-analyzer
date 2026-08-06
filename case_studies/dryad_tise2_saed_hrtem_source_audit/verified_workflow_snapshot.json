@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "verified_at_utc": "2026-08-06T00:10:23Z",
+  "repository": "jhin0410-lgtm/materials-characterization-analyzer",
+  "branch": "agent/audit-dryad-tise2-saed-hrtem",
+  "workflow_run_id": 31058801085,
+  "workflow_conclusion": "success",
+  "workflow_artifact": {
+    "id": 8951281811,
+    "name": "dryad-tise2-saed-hrtem-source-audit-evidence",
+    "digest": "sha256:cd4266062904bf8160906a651ec3411aae55bf123c6d429c8492dec469433fda"
+  },
+  "source": {
+    "doi": "10.5061/dryad.6djh9w1hw",
+    "dryad_version_id": 447155,
+    "primary_file_id": 4808550,
+    "primary_filename": "Data_TiSe2.zip",
+    "dryad_declared_bytes": 1894856343,
+    "license": "CC0-1.0",
+    "upstream_digest_available": false
+  },
+  "result": {
+    "status": "dryad_metadata_verified_but_anonymous_archive_download_not_reproducible_from_github_runner",
+    "evidence_level": "Diagnostic",
+    "access_attempt_count": 3,
+    "api_declared_download": {
+      "status_code": 401,
+      "content_type": "application/json; charset=utf-8",
+      "sampled_bytes": 56,
+      "sample_sha256": "1ac025323ea66e58c9a8a0b960db5a839ef812e1ff8bfea2f3aff74dc3961296",
+      "classification": "authentication_required"
+    },
+    "legacy_public_stream": {
+      "status_code": 200,
+      "content_type": "text/html; charset=utf-8",
+      "sampled_bytes": 4327,
+      "sample_sha256": "a794560a6ad30866de73417eb196239ccb10cd29738174b589da61626c2b556b821",
+      "classification": "html_interstitial_not_archive"
+    },
+    "stash_public_stream": {
+      "status_code": 200,
+      "content_type": "text/html; charset=utf-8",
+      "sampled_bytes": 4327,
+      "sample_sha256": "bc4d02f55b1ce8105a023ee802586c144e3d89225f49c85685ff92a583b28452",
+      "classification": "html_interstitial_not_archive",
+      "final_path": "/downloads/file_stream/4808550"
+    }
+  },
+  "scientific_assessment": {
+    "dryad_dataset_identity": "Supported",
+    "file_version_binding": "Supported",
+    "reuse_authorization": "Supported",
+    "anonymous_archive_download_from_github_runner": "Unsupported",
+    "archive_checksum_and_member_integrity": "Inconclusive",
+    "experimental_simulation_member_separation": "Inconclusive_until_archive_access",
+    "reciprocal_calibration_and_pattern_centre": "Inconclusive",
+    "calibrated_saed_validation_ready": false,
+    "external_scientific_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "prohibited_inferences": [
+    "Do not treat the 4327-byte HTML responses as Data_TiSe2.zip.",
+    "Do not claim archive checksums, ZIP integrity, member counts or file formats.",
+    "Do not claim that Fig2, Fig3 or Fig4 members were independently inspected.",
+    "Do not run analyzer inference, indexing, tuning or retraining from this access result."
+  ]
+}
