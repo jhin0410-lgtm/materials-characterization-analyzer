@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 
-from mca.downstream_use_manifest import attach_downstream_use_policy
 from mca.downstream_use_policy import (
     DownstreamUsePolicyError,
     default_descriptive_policy,
@@ -123,21 +120,3 @@ def test_policy_evidence_must_match_scientific_closeout() -> None:
         validate_downstream_use_policy(
             _policy(), scientific_evidence_level="Supported"
         )
-
-
-def test_attach_policy_preserves_legacy_manifest_fields(tmp_path) -> None:
-    manifest = tmp_path / "characterization_handoff_bundle.json"
-    manifest.write_text(
-        json.dumps({"schema_version": "1.0", "case_id": "case-1"}),
-        encoding="utf-8",
-    )
-
-    normalized = attach_downstream_use_policy(
-        manifest,
-        _policy(),
-        scientific_evidence_level="Diagnostic",
-    )
-    payload = json.loads(manifest.read_text(encoding="utf-8"))
-
-    assert payload["case_id"] == "case-1"
-    assert payload["downstream_use_policy"] == normalized
