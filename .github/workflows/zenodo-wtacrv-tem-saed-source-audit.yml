@@ -1,0 +1,202 @@
+name: Zenodo WTaCrV TEM SAED source audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/audit_zenodo_wtacrv_tem_saed.py"
+      - "scripts/run_zenodo_wtacrv_tem_saed_audit.py"
+      - "tests/test_audit_zenodo_wtacrv_tem_saed.py"
+      - "tests/test_run_zenodo_wtacrv_tem_saed_audit.py"
+      - "case_studies/zenodo_wtacrv_tem_saed_source_audit/**"
+      - ".github/workflows/zenodo-wtacrv-tem-saed-source-audit.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/audit_zenodo_wtacrv_tem_saed.py"
+      - "scripts/run_zenodo_wtacrv_tem_saed_audit.py"
+      - "tests/test_audit_zenodo_wtacrv_tem_saed.py"
+      - "tests/test_run_zenodo_wtacrv_tem_saed_audit.py"
+      - "case_studies/zenodo_wtacrv_tem_saed_source_audit/**"
+      - ".github/workflows/zenodo-wtacrv-tem-saed-source-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-wtacrv-tem-saed-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install archive and audit dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full || sudo apt-get install -y 7zip
+          python -m pip install pillow pytest
+          command -v 7z || command -v 7zz || command -v 7za
+
+      - name: Run focused fail-closed tests
+        run: |
+          python -m py_compile \
+            scripts/audit_zenodo_wtacrv_tem_saed.py \
+            scripts/run_zenodo_wtacrv_tem_saed_audit.py
+          pytest -q \
+            tests/test_audit_zenodo_wtacrv_tem_saed.py \
+            tests/test_run_zenodo_wtacrv_tem_saed_audit.py
+
+      - name: Run live transient source audit
+        run: |
+          python -m scripts.run_zenodo_wtacrv_tem_saed_audit \
+            --config case_studies/zenodo_wtacrv_tem_saed_source_audit/case_config.json \
+            --output outputs/zenodo_wtacrv_tem_saed_source_audit
+
+      - name: Verify metadata-only evidence and scientific boundary
+        run: |
+          python - <<'PY'
+          import csv
+          import hashlib
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_wtacrv_tem_saed_source_audit")
+          summary = json.loads(
+              (root / "zenodo_wtacrv_tem_saed_audit_summary.json").read_text()
+          )
+          assert summary["status"] == (
+              "checksum_verified_wtacrv_tem_saed_archive_inventory_completed_but_"
+              "calibration_acquisition_lineage_and_independence_incomplete"
+          )
+          assert summary["evidence_level"] == "Diagnostic"
+          assert summary["record"]["id"] == 10512463
+          assert summary["record"]["doi"] == "10.5281/zenodo.10512463"
+          assert summary["record"]["status"] == "published"
+          assert summary["record"]["resource_type_id"] == "dataset"
+          assert summary["record"]["license_id"] == "odc-odbl"
+          assert summary["archive"] == {
+              "bytes": 729_576_221,
+              "key": "D_Kalita_NME.zip",
+              "md5": "2d3db56126bb936844c9d817b0a01f4c",
+              "sha256": "4f05691c5a2abb51cb6bba91fbeeecec5faffa22cd6d937d0f459eb419533bad",
+          }
+          assert summary["member_count"] == 48
+          assert summary["total_uncompressed_bytes"] == 729_566_169
+          assert summary["representation_counts"] == {
+              "lossless_or_lossless_capable_raster_export": 40,
+              "metadata_or_document": 2,
+              "native_microscopy_container": 5,
+              "other_or_unresolved": 1,
+          }
+          assert summary["suffix_counts"] == {
+              ".bmp": 13,
+              ".dm3": 2,
+              ".dm4": 3,
+              ".docx": 1,
+              ".tif": 27,
+              ".xlsx": 2,
+          }
+          assert summary["role_cue_counts"] == {
+              "as_deposited_condition_cue": 18,
+              "eds_name_cue": 17,
+              "irradiated_condition_cue": 7,
+              "saed_name_cue": 3,
+              "sem_folder": 6,
+              "tem_folder": 39,
+          }
+          assert summary["selected_header_member_count"] == 30
+          assert summary["selected_header_calibration_keyword_hits"] == []
+          assert summary["evidence_assessment"]["record_and_archive_identity"] == "Supported"
+          assert summary["evidence_assessment"]["safe_archive_integrity_and_inventory"] == "Supported"
+          assert summary["evidence_assessment"]["selected_member_identity_and_file_headers"] == "Supported"
+          assert summary["evidence_assessment"]["detector_native_intensity_preservation"] == "Inconclusive"
+          assert summary["evidence_assessment"]["pattern_centre_and_reciprocal_calibration"] == "Inconclusive"
+          assert summary["readiness"]["cross_material_software_diagnostic_ready"] is True
+          assert summary["readiness"]["calibrated_saed_validation_ready"] is False
+          assert summary["readiness"]["external_scientific_validation_ready"] is False
+          assert summary["readiness"]["engineering_decision_ready"] is False
+          assert summary["processing"]["source_archive_retained"] is False
+          assert summary["processing"]["source_members_retained"] is False
+          assert summary["processing"]["pixel_arrays_exported"] is False
+          assert summary["processing"]["model_inference_performed"] is False
+          assert summary["processing"]["parameter_tuning_performed"] is False
+          assert summary["processing"]["model_retraining_performed"] is False
+          assert summary["processing"]["phase_indexing_performed"] is False
+
+          with (root / "zenodo_wtacrv_member_inventory.csv").open(newline="") as handle:
+              inventory = list(csv.DictReader(handle))
+          assert len(inventory) == 48
+          assert all(not Path(row["member_path"]).is_absolute() for row in inventory)
+          for row in inventory:
+              cues = set(filter(None, row["wtacrv_role_cues"].split(";")))
+              assert not {
+                  "as_deposited_condition_cue",
+                  "irradiated_condition_cue",
+              } <= cues
+
+          with (root / "zenodo_wtacrv_selected_member_identity.csv").open(newline="") as handle:
+              selected = list(csv.DictReader(handle))
+          assert len(selected) == 30
+
+          metadata = json.loads(
+              (root / "zenodo_wtacrv_selected_header_metadata.json").read_text()
+          )
+          assert len(metadata) == 30
+          assert all(len(item["sha256"]) == 64 for item in metadata)
+          assert all(not Path(item["member_path"]).is_absolute() for item in metadata)
+          assert all(item["header"]["header_bytes"] <= 32 for item in metadata)
+          native = [item for item in metadata if item["suffix"] in {".dm3", ".dm4"}]
+          assert len(native) == 5
+          assert Counter(
+              item["header"]["digital_micrograph_version_big_endian"]
+              for item in native
+          ) == {3: 2, 4: 3}
+          assert all(
+              item["header"]["digital_micrograph_byte_order_marker"] == 1
+              for item in native
+          )
+          for item in native:
+              if item["suffix"] == ".dm4":
+                  assert (
+                      item["header"]["digital_micrograph_declared_payload_bytes_big_endian"]
+                      == item["bytes"] - 24
+                  )
+
+          manifest = json.loads(
+              (root / "zenodo_wtacrv_tem_saed_audit_manifest.json").read_text()
+          )
+          assert manifest["artifact_count"] == len(manifest["artifacts"])
+          for item in manifest["artifacts"]:
+              path = root / item["path"]
+              assert path.stat().st_size == item["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+
+          forbidden = {
+              ".zip", ".7z", ".dm3", ".dm4", ".emd", ".ser", ".emi",
+              ".mrc", ".mrcs", ".tif", ".tiff", ".bmp", ".png", ".jpg",
+              ".jpeg", ".emsa", ".msa"
+          }
+          assert not [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.lower() in forbidden
+          ]
+          PY
+
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-wtacrv-tem-saed-source-audit-evidence
+          path: outputs/zenodo_wtacrv_tem_saed_source_audit
+          if-no-files-found: error
+          retention-days: 30

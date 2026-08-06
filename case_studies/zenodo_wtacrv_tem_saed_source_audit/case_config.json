@@ -1,0 +1,63 @@
+{
+  "case_id": "zenodo_wtacrv_tem_saed_source_audit_v1",
+  "audit_date": "2026-08-06",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 10512463,
+    "doi": "10.5281/zenodo.10512463",
+    "record_url": "https://zenodo.org/records/10512463",
+    "api_url": "https://zenodo.org/api/records/10512463",
+    "expected_status": "published",
+    "expected_resource_type": "dataset",
+    "expected_title_substring": "low-activation W-Ta-Cr-V refractory high entropy alloy",
+    "allowed_license_ids": [
+      "odc-odbl"
+    ],
+    "target_file": {
+      "key": "D_Kalita_NME.zip",
+      "md5": "2d3db56126bb936844c9d817b0a01f4c"
+    },
+    "required_description_terms": [
+      "raw TEM images",
+      "selected area diffraction",
+      "EDS elemental maps",
+      "as-deposited",
+      "He-irradiated"
+    ],
+    "source_quality_flags": [
+      "The official Zenodo API identifies the reuse licence as odc-odbl; external displays may render the same ODbL family with a different label.",
+      "The Zenodo description calls the TEM images raw, but that wording does not prove detector-native intensity preservation for every member.",
+      "The deposit combines SEM/TKD and TEM/SAED/EDS materials; folder identity must be preserved and files must not be joined by row order.",
+      "As-deposited and He-irradiated conditions are scientifically distinct and must not be pooled without specimen-level lineage.",
+      "The source is a W-Ta-Cr-V refractory high-entropy alloy and is not an in-domain cobalt-oxide validation cohort.",
+      "A repository licence permits reuse but does not establish calibration, acquisition independence or analyzer-development non-use."
+    ]
+  },
+  "limits": {
+    "minimum_archive_bytes": 650000000,
+    "maximum_archive_bytes": 850000000,
+    "maximum_member_count": 30000,
+    "maximum_total_uncompressed_bytes": 12000000000,
+    "maximum_single_member_bytes": 3000000000,
+    "maximum_member_compression_ratio": 2000,
+    "maximum_selected_member_count": 30,
+    "maximum_selected_uncompressed_bytes": 1073741824
+  },
+  "scientific_boundary": {
+    "source_archive_download_authorized": true,
+    "archive_member_inventory_authorized": true,
+    "bounded_selected_member_header_inspection_authorized": true,
+    "source_archive_retention_authorized": false,
+    "source_files_may_be_uploaded_as_artifacts": false,
+    "archive_members_may_be_uploaded_as_artifacts": false,
+    "pixel_array_export_authorized": false,
+    "image_preprocessing_authorized": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "external_validation_claim_authorized": false,
+    "phase_indexing_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  }
+}

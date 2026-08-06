@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "verified_at_utc": "2026-08-06T00:36:40Z",
+  "repository": "jhin0410-lgtm/materials-characterization-analyzer",
+  "branch": "agent/audit-zenodo-wtacrv-tem-saed",
+  "workflow_run_id": 31060194307,
+  "workflow_conclusion": "success",
+  "workflow_artifact": {
+    "id": 8951794490,
+    "name": "zenodo-wtacrv-tem-saed-source-audit-evidence",
+    "digest": "sha256:398323aa7fe368420b98b88da05050b981a5594faea396b52534936b5e7898bf"
+  },
+  "source": {
+    "record_id": 10512463,
+    "doi": "10.5281/zenodo.10512463",
+    "license_id": "odc-odbl",
+    "archive_key": "D_Kalita_NME.zip",
+    "archive_bytes": 729576221,
+    "archive_md5": "2d3db56126bb936844c9d817b0a01f4c",
+    "archive_sha256": "4f05691c5a2abb51cb6bba91fbeeecec5faffa22cd6d937d0f459eb419533bad"
+  },
+  "archive_inventory": {
+    "regular_member_count": 48,
+    "total_uncompressed_bytes": 729566169,
+    "suffix_counts": {
+      ".bmp": 13,
+      ".dm3": 2,
+      ".dm4": 3,
+      ".docx": 1,
+      ".tif": 27,
+      ".xlsx": 2
+    },
+    "representation_counts": {
+      "lossless_or_lossless_capable_raster_export": 40,
+      "metadata_or_document": 2,
+      "native_microscopy_container": 5,
+      "other_or_unresolved": 1
+    },
+    "role_cue_counts": {
+      "as_deposited_condition_cue": 18,
+      "eds_name_cue": 17,
+      "irradiated_condition_cue": 7,
+      "saed_name_cue": 3,
+      "sem_folder": 6,
+      "tem_folder": 39
+    }
+  },
+  "native_microscopy_headers": [
+    {
+      "member_path": "D_Kalita_NME/TEM/SAED_HF_irradiated area.dm4",
+      "sha256": "1f9674d33dc07ed968b0dcd1b6d8283bc68defbf8c0110197b537e8979121dcc",
+      "version": 4,
+      "declared_payload_bytes": 17395058,
+      "byte_order_marker": 1
+    },
+    {
+      "member_path": "D_Kalita_NME/TEM/SAED_HF_unirradiated area.dm4",
+      "sha256": "dd9a84881d8ed228e948e72cbb16a8112f16e0d6d65f2f6cf7738a27f24a31d7",
+      "version": 4,
+      "declared_payload_bytes": 17394967,
+      "byte_order_marker": 1
+    },
+    {
+      "member_path": "D_Kalita_NME/TEM/TEM_as-deposited.dm3",
+      "sha256": "14b680604550202b19e01aa4f862305b88cc91b8e4c6cf15d12bf9f881874d06",
+      "version": 3,
+      "byte_order_marker": 1
+    },
+    {
+      "member_path": "D_Kalita_NME/TEM/TEM_SAED_as-deposited.dm3",
+      "sha256": "0687ad4f36dee0f74439e054444a52341ce5d7e4097095040f1298f38c95e69c",
+      "version": 3,
+      "byte_order_marker": 1
+    },
+    {
+      "member_path": "D_Kalita_NME/TEM/WTaCrV_HF_TEM_BF.dm4",
+      "sha256": "8bc61e671435c9f176bffb6a0211d5d12b63e0ef1933d9b70461cc2b8fb219e2",
+      "version": 4,
+      "declared_payload_bytes": 17396603,
+      "byte_order_marker": 1
+    }
+  ],
+  "scientific_assessment": {
+    "record_and_archive_identity": "Supported",
+    "safe_archive_integrity_and_inventory": "Supported",
+    "selected_member_identity_and_file_headers": "Supported",
+    "modality_and_condition_path_cues": "Diagnostic",
+    "detector_native_intensity_preservation": "Inconclusive",
+    "pattern_centre_and_reciprocal_calibration": "Inconclusive",
+    "acquisition_independence_and_development_non_use": "Inconclusive",
+    "cross_material_software_diagnostic_ready": true,
+    "calibrated_saed_validation_ready": false,
+    "external_scientific_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "prohibited_inferences": [
+    "Do not equate a source-declared raw image or native DM container with calibrated detector intensities.",
+    "Do not infer specimen pairing between as-deposited and irradiated files from folder names alone.",
+    "Do not use this W-Ta-Cr-V cohort as cobalt-oxide external validation.",
+    "Do not run phase indexing, parameter tuning, model retraining or engineering decisions from this source audit."
+  ]
+}
