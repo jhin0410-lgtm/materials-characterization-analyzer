@@ -1,7 +1,12 @@
 {
   "dataset_doi": "10.5061/dryad.6djh9w1hw",
   "dataset_api_url": "https://datadryad.org/api/v2/datasets/doi%3A10.5061%2Fdryad.6djh9w1hw",
-  "expected_title_fragment": "Revisiting the charge-density-wave superlattice of 1T-TiSe2",
+  "expected_title_tokens": [
+    "Revisiting",
+    "charge-density-wave",
+    "superlattice",
+    "1T-TiSe2"
+  ],
   "expected_archive_name": "Data_TiSe2.zip",
   "expected_readme_name": "README.md",
   "max_archive_bytes": 3000000000,
