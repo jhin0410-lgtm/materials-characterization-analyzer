@@ -1,0 +1,67 @@
+{
+  "dataset_doi": "10.5061/dryad.6djh9w1hw",
+  "dataset_api_url": "https://datadryad.org/api/v2/datasets/doi%3A10.5061%2Fdryad.6djh9w1hw",
+  "expected_title_fragment": "Revisiting the charge-density-wave superlattice of 1T-TiSe2",
+  "expected_archive_name": "Data_TiSe2.zip",
+  "expected_readme_name": "README.md",
+  "max_archive_bytes": 3000000000,
+  "max_member_count": 20000,
+  "max_total_uncompressed_bytes": 12000000000,
+  "max_member_bytes": 3000000000,
+  "max_compression_ratio": 250.0,
+  "required_experimental_prefixes": [
+    "Fig2_Data/"
+  ],
+  "required_simulation_prefixes": [
+    "Fig3_Data/",
+    "Fig4_Data/"
+  ],
+  "supplementary_prefixes": [
+    "S1_Data/",
+    "S2_Data/",
+    "S3_Data/",
+    "S4_Data/",
+    "S5_Data/",
+    "S6_Data/",
+    "S7_Data/",
+    "S8_Data/",
+    "S13_Data/",
+    "S14_Data/"
+  ],
+  "experimental_zone_axis_cues": [
+    "1-10",
+    "001"
+  ],
+  "allowed_image_suffixes": [
+    ".tif",
+    ".tiff",
+    ".bmp"
+  ],
+  "allowed_table_suffixes": [
+    ".xlsx",
+    ".xls",
+    ".csv",
+    ".txt"
+  ],
+  "forbidden_output_suffixes": [
+    ".zip",
+    ".tif",
+    ".tiff",
+    ".bmp",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".xlsx",
+    ".xls"
+  ],
+  "scientific_boundary": {
+    "material_domain": "1T-TiSe2, not cobalt oxide",
+    "allowed_use": "cross-material static-SAED source and preprocessing-separation diagnostic",
+    "external_validation_ready": false,
+    "engineering_decision_ready": false,
+    "model_inference_allowed": false,
+    "parameter_tuning_allowed": false,
+    "model_retraining_allowed": false,
+    "phase_indexing_allowed": false
+  }
+}
