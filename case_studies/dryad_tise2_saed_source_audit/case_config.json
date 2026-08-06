@@ -8,7 +8,9 @@
     "1T-TiSe2"
   ],
   "expected_archive_name": "Data_TiSe2.zip",
+  "expected_archive_file_id": 4808550,
   "expected_readme_name": "README.md",
+  "expected_readme_file_id": 4808551,
   "max_archive_bytes": 3000000000,
   "max_member_count": 20000,
   "max_total_uncompressed_bytes": 12000000000,
