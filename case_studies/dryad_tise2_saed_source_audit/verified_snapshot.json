@@ -1,6 +1,7 @@
 {
   "verified_at_utc": "2026-08-06T13:04:25Z",
-  "head_sha": "922122a3abbadb5715f00109e76c286e24326b57",
+  "verification_head_sha": "922122a3abbadb5715f00109e76c286e24326b57",
+  "documentation_head_sha": "40d4bee011e64d9d4f235288d64d3e3db6a1d778",
   "workflow": {
     "name": "Dryad TiSe2 SAED source audit",
     "run_id": 31104174442,
@@ -11,6 +12,14 @@
     "run_id": 31104173670,
     "run_number": 1707,
     "conclusion": "success"
+  },
+  "post_snapshot_validation": {
+    "source_audit_run_id": 31104382911,
+    "source_audit_run_number": 15,
+    "source_audit_conclusion": "success",
+    "ci_run_id": 31104382824,
+    "ci_run_number": 1711,
+    "ci_job_conclusion": "success"
   },
   "focused_tests": {
     "passed": 7,
