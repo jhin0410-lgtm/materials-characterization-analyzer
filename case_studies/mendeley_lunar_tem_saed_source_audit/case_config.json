@@ -1,5 +1,5 @@
 {
-  "case_id": "mendeley_lunar_tem_saed_source_audit_v1",
+  "case_id": "mendeley_lunar_tem_saed_source_audit_v2",
   "audit_date": "2026-08-06",
   "sources": [
     {
@@ -48,6 +48,121 @@
         "TEM, FTIR and NanoSIMS products must remain separated by stable file and folder identifiers.",
         "The source is lunar-material implantation data and is not an in-domain cobalt-oxide validation cohort.",
         "CC BY 4.0 permits reuse with attribution but does not establish reciprocal calibration, sample lineage, acquisition independence or analyzer-development non-use."
+      ]
+    },
+    {
+      "dataset_id": "p8kpdbrhrg",
+      "version": 2,
+      "doi": "10.17632/p8kpdbrhrg.2",
+      "landing_url": "https://data.mendeley.com/datasets/p8kpdbrhrg/2",
+      "expected_title_substring": "Chang’e Samples Reveal Spatial-Temporal Differences",
+      "expected_description_terms": [
+        "Original TEM data",
+        "Chang’e-5",
+        "Chang’e-6"
+      ],
+      "expected_license_terms": [
+        "CC BY 4.0",
+        "Creative Commons Attribution 4.0"
+      ],
+      "material_scope": "Chang'e-5 and Chang'e-6 lunar-regolith evolution TEM deposit",
+      "source_quality_flags": [
+        "The public description identifies original TEM data but does not enumerate microscopy modes, diffraction patterns, file formats or calibration metadata.",
+        "Version 2 supersedes version 1 and must remain bound to DOI 10.17632/p8kpdbrhrg.2.",
+        "Chang'e-5 and Chang'e-6 samples must not be pooled without specimen-level identifiers and collection context.",
+        "The source is lunar regolith and is not an in-domain cobalt-oxide validation cohort."
+      ]
+    },
+    {
+      "dataset_id": "ckpdp5wz7m",
+      "version": 1,
+      "doi": "10.17632/ckpdp5wz7m.1",
+      "landing_url": "https://data.mendeley.com/datasets/ckpdp5wz7m/1",
+      "expected_title_substring": "Million-Year Scale Meteoroid Flux Homogeneity",
+      "expected_description_terms": [
+        "Original TEM data",
+        "Chang'E-6",
+        "Gardening Simulations"
+      ],
+      "expected_license_terms": [
+        "CC BY 4.0",
+        "Creative Commons Attribution 4.0"
+      ],
+      "material_scope": "Chang'e-6 meteoroid-flux TEM data with gardening simulations",
+      "source_quality_flags": [
+        "The dataset title and description combine original TEM data with gardening simulations; experimental and simulated products must never be pooled as independent ground truth.",
+        "The public landing page does not establish TEM mode, SAED presence, detector-native format or reciprocal calibration.",
+        "Simulation inputs, outputs and experimental acquisitions require separate stable identifiers before use.",
+        "The source is lunar material and is not an in-domain cobalt-oxide validation cohort."
+      ]
+    },
+    {
+      "dataset_id": "xn73vjk95x",
+      "version": 1,
+      "doi": "10.17632/xn73vjk95x.1",
+      "landing_url": "https://data.mendeley.com/datasets/xn73vjk95x/1",
+      "expected_title_substring": "Million-year Solar Wind Irradiation",
+      "expected_description_terms": [
+        "Original TEM data",
+        "Chang'E-5",
+        "Chang'E-6"
+      ],
+      "expected_license_terms": [
+        "CC BY 4.0",
+        "Creative Commons Attribution 4.0"
+      ],
+      "material_scope": "Chang'e-5 and Chang'e-6 solar-wind irradiation TEM deposit",
+      "source_quality_flags": [
+        "The public description identifies original TEM data but does not establish individual file formats, acquisition settings or diffraction calibration.",
+        "Chang'e-5 and Chang'e-6 acquisitions require explicit sample, mission and preparation lineage.",
+        "Solar-wind exposure interpretation is a scientific claim and is not validated by repository provenance alone.",
+        "The source is lunar material and is not an in-domain cobalt-oxide validation cohort."
+      ]
+    },
+    {
+      "dataset_id": "g9rgyv53xt",
+      "version": 4,
+      "doi": "10.17632/g9rgyv53xt.4",
+      "landing_url": "https://data.mendeley.com/datasets/g9rgyv53xt/4",
+      "expected_title_substring": "Original TEM, EELS, and Micromagnetic simulation data",
+      "expected_description_terms": [
+        "Original TEM",
+        "EELS",
+        "Micromagnetic simulation"
+      ],
+      "expected_license_terms": [
+        "CC BY 4.0",
+        "Creative Commons Attribution 4.0"
+      ],
+      "material_scope": "Lunar alpha-Fe TEM and EELS with micromagnetic simulation products",
+      "source_quality_flags": [
+        "The deposit explicitly combines experimental TEM/EELS with micromagnetic simulations; modality and simulation boundaries are mandatory.",
+        "Version 4 is the current configured source and previous-version results must not be mixed silently.",
+        "Original-data wording does not establish detector-native intensity preservation, EELS calibration or independent validation.",
+        "The source is lunar alpha-Fe material and is not an in-domain cobalt-oxide validation cohort."
+      ]
+    },
+    {
+      "dataset_id": "c44477pxc7",
+      "version": 2,
+      "doi": "10.17632/c44477pxc7.2",
+      "landing_url": "https://data.mendeley.com/datasets/c44477pxc7/2",
+      "expected_title_substring": "Nanophase iron particles derived from olivine decomposition",
+      "expected_description_terms": [
+        "Original TEM",
+        "EELS",
+        "Chang’e-5 lunar soil"
+      ],
+      "expected_license_terms": [
+        "CC BY 4.0",
+        "Creative Commons Attribution 4.0"
+      ],
+      "material_scope": "Chang'e-5 nanophase-iron TEM and EELS deposit",
+      "source_quality_flags": [
+        "The source contains TEM and EELS products and they must remain separated by stable file and folder identifiers.",
+        "Version 2 supersedes the 2021 version and must remain bound to DOI 10.17632/c44477pxc7.2.",
+        "Original TEM/EELS wording does not establish detector-native format, energy calibration, preprocessing history or sample independence.",
+        "The source is lunar soil material and is not an in-domain cobalt-oxide validation cohort."
       ]
     }
   ],
