@@ -94,7 +94,7 @@ def _trusted_final_url(url: str) -> tuple[str, str]:
 
 def _classification(status: int, content_type: str, sample: bytes) -> str:
     lower_type = content_type.casefold()
-    lower_sample = sample[:1024].lstrip().casefold()
+    lower_sample = sample[:1024].lstrip().lower()
     if status == 401:
         return "authentication_required"
     if status == 403:
