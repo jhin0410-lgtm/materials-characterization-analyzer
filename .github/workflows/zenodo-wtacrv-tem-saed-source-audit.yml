@@ -5,7 +5,9 @@ on:
   pull_request:
     paths:
       - "scripts/audit_zenodo_wtacrv_tem_saed.py"
+      - "scripts/run_zenodo_wtacrv_tem_saed_audit.py"
       - "tests/test_audit_zenodo_wtacrv_tem_saed.py"
+      - "tests/test_run_zenodo_wtacrv_tem_saed_audit.py"
       - "case_studies/zenodo_wtacrv_tem_saed_source_audit/**"
       - ".github/workflows/zenodo-wtacrv-tem-saed-source-audit.yml"
   push:
@@ -13,7 +15,9 @@ on:
       - main
     paths:
       - "scripts/audit_zenodo_wtacrv_tem_saed.py"
+      - "scripts/run_zenodo_wtacrv_tem_saed_audit.py"
       - "tests/test_audit_zenodo_wtacrv_tem_saed.py"
+      - "tests/test_run_zenodo_wtacrv_tem_saed_audit.py"
       - "case_studies/zenodo_wtacrv_tem_saed_source_audit/**"
       - ".github/workflows/zenodo-wtacrv-tem-saed-source-audit.yml"
 
@@ -44,12 +48,16 @@ jobs:
 
       - name: Run focused fail-closed tests
         run: |
-          python -m py_compile scripts/audit_zenodo_wtacrv_tem_saed.py
-          pytest -q tests/test_audit_zenodo_wtacrv_tem_saed.py
+          python -m py_compile \
+            scripts/audit_zenodo_wtacrv_tem_saed.py \
+            scripts/run_zenodo_wtacrv_tem_saed_audit.py
+          pytest -q \
+            tests/test_audit_zenodo_wtacrv_tem_saed.py \
+            tests/test_run_zenodo_wtacrv_tem_saed_audit.py
 
       - name: Run live transient source audit
         run: |
-          python -m scripts.audit_zenodo_wtacrv_tem_saed \
+          python -m scripts.run_zenodo_wtacrv_tem_saed_audit \
             --config case_studies/zenodo_wtacrv_tem_saed_source_audit/case_config.json \
             --output outputs/zenodo_wtacrv_tem_saed_source_audit
 
@@ -74,7 +82,7 @@ jobs:
           assert summary["record"]["doi"] == "10.5281/zenodo.10512463"
           assert summary["record"]["status"] == "published"
           assert summary["record"]["resource_type_id"] == "dataset"
-          assert summary["record"]["license_id"]
+          assert summary["record"]["license_id"] == "odc-odbl"
           assert summary["archive"]["key"] == "D_Kalita_NME.zip"
           assert 650_000_000 <= summary["archive"]["bytes"] <= 850_000_000
           assert summary["archive"]["md5"] == "2d3db56126bb936844c9d817b0a01f4c"
@@ -112,6 +120,7 @@ jobs:
           assert len(metadata) == summary["selected_header_member_count"]
           assert all(len(item["sha256"]) == 64 for item in metadata)
           assert all(not Path(item["member_path"]).is_absolute() for item in metadata)
+          assert all(item["header"]["header_bytes"] <= 32 for item in metadata)
 
           manifest = json.loads(
               (root / "zenodo_wtacrv_tem_saed_audit_manifest.json").read_text()
