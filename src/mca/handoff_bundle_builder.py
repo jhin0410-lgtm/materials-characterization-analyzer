@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
+from .downstream_use_manifest import attach_downstream_use_policy
 from .handoff_bundle import (
     FEATURE_FILE_NAME,
     MANIFEST_FILE_NAME,
@@ -40,6 +41,7 @@ def build_characterization_handoff_bundle_from_config(
             "sample_context_rows",
             "scientific_boundary",
             "evidence",
+            "downstream_use_policy",
         },
         "handoff build config",
     )
@@ -54,6 +56,9 @@ def build_characterization_handoff_bundle_from_config(
     scientific_boundary = config.get("scientific_boundary")
     if not isinstance(scientific_boundary, dict):
         raise HandoffBundleBuildError("scientific_boundary must be an object")
+    downstream_use_policy = config.get("downstream_use_policy")
+    if downstream_use_policy is not None and not isinstance(downstream_use_policy, dict):
+        raise HandoffBundleBuildError("downstream_use_policy must be an object when provided")
     evidence = config.get("evidence")
     if not isinstance(evidence, dict) or set(evidence) != _REQUIRED_EVIDENCE:
         raise HandoffBundleBuildError(
@@ -97,6 +102,12 @@ def build_characterization_handoff_bundle_from_config(
             evidence_level=evidence_level,
             scientific_boundary=dict(scientific_boundary),
         )
+        if downstream_use_policy is not None:
+            attach_downstream_use_policy(
+                paths["manifest"],
+                downstream_use_policy,
+                scientific_evidence_level=evidence_level,
+            )
         validation = validate_characterization_handoff_bundle(stage)
         stage.replace(output)
         return {
