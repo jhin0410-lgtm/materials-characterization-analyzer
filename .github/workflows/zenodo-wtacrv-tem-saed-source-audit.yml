@@ -49,7 +49,7 @@ jobs:
 
       - name: Run live transient source audit
         run: |
-          python scripts/audit_zenodo_wtacrv_tem_saed.py \
+          python -m scripts.audit_zenodo_wtacrv_tem_saed \
             --config case_studies/zenodo_wtacrv_tem_saed_source_audit/case_config.json \
             --output outputs/zenodo_wtacrv_tem_saed_source_audit
 
