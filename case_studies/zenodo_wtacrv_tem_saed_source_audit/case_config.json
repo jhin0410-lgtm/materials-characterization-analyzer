@@ -11,7 +11,7 @@
     "expected_resource_type": "dataset",
     "expected_title_substring": "low-activation W-Ta-Cr-V refractory high entropy alloy",
     "allowed_license_ids": [
-      "odbl-1.0"
+      "odc-odbl"
     ],
     "target_file": {
       "key": "D_Kalita_NME.zip",
@@ -25,6 +25,7 @@
       "He-irradiated"
     ],
     "source_quality_flags": [
+      "The official Zenodo API identifies the reuse licence as odc-odbl; external displays may render the same ODbL family with a different label.",
       "The Zenodo description calls the TEM images raw, but that wording does not prove detector-native intensity preservation for every member.",
       "The deposit combines SEM/TKD and TEM/SAED/EDS materials; folder identity must be preserved and files must not be joined by row order.",
       "As-deposited and He-irradiated conditions are scientifically distinct and must not be pooled without specimen-level lineage.",
