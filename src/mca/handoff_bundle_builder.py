@@ -40,6 +40,7 @@ def build_characterization_handoff_bundle_from_config(
             "sample_context_rows",
             "scientific_boundary",
             "evidence",
+            "downstream_use_policy",
         },
         "handoff build config",
     )
@@ -54,6 +55,9 @@ def build_characterization_handoff_bundle_from_config(
     scientific_boundary = config.get("scientific_boundary")
     if not isinstance(scientific_boundary, dict):
         raise HandoffBundleBuildError("scientific_boundary must be an object")
+    downstream_use_policy = config.get("downstream_use_policy")
+    if downstream_use_policy is not None and not isinstance(downstream_use_policy, dict):
+        raise HandoffBundleBuildError("downstream_use_policy must be an object when provided")
     evidence = config.get("evidence")
     if not isinstance(evidence, dict) or set(evidence) != _REQUIRED_EVIDENCE:
         raise HandoffBundleBuildError(
@@ -96,6 +100,11 @@ def build_characterization_handoff_bundle_from_config(
             producer_repository=producer_repository,
             evidence_level=evidence_level,
             scientific_boundary=dict(scientific_boundary),
+            downstream_use_policy=(
+                dict(downstream_use_policy)
+                if downstream_use_policy is not None
+                else None
+            ),
         )
         validation = validate_characterization_handoff_bundle(stage)
         stage.replace(output)

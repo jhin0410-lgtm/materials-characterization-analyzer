@@ -10,6 +10,11 @@ from typing import Any
 
 import pandas as pd
 
+from .downstream_use_contract import (
+    DownstreamUsePolicyError,
+    default_descriptive_policy,
+    validate_downstream_use_policy,
+)
 from .feature_records import LONG_FEATURE_COLUMNS
 from .provenance import sha256_file
 
@@ -186,6 +191,7 @@ def write_characterization_handoff_bundle(
     producer_repository: str,
     evidence_level: str,
     scientific_boundary: Mapping[str, object],
+    downstream_use_policy: Mapping[str, object] | None = None,
 ) -> dict[str, Path]:
     """Write a portable bundle from persisted case evidence without a consumer import."""
     if not case_id.strip():
@@ -198,6 +204,19 @@ def write_characterization_handoff_bundle(
         )
     if not isinstance(scientific_boundary, Mapping):
         raise HandoffBundleContractError("scientific_boundary must be a mapping.")
+    try:
+        normalized_policy = (
+            default_descriptive_policy(evidence_level)
+            if downstream_use_policy is None
+            else validate_downstream_use_policy(
+                downstream_use_policy,
+                scientific_evidence_level=evidence_level,
+            )
+        )
+    except DownstreamUsePolicyError as exc:
+        raise HandoffBundleContractError(
+            f"invalid downstream_use_policy: {exc}"
+        ) from exc
 
     feature_table, software_versions, result_schema_versions = (
         _features_from_analysis_manifest(analysis_manifest_path)
@@ -290,6 +309,7 @@ def write_characterization_handoff_bundle(
             "evidence_level": evidence_level,
             **dict(scientific_boundary),
         },
+        "downstream_use_policy": normalized_policy,
     }
     manifest_bytes = (
         json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n"

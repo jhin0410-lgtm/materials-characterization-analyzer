@@ -14,6 +14,20 @@
     "suitable_for": ["software integration and provenance checks"],
     "unsuitable_for": ["causal, predictive, or engineering claims"]
   },
+  "downstream_use_policy": {
+    "schema_version": "1.0",
+    "maximum_allowed_use": "descriptive",
+    "feature_stage": "derived",
+    "evidence_level": "Diagnostic",
+    "review_status": "review_required",
+    "independence_group_field": null,
+    "measurement_timing": "unknown",
+    "causal_design_validated": false,
+    "operational_validation_validated": false,
+    "limitations": [
+      "No independent grouping or outcome-timing evidence has been established."
+    ]
+  },
   "evidence": {
     "source_manifest": "path/to/source_manifest.json",
     "analysis_manifest": "path/to/characterization_manifest.json",

@@ -5,15 +5,32 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from ..downstream_use_contract import (
+    DownstreamUsePolicyError,
+    validate_downstream_use_policy,
+)
 from ..provenance import sha256_file
 from .common import (
-    BUNDLE_SCHEMA_VERSION, BUNDLE_TYPE, FEATURE_FILE_NAME, MANIFEST_FILE_NAME,
-    SAMPLE_CONTEXT_FILE_NAME, SUPPORTED_EVIDENCE_LEVELS, VALIDATION_STATUS,
-    _REQUIRED_EVIDENCE_REFERENCES, HandoffBundleValidationError, _file_record,
-    _load_json_object, _nonempty_text, _object, _reject_unknown,
-    _safe_direct_file, _unique_text_list, _verify_file_record,
+    BUNDLE_SCHEMA_VERSION,
+    BUNDLE_TYPE,
+    FEATURE_FILE_NAME,
+    MANIFEST_FILE_NAME,
+    SAMPLE_CONTEXT_FILE_NAME,
+    SUPPORTED_EVIDENCE_LEVELS,
+    VALIDATION_STATUS,
+    _REQUIRED_EVIDENCE_REFERENCES,
+    HandoffBundleValidationError,
+    _file_record,
+    _load_json_object,
+    _nonempty_text,
+    _object,
+    _reject_unknown,
+    _safe_direct_file,
+    _unique_text_list,
+    _verify_file_record,
 )
 from .tables import _validate_context_table, _validate_feature_table
+
 
 def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str, Any]:
     """Validate bundle identity, checksums, schemas, joins, and claim boundaries.
@@ -41,6 +58,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             "sample_context",
             "evidence_references",
             "scientific_closeout",
+            "downstream_use_policy",
         },
         "bundle manifest",
     )
@@ -70,7 +88,9 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "missing_metadata_inferred": False,
     }
     if join_contract != expected_join:
-        raise HandoffBundleValidationError("join_contract must match the fail-closed sample_id contract")
+        raise HandoffBundleValidationError(
+            "join_contract must match the fail-closed sample_id contract"
+        )
 
     feature_record = _file_record(manifest.get("feature_table"), "feature_table")
     context_record = _file_record(manifest.get("sample_context"), "sample_context")
@@ -105,7 +125,35 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
     closeout = _object(manifest.get("scientific_closeout"), "scientific_closeout")
     evidence_level = _nonempty_text(closeout, "evidence_level")
     if evidence_level not in SUPPORTED_EVIDENCE_LEVELS:
-        raise HandoffBundleValidationError("unsupported scientific_closeout.evidence_level")
+        raise HandoffBundleValidationError(
+            "unsupported scientific_closeout.evidence_level"
+        )
+
+    policy_present = "downstream_use_policy" in manifest
+    downstream_use_policy: dict[str, Any] | None = None
+    if policy_present:
+        try:
+            downstream_use_policy = validate_downstream_use_policy(
+                _object(
+                    manifest.get("downstream_use_policy"),
+                    "downstream_use_policy",
+                ),
+                scientific_evidence_level=evidence_level,
+            )
+        except DownstreamUsePolicyError as exc:
+            raise HandoffBundleValidationError(
+                f"invalid downstream_use_policy: {exc}"
+            ) from exc
+        independence_group_field = downstream_use_policy[
+            "independence_group_field"
+        ]
+        if (
+            independence_group_field is not None
+            and independence_group_field not in context_table.columns
+        ):
+            raise HandoffBundleValidationError(
+                "downstream_use_policy independence_group_field is absent from sample_context"
+            )
 
     return {
         "schema_version": BUNDLE_SCHEMA_VERSION,
@@ -124,6 +172,8 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             sorted(Counter(feature_table["quality_flag"].astype(str)).items())
         ),
         "evidence_level": evidence_level,
+        "downstream_use_policy_present": policy_present,
+        "downstream_use_policy": downstream_use_policy,
         "sample_identity_consistent": True,
         "row_order_join_allowed": False,
         "aggregation_performed": False,
