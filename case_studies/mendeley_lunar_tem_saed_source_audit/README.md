@@ -6,41 +6,58 @@ original lunar-material TEM, HRTEM and selected-area electron diffraction data:
 - `fcwyz3kv3k`, version 1 — Chang'E-5 lunar minerals;
 - `w5jjhfp7v3`, version 1 — D+ implantation experiments on lunar materials.
 
-## Objective
+## Verified public metadata
 
-The immediate question is not whether the records mention TEM or SAED. It is
-whether the deposited files are native microscopy containers such as DM3/DM4,
-lossless raster exports such as TIFF/BMP, rendered figures, tables or documents.
-That distinction matters for interoperability and detector-intensity claims.
+Both public landing pages expose:
 
-## Bounded audit
+- the configured title, DOI and version;
+- TEM bright-field, high-resolution and SAED description terms;
+- a Files section and Download All control;
+- a `CC BY 4.0` licence.
+
+This supports the repository record and reuse terms. It does not identify the
+individual deposited file formats.
+
+## Current API-access result
+
+The current official Digital Commons Data API documentation marks the dataset,
+snapshot, versions, public files, public folders, ZIP metadata and file/ZIP
+redirect endpoints as OAuth2-authorized operations. Anonymous GitHub-runner
+requests to the documented endpoints return authorization responses.
+
+The audit therefore records:
+
+- public landing metadata: **Supported**;
+- anonymous documented API access in the current runner: **Unsupported**;
+- file UUIDs, byte counts, SHA-256 values and folder inventory: **Inconclusive**;
+- DM3/DM4 versus TIFF/BMP representation: **Inconclusive**;
+- calibrated-SAED and external-validation readiness: **false**.
+
+No OAuth token, browser cookie, session replay or access-control bypass is used.
+Response bodies are not retained; only bounded status, content type, length and
+SHA-256 evidence is published.
+
+## Bounded workflow
 
 The workflow:
 
-1. fetches each official public dataset record and verifies the configured DOI,
-   version, title, description terms and CC BY 4.0 licence;
-2. requests the public file inventory and folder tree, preserving file UUID,
-   folder identity, declared byte count, SHA-256 and content type when exposed;
-3. reconstructs folder paths without joining by row order or inferred filenames;
-4. classifies TEM/HRTEM/SAED, SEM/EDS and non-TEM measurement cues from stable
-   paths while keeping the modalities separate;
-5. selects at most 24 TEM/SAED-relevant files per dataset, prioritizing SAED and
-   native microscopy containers;
-6. downloads at most 64 KiB per selected file and classifies DM3, DM4, TIFF, BMP,
-   PNG, JPEG, Office/ZIP or PDF magic without retaining the full file;
-7. publishes metadata and header-hash evidence only.
-
-The workflow does not retain source files or export pixel arrays. A server that
-ignores the HTTP range request is still read only up to the configured header
-limit before the connection is closed.
+1. downloads each public landing page under a 2 MB bound;
+2. extracts visible text while excluding script/style content;
+3. verifies title, DOI, version, TEM/HRTEM/SAED terms and licence;
+4. probes seven documented API endpoints per dataset with no credentials and a
+   maximum 64 KiB response sample;
+5. records only trusted final host/path, status, content type, length and sample
+   SHA-256;
+6. runs the existing file-inventory and magic-header path only after authorized
+   metadata access becomes available.
 
 ## Scientific boundary
 
 The two sources are lunar-material datasets, not cobalt-oxide validation cohorts.
 Repository wording such as “original data” does not prove detector-native
 intensities, unmodified contrast, reciprocal calibration, sample lineage or
-acquisition independence. Native DM3/DM4 presence supports file-format
-interoperability only.
+acquisition independence. Until file UUID/hash/header evidence is obtained, even
+native-format interoperability remains unconfirmed.
 
 This case does not authorize image preprocessing, analyzer inference, annotation,
 phase indexing, d-spacing validation, parameter tuning, model retraining,
@@ -49,7 +66,7 @@ external-validation claims or engineering decisions.
 ## Run
 
 ```bash
-python -m scripts.audit_mendeley_lunar_tem_saed \
+python -m scripts.run_mendeley_lunar_tem_saed_audit \
   --config case_studies/mendeley_lunar_tem_saed_source_audit/case_config.json \
   --output outputs/mendeley_lunar_tem_saed_source_audit
 ```
