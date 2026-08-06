@@ -5,7 +5,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from ..downstream_use_policy import (
+from ..downstream_use_contract import (
     DownstreamUsePolicyError,
     validate_downstream_use_policy,
 )
@@ -144,6 +144,16 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             raise HandoffBundleValidationError(
                 f"invalid downstream_use_policy: {exc}"
             ) from exc
+        independence_group_field = downstream_use_policy[
+            "independence_group_field"
+        ]
+        if (
+            independence_group_field is not None
+            and independence_group_field not in context_table.columns
+        ):
+            raise HandoffBundleValidationError(
+                "downstream_use_policy independence_group_field is absent from sample_context"
+            )
 
     return {
         "schema_version": BUNDLE_SCHEMA_VERSION,
