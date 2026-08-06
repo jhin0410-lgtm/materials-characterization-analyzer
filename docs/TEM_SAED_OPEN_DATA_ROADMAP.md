@@ -1,223 +1,220 @@
 # TEM and SAED Open-Data Validation Roadmap
 
-Status date: **2026-08-05**
+Status date: **2026-08-06**
+
+Machine-readable status:
+
+`case_studies/open_tem_saed_candidates/audit_status_2026-08-06.json`
 
 ## Decision
 
-Open TEM and SAED data do exist. The limiting factor is not repository prestige by itself. The limiting factor is whether a record preserves enough task-matched evidence to support an independent scientific claim.
+Open TEM and SAED data exist. The limiting factor is not the number or prestige of repositories. The limiting factor is whether a source preserves enough task-matched evidence to support an independent scientific claim.
 
-A DOI, institutional repository, checksum, and reuse licence can establish source identity and legal reuse. They do not by themselves establish:
+A DOI, repository record, checksum, and reuse licence may establish source identity and lawful reuse. They do not by themselves establish:
 
-- native raw-detector status;
+- detector-native or demonstrably lossless intensity provenance;
 - immutable sample and acquisition identity;
-- independence from model development;
-- TEM segmentation ground truth;
-- static SAED acquisition and pattern identity;
-- pattern centre and reciprocal calibration;
-- comparability to the target material and instrument domain;
+- acquisition independence and non-use in analyzer development;
+- independent TEM segmentation ground truth;
+- static-SAED pattern identity;
+- pattern centre, camera geometry, and traceable reciprocal calibration;
+- comparability to the target material and acquisition domain;
 - enough independent samples or acquisitions for generalization claims.
 
-The repository therefore distinguishes four levels:
+The repository distinguishes four levels:
 
-1. **Public source:** files can be located and reused.
-2. **Metadata-audited source:** record identity, licence, file inventory, and archive checksum are pinned.
-3. **Bounded source-audited source:** the source archive and member identities are verified under a frozen, fail-closed procedure.
+1. **Public source:** a record can be located and its reuse basis can be assessed.
+2. **Metadata-audited source:** record identity, version, licence, and file references are pinned.
+3. **Bounded source-audited source:** exact source archives and selected member identities are verified under a frozen, fail-closed procedure.
 4. **External-validation-ready source:** every task-specific scientific gate is satisfied before analyzer execution.
 
-Two public sources have now reached level 3. None has reached level 4.
+Four public sources have reached level 3. None has reached level 4.
 
 ## Current state
 
 - Software baseline: `v0.11.0`.
-- TEM software validation: **Supported** for implemented behavior and fail-closed intake.
-- SAED software validation: **Supported** for implemented behavior and fail-closed intake.
-- RepOD CoFeNi source identity and archive integrity: **Supported**.
-- Zenodo silver source identity, archive integrity, and member hashing: **Supported**.
+- TEM implemented behavior and fail-closed intake: **Supported** as software validation.
+- SAED implemented behavior and fail-closed intake: **Supported** as software validation.
+- Bounded source audits completed for diagnostic use only: **4**.
+- Sources blocked at access or file-inventory resolution: **3**.
 - TEM independent in-domain external validation: **Inconclusive**.
 - SAED calibrated external validation: **Inconclusive**.
 - External-validation-ready analyzers: **0**.
 - Engineering-decision-ready analyzers: **0**.
 
-No analyzer algorithm, segmentation weight, SAED primary parameter, output schema, or scientific evidence threshold was changed during source acquisition.
+No analyzer weight, primary parameter, output schema, inclusion rule, or scientific evidence threshold was changed during these source audits.
 
-## Completed bounded audit 1 — RepOD CoFeNi TEM/HRTEM/SAED
+## Completed bounded source audits
+
+### 1. RepOD CoFeNi TEM/HRTEM/SAED
 
 Record: `10.18150/SIOWH6`
 
-Verified on 2026-08-05:
+Verified evidence:
 
-- RepOD version 1.0 and 12-file record inventory;
-- file-level CC BY 4.0 licence;
-- three target files with repository MD5 and computed SHA-256;
-- two valid ZIP archives and one standalone TIFF;
-- seven decodable TIFF members;
-- three SAED-named members, one HRTEM member, two BF/DF members, and one HAADF-STEM image;
-- no source archive or image retained in evidence.
+- RepOD record and file identity;
+- file-level CC BY 4.0 reuse terms;
+- repository MD5 and computed SHA-256 for the selected files;
+- safe ZIP integrity and member inventory;
+- seven TIFF members, including three SAED-named members;
+- no source archive or image retained in the evidence artifact.
 
-Scientific limitations:
+Primary limitations:
 
 - TIFF raster exports rather than native detector containers;
-- basic raster metadata only;
-- sample/acquisition identity and independence unresolved;
+- immutable sample/acquisition identity and independence unresolved;
 - independent TEM segmentation labels absent;
-- member-level static-SAED acquisition, centre, reciprocal calibration, and reference assignments unresolved;
-- CoFeNi is outside the current cobalt-oxide target domain.
-
-Closeout:
-
-- source identity and archive integrity: **Supported**;
-- analyzer scientific evidence: **Inconclusive**;
-- intake: `accepted_for_bounded_diagnostic_only`;
-- external-validation ready: false;
-- engineering-decision ready: false.
+- static-SAED centre, reciprocal calibration, and source-bound assignments unresolved;
+- CoFeNi is outside the cobalt-oxide target domain.
 
 Verified snapshot:
 
 `case_studies/repod_cofeni_tem_saed_source_audit/verified_snapshot.json`
 
-## Completed bounded audit 2 — Zenodo silver TEM/SAED
+### 2. Zenodo silver TEM/SAED
 
 Record: `10.5281/zenodo.18942976`
 
-### Metadata gate
+Verified evidence:
 
-Verified:
+- published record identity, CC BY 4.0 reuse terms, and three-file inventory;
+- exact `TEM_SAED.zip` byte count, repository MD5, and computed SHA-256;
+- safe archive integrity, CRC verification, and complete member hashing;
+- 241 members, including 212 TIFF raster exports;
+- two SAED result-text filename cues;
+- no source archive or member retained in the evidence artifact.
 
-- record ID `18942976`, DOI, and status `published`;
-- API resource type `image`;
-- licence `cc-by-4.0`;
-- three-file record inventory;
-- `TEM_SAED.zip` exact size `1,417,789,651` bytes;
-- archive MD5 `c7bda9d495dd0fd657a8fe0332db4f9c`.
+Primary limitations:
 
-Quality flags retained without reinterpretation:
+- no native microscopy container;
+- immutable sample/acquisition identity and independence unresolved;
+- independent TEM labels absent;
+- SAED result files are not unambiguously mapped to static diffraction-pattern images;
+- centre, reciprocal calibration, acquisition conditions, and source-bound assignments unresolved;
+- silver nanoparticles are outside the cobalt-oxide target domain;
+- the future-dated API publication metadata remain a retained quality flag rather than being normalized away.
 
-- API `publication_date` is `2027-05-10`, later than the 2026-08-05 audit date despite status `published`;
-- the multi-file raw-experimental record is classified as resource type `image`.
+Verified snapshots:
 
-Metadata snapshot:
+- `case_studies/zenodo_silver_tem_saed_metadata_audit/verified_snapshot.json`
+- `case_studies/zenodo_silver_tem_saed_archive_audit/verified_snapshot.json`
 
-`case_studies/zenodo_silver_tem_saed_metadata_audit/verified_snapshot.json`
+### 3. Zenodo W-Ta-Cr-V TEM/SAED
 
-### Archive gate
+Parent record: `10.5281/zenodo.10512357`
 
-The 1.417 GB archive was downloaded transiently, verified, streamed member-by-member, and deleted before artifact upload.
+Audited child record: `10.5281/zenodo.10512463`
 
-Verified:
+Verified evidence:
 
-- archive SHA-256 `4569a878be7053c2e84867a5693e9483fd9b937b765ce5e3be15e3f154b5fa12`;
-- 241 members;
-- total uncompressed bytes `1,732,391,068`;
-- complete member CRC and SHA-256 verification;
-- no unsafe paths, duplicate normalized paths, symlinks, encryption, unsupported compression, or configured limit violations;
-- no source member retained in evidence.
+- child record, DOI, ODbL licence, exact archive identity, MD5, and computed SHA-256;
+- safe inventory of 48 members;
+- five native DM3 or DM4 microscopy containers;
+- three SAED filename cues;
+- as-deposited and He-irradiated condition path cues;
+- selected native-file header identity.
 
-Archive composition:
+Primary limitations:
 
-- 212 TIFF raster exports;
-- 19 text files;
-- 9 DOCX files;
-- 1 XLSX file;
-- 0 native microscopy containers;
-- 0 JPEG-like rendered rasters;
-- all members under `MET/`.
-
-Only two members have explicit SAED filename cues:
-
-- `MET/Etanólico/ResultsSAED0016.txt`
-- `MET/Etanólico/ResultsSAED0017.txt`
-
-The inventory does not provide an unambiguous filename-level mapping from those result files to static diffraction-pattern images. No filename identifies a calibration file.
-
-Scientific limitations:
-
-- silver nanoparticles rather than cobalt oxide;
-- TIFF exports with unresolved native raw status;
-- folder and sequential filename conventions do not establish immutable sample/acquisition identity or independence;
-- independent TEM segmentation labels absent;
-- static SAED pattern identity, result-to-pattern mapping, acquisition conditions, centre, reciprocal calibration, and source-bound reflection assignments unresolved.
-
-Closeout:
-
-- source identity, archive integrity, and member hashing: **Supported**;
-- representation and filename inventory: **Supported**;
-- TEM external validation: **Inconclusive**;
-- SAED external validation: **Inconclusive**;
-- intake: `accepted_for_bounded_diagnostic_only`;
-- external-validation ready: false;
-- engineering-decision ready: false.
+- native-container presence does not prove detector-native intensity preservation;
+- source-assigned specimen pairing is unresolved;
+- pattern centre and reciprocal calibration are unresolved;
+- acquisition independence and analyzer-development non-use are unresolved;
+- W-Ta-Cr-V is outside the cobalt-oxide target domain.
 
 Verified snapshot:
 
-`case_studies/zenodo_silver_tem_saed_archive_audit/verified_snapshot.json`
+`case_studies/zenodo_wtacrv_tem_saed_source_audit/verified_workflow_snapshot.json`
 
-## Other candidates
+### 4. Zenodo Ge native-DM3 TEM/SAED
 
-### Zenodo W-Ta-Cr-V irradiation TEM/SAED
+Record: `10.5281/zenodo.15082448`
 
-Record: `10.5281/zenodo.10512357`
+Verified evidence:
 
-Potential value:
+- published record identity and CC BY 4.0 reuse terms;
+- exact 7z archive identity, MD5, computed SHA-256, and integrity test;
+- safe 92-member inventory;
+- 15 native DM3 microscopy containers;
+- record-declared same-location TEM/SAED pairs;
+- selected DM3 header version and byte-order identity.
 
-- record description states raw TEM images and SAED patterns;
-- as-deposited and He-irradiated conditions may support robustness diagnostics.
+Primary limitations:
 
-Current blockers:
+- the pinned ExifTool build classified the DM3 files as unknown and extracted no embedded microscopy metadata;
+- sample/acquisition lineage remains unresolved;
+- pattern centre and reciprocal calibration remain unresolved;
+- independent TEM labels and analyzer-development non-use remain unresolved;
+- Ge is outside the cobalt-oxide target domain.
 
-- exact linked record versions, files, and checksums unresolved;
-- member-level sample/acquisition lineage unresolved;
-- TEM labels and SAED calibration evidence absent.
+Verified snapshot:
 
-Action: resolve metadata before download. Do not add another large cross-material archive unless it addresses a specific unresolved limitation.
+`case_studies/zenodo_ge_dm3_tem_saed_source_audit/verified_snapshot.json`
 
-### NEMI 2026 workshop data
+## Access or file-inventory blocked sources
 
-Useful for native HyperSpy and SPED format interoperability. SPED is not static SAED and must not be relabeled as such. Use only for a defined file-format gap.
+### Mendeley lunar TEM/SAED registry
 
-### EMPIAR
+Seven version-pinned records have supported public landing-page identity, descriptions, and reuse terms. Documented metadata, file, folder, and ZIP endpoints consistently required OAuth authorization in the verified workflow.
 
-A reputable CC0 electron-microscopy archive, but primarily biological cryo-EM and volume EM. Archive reputation does not remove target-domain mismatch. Do not bulk-download records without a task-matched inorganic TEM or static-SAED candidate.
+Therefore, filenames, UUIDs, byte counts, hashes, formats, folders, detector provenance, and scientific lineage remain unresolved. Landing-page HTML hashes are observation snapshots, not immutable source-file checksums.
+
+Verified snapshot:
+
+`case_studies/mendeley_lunar_tem_saed_source_audit/verified_expanded_registry_snapshot.json`
+
+### Dryad TiSe2 SAED
+
+Record: `10.5061/dryad.6djh9w1hw`
+
+The record and target file identities are supported. The official dataset-bundle route returned HTTP 401 and the individual-file route returned HTTP 403 from the verified GitHub workflow. Archive integrity, experiment/simulation partition, lossless measurement provenance, calibration, and acquisition independence therefore remain inconclusive.
+
+Verified snapshot:
+
+`case_studies/dryad_tise2_saed_source_audit/verified_snapshot.json`
+
+### FHI Co3O4 TEM
+
+Record: `D63268`; sample: `S32564`.
+
+This is the most relevant exact-material source among the latest audits. Institutional record identity, RAW DATA classification, open-access marker, and Co3O4 context are supported. However, `TEM.zip` and `OTEM_2.zip` routes redirected to authentication, so archive/member identity, independent labels, calibration, and development non-use remain unresolved.
+
+Verified snapshot:
+
+`case_studies/fhi_co3o4_tem_saed_source_audit/verified_snapshot.json`
 
 ## Now
 
-### 1. Preserve the frozen source and evaluation contracts
+### 1. Preserve frozen contracts
 
 Use:
 
 - `case_studies/open_tem_saed_candidates/intake_runbook.md`
 - `case_studies/open_tem_saed_candidates/evaluation_protocol.md`
 
-Do not alter model weights, primary parameters, inclusion rules, or claim thresholds based on the audited public sources.
+Do not change model weights, primary parameters, inclusion rules, preprocessing, or claim thresholds based on any audited source.
 
-### 2. Convert confirmed gaps into author questions
+### 2. Resolve evidence that can change readiness
 
-For RepOD and Zenodo silver, request only evidence that can change readiness:
+For author or repository follow-up, request only evidence that closes a named gate:
 
 - original native detector/container files, if retained;
 - immutable sample and acquisition identifiers;
-- acquisition independence and repeated-field relationships;
+- repeated-field relationships and acquisition independence;
 - accelerating voltage, detector, camera length, pixel geometry, and acquisition mode;
-- explicit mapping between SAED result files and static diffraction-pattern images;
+- explicit mapping from SAED result files to static pattern files;
 - pattern centre and traceable reciprocal calibration;
 - source-supported reflection assignments;
-- independent TEM segmentation labels or permission to create blinded annotations.
+- independent TEM labels or permission for blinded annotation;
+- explicit confirmation that the proposed evaluation data were not used for analyzer development or selection.
 
-Do not ask for generic “more data.”
+Do not request generic “more data.”
 
-### 3. Continue searching for task-matched in-domain data
+### 3. Prioritize the exact-material access path
 
-Priority target:
+The highest-value unresolved path is FHI Co3O4 because it addresses material-domain mismatch. Access alone will not make it validation-ready; the archive must still pass checksum, lineage, label, overlap, and frozen-protocol gates.
 
-- independent cobalt-oxide TEM/HRTEM images;
-- at least two independent samples/acquisitions;
-- raw or demonstrably lossless source files;
-- acquisition metadata and scale calibration;
-- no overlap with the current training source;
-- annotation permission or existing labels.
-
-For SAED, priority is not volume. It is a small set of static patterns with traceable centre, reciprocal calibration, acquisition identity, and reference assignments.
-
-### 4. Preserve contact timeline
+### 4. Preserve the contact timeline
 
 - TEM requests sent: 2026-08-04.
 - SAED request sent: 2026-08-05.
@@ -227,7 +224,7 @@ For SAED, priority is not volume. It is a small set of static patterns with trac
 
 No response is recorded as `access_path_unresolved`, not as evidence that the data do not exist.
 
-## Next — when sufficient metadata or in-domain data arrive
+## Next — only when sufficient metadata or in-domain data arrive
 
 ### TEM
 
@@ -239,16 +236,16 @@ No response is recorded as `access_path_unresolved`, not as evidence that the da
 6. Report per-sample/acquisition performance and failure cases.
 7. Close out as Supported, Diagnostic, Inconclusive, or Unsupported.
 
-Cross-material data may support software robustness diagnostics. They cannot establish cobalt-oxide in-domain performance.
+Cross-material data may support software and representation diagnostics. They cannot establish cobalt-oxide in-domain performance.
 
 ### SAED
 
-1. Confirm static selected-area diffraction per pattern.
+1. Confirm static selected-area diffraction for each pattern.
 2. Bind accelerating voltage, detector, pixel geometry, centre, and reciprocal calibration.
 3. Freeze reference structures or source assignments.
 4. Predeclare primary and sensitivity settings.
-5. Use at least two independent patterns/acquisitions.
-6. Preserve unmatched rings and all failure cases.
+5. Use at least two independent patterns or acquisitions.
+6. Preserve unmatched rings and every failure case.
 7. Limit claims to the evidence actually supported.
 
 ## Later
@@ -268,11 +265,11 @@ Do not:
 
 - use publication figures as external ground truth;
 - infer SAED calibration from analyzer detections;
-- tune parameters on the candidate evaluation set;
-- treat silver or CoFeNi data as cobalt-oxide in-domain evidence;
-- treat sequential filenames as proof of independent acquisitions;
+- tune parameters on a candidate evaluation set;
+- treat cross-material data as cobalt-oxide in-domain evidence;
+- treat sequential filenames or folders as proof of independent acquisitions;
 - silently crop, smooth, normalize, interpolate, or relabel source data;
-- use checksum or test success as proof of scientific validity;
+- use checksum success, workflow success, or passing software tests as proof of scientific validity;
 - retrain the U-Net before an untouched evaluation protocol and holdout are secured.
 
 ## Closeout criterion
