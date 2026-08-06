@@ -7,6 +7,7 @@ import pytest
 from mca.downstream_use_manifest import attach_downstream_use_policy
 from mca.downstream_use_policy import (
     DownstreamUsePolicyError,
+    default_descriptive_policy,
     validate_downstream_use_policy,
 )
 
@@ -28,12 +29,34 @@ def _policy(**overrides: object) -> dict[str, object]:
     return policy
 
 
+def test_default_policy_is_descriptive_only() -> None:
+    policy = default_descriptive_policy("Diagnostic")
+    assert policy["maximum_allowed_use"] == "descriptive"
+    assert policy["measurement_timing"] == "unknown"
+    assert policy["independence_group_field"] is None
+
+
 def test_diagnostic_descriptive_policy_is_valid() -> None:
     result = validate_downstream_use_policy(
         _policy(), scientific_evidence_level="Diagnostic"
     )
     assert result["maximum_allowed_use"] == "descriptive"
     assert result["independence_group_field"] is None
+
+
+def test_association_requires_explicit_independence_group() -> None:
+    with pytest.raises(DownstreamUsePolicyError, match="association or stronger"):
+        validate_downstream_use_policy(
+            _policy(maximum_allowed_use="association")
+        )
+
+    result = validate_downstream_use_policy(
+        _policy(
+            maximum_allowed_use="association",
+            independence_group_field="specimen_id",
+        )
+    )
+    assert result["independence_group_field"] == "specimen_id"
 
 
 def test_diagnostic_policy_cannot_authorize_predictive_use() -> None:
@@ -90,6 +113,7 @@ def test_interpreted_features_require_review_above_descriptive() -> None:
                 maximum_allowed_use="association",
                 feature_stage="interpreted",
                 review_status="review_required",
+                independence_group_field="specimen_id",
             )
         )
 
