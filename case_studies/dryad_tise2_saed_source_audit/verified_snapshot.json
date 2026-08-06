@@ -1,0 +1,92 @@
+{
+  "verified_at_utc": "2026-08-06T13:04:25Z",
+  "verification_head_sha": "922122a3abbadb5715f00109e76c286e24326b57",
+  "documentation_head_sha": "40d4bee011e64d9d4f235288d64d3e3db6a1d778",
+  "workflow": {
+    "name": "Dryad TiSe2 SAED source audit",
+    "run_id": 31104174442,
+    "run_number": 13,
+    "conclusion": "success"
+  },
+  "repository_ci": {
+    "run_id": 31104173670,
+    "run_number": 1707,
+    "conclusion": "success"
+  },
+  "post_snapshot_validation": {
+    "source_audit_run_id": 31104382911,
+    "source_audit_run_number": 15,
+    "source_audit_conclusion": "success",
+    "ci_run_id": 31104382824,
+    "ci_run_number": 1711,
+    "ci_job_conclusion": "success"
+  },
+  "focused_tests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "artifact": {
+    "id": 8968788149,
+    "name": "dryad-tise2-saed-source-audit-evidence",
+    "bytes": 2308,
+    "digest": "sha256:62b8c9fa1fee8722c361b4f7b253c721fa70cb6dc01b7741271b81dd01a71f31",
+    "expires_at": "2026-09-05T13:04:25Z"
+  },
+  "record": {
+    "doi": "10.5061/dryad.6djh9w1hw",
+    "archive_name": "Data_TiSe2.zip",
+    "archive_file_id": 4808550,
+    "readme_name": "README.md",
+    "readme_file_id": 4808551
+  },
+  "observed_status": "record_verified_but_anonymous_download_blocked",
+  "access_attempts": [
+    {
+      "route": "official_dataset_bundle",
+      "http_status": 401,
+      "reason": "Unauthorized"
+    },
+    {
+      "route": "public_individual_file",
+      "http_status": 403,
+      "reason": "Forbidden"
+    }
+  ],
+  "evidence_assessment": {
+    "record_and_file_identity": "Supported",
+    "anonymous_source_download": "Unsupported",
+    "archive_integrity": "Inconclusive",
+    "experiment_simulation_partition": "Inconclusive",
+    "lossless_measurement_provenance": "Inconclusive",
+    "pattern_centre_camera_length_and_reciprocal_calibration": "Inconclusive",
+    "acquisition_lineage_and_independence": "Inconclusive"
+  },
+  "readiness": {
+    "external_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "artifact_manifest": {
+    "dryad_tise2_saed_audit_summary.json": {
+      "bytes": 1923,
+      "sha256": "3c6171ff10413629cc51bb72736afb4696f5d973df9e8f3308fbda20fbb0f894"
+    },
+    "dryad_tise2_saed_access_attempts.csv": {
+      "bytes": 106,
+      "sha256": "4277d12fce9754562351da87a90a83a1405c31b53a90cdd8e0c1a0d093a4c8a2"
+    },
+    "dryad_tise2_saed_audit_report.md": {
+      "bytes": 709,
+      "sha256": "96820e5dcf6978793e259c4ad4762e3f7403905debc45c6af695640b7073e619"
+    }
+  },
+  "processing": {
+    "source_bundle_retained": false,
+    "source_archive_retained": false,
+    "source_members_retained": false,
+    "pixel_arrays_exported": false,
+    "model_inference_performed": false,
+    "parameter_tuning_performed": false,
+    "model_retraining_performed": false,
+    "phase_indexing_performed": false
+  }
+}
