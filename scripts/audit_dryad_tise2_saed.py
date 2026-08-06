@@ -5,9 +5,11 @@ import csv
 import hashlib
 import html
 import json
+import os
 import re
 import tempfile
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -20,6 +22,23 @@ class DryadTiSe2AuditError(RuntimeError):
     """Raised when the pinned source contract is not satisfied."""
 
 
+class DryadAccessError(DryadTiSe2AuditError):
+    """Raised when a pinned Dryad download route rejects access."""
+
+    def __init__(self, route: str, status: int | None, reason: str) -> None:
+        super().__init__(f"Dryad access failed for {route}: {status} {reason}")
+        self.route = route
+        self.status = status
+        self.reason = reason
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "route": self.route,
+            "http_status": self.status,
+            "reason": self.reason,
+        }
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -28,13 +47,17 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _request(url: str) -> urllib.request.Request:
-    return urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "materials-characterization-analyzer/0.11",
-            "Accept": "application/json, application/zip, application/octet-stream;q=0.9, */*;q=0.1",
-        },
-    )
+    headers = {
+        "User-Agent": "materials-characterization-analyzer/0.11",
+        "Accept": (
+            "application/json, application/zip, "
+            "application/octet-stream;q=0.9, */*;q=0.1"
+        ),
+    }
+    token = os.environ.get("DRYAD_API_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return urllib.request.Request(url, headers=headers)
 
 
 def _fetch_json(url: str) -> dict[str, Any]:
@@ -42,9 +65,13 @@ def _fetch_json(url: str) -> dict[str, Any]:
         with urllib.request.urlopen(_request(url), timeout=90) as response:
             payload = json.load(response)
     except Exception as exc:
-        raise DryadTiSe2AuditError(f"failed to fetch Dryad JSON: {url}") from exc
+        raise DryadTiSe2AuditError(
+            f"failed to fetch Dryad JSON: {url}"
+        ) from exc
     if not isinstance(payload, dict):
-        raise DryadTiSe2AuditError(f"Dryad endpoint returned no object: {url}")
+        raise DryadTiSe2AuditError(
+            f"Dryad endpoint returned no object: {url}"
+        )
     return payload
 
 
@@ -73,7 +100,9 @@ def _file_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(candidates, list) or not all(
         isinstance(item, dict) for item in candidates
     ):
-        raise DryadTiSe2AuditError("Dryad file-list response has no valid file array")
+        raise DryadTiSe2AuditError(
+            "Dryad file-list response has no valid file array"
+        )
     return candidates
 
 
@@ -105,7 +134,8 @@ def _file_id(item: dict[str, Any]) -> int:
                 collect(nested)
         elif isinstance(value, str):
             for match in re.finditer(
-                r"(?:files|file_stream)/(\d+)(?:/download)?(?:$|[?#])",
+                r"(?:files|file_stream)/(\d+)"
+                r"(?:/download)?(?:$|[?#])",
                 value,
             ):
                 candidates.add(int(match.group(1)))
@@ -113,20 +143,25 @@ def _file_id(item: dict[str, Any]) -> int:
     collect(item.get("_links"))
     if len(candidates) != 1:
         raise DryadTiSe2AuditError(
-            f"Dryad file ID is missing or ambiguous for {_file_name(item)}: "
-            f"{sorted(candidates)}"
+            "Dryad file ID is missing or ambiguous for "
+            f"{_file_name(item)}: {sorted(candidates)}"
         )
     return next(iter(candidates))
 
 
-def _download(url: str, target: Path, max_bytes: int) -> tuple[int, str, str]:
+def _download(
+    url: str,
+    target: Path,
+    max_bytes: int,
+    route: str,
+) -> tuple[int, str, str]:
     md5 = hashlib.md5(usedforsecurity=False)
     sha256 = hashlib.sha256()
     total = 0
     try:
-        with urllib.request.urlopen(_request(url), timeout=180) as response, target.open(
-            "wb"
-        ) as handle:
+        with urllib.request.urlopen(
+            _request(url), timeout=180
+        ) as response, target.open("wb") as handle:
             while chunk := response.read(1024 * 1024):
                 total += len(chunk)
                 if total > max_bytes:
@@ -136,15 +171,35 @@ def _download(url: str, target: Path, max_bytes: int) -> tuple[int, str, str]:
                 md5.update(chunk)
                 sha256.update(chunk)
                 handle.write(chunk)
+    except urllib.error.HTTPError as exc:
+        target.unlink(missing_ok=True)
+        raise DryadAccessError(
+            route=route,
+            status=exc.code,
+            reason=str(exc.reason),
+        ) from exc
+    except urllib.error.URLError as exc:
+        target.unlink(missing_ok=True)
+        raise DryadAccessError(
+            route=route,
+            status=None,
+            reason=str(exc.reason),
+        ) from exc
     except DryadTiSe2AuditError:
+        target.unlink(missing_ok=True)
         raise
     except Exception as exc:
-        raise DryadTiSe2AuditError("failed to download Dryad dataset bundle") from exc
+        target.unlink(missing_ok=True)
+        raise DryadTiSe2AuditError(
+            f"unexpected Dryad download failure for {route}"
+        ) from exc
     return total, md5.hexdigest(), sha256.hexdigest()
 
 
 def _stream_copy(
-    source: BinaryIO, target: Path, max_bytes: int
+    source: BinaryIO,
+    target: Path,
+    max_bytes: int,
 ) -> tuple[int, str, str]:
     md5 = hashlib.md5(usedforsecurity=False)
     sha256 = hashlib.sha256()
@@ -166,7 +221,9 @@ def _normalize_title(value: str) -> str:
     unescaped = html.unescape(value)
     no_markup = re.sub(r"<[^>]+>", " ", unescaped)
     normalized = unicodedata.normalize("NFKD", no_markup).casefold()
-    return "".join(character for character in normalized if character.isalnum())
+    return "".join(
+        character for character in normalized if character.isalnum()
+    )
 
 
 def _title_matches(title: str, expected_tokens: list[str]) -> bool:
@@ -179,7 +236,9 @@ def _title_matches(title: str, expected_tokens: list[str]) -> bool:
 def _safe_member(info: zipfile.ZipInfo) -> str:
     path = PurePosixPath(info.filename.replace("\\", "/"))
     if path.is_absolute() or ".." in path.parts or not path.parts:
-        raise DryadTiSe2AuditError(f"unsafe ZIP member path: {info.filename}")
+        raise DryadTiSe2AuditError(
+            f"unsafe ZIP member path: {info.filename}"
+        )
     if not info.is_dir():
         mode = info.external_attr >> 16
         if mode and (mode & 0o170000) == 0o120000:
@@ -197,7 +256,9 @@ def _contains_partition(path: str, configured_prefix: str) -> bool:
     )
     prefix_parts = tuple(
         part.casefold()
-        for part in PurePosixPath(configured_prefix.replace("\\", "/")).parts
+        for part in PurePosixPath(
+            configured_prefix.replace("\\", "/")
+        ).parts
         if part not in ("", ".")
     )
     width = len(prefix_parts)
@@ -220,11 +281,15 @@ def _classify(path: str, config: dict[str, Any]) -> tuple[str, str]:
             break
 
     suffix = PurePosixPath(path).suffix.casefold()
-    if suffix in {str(value).casefold() for value in config["allowed_image_suffixes"]}:
-        representation = "raster_image"
-    elif suffix in {
+    image_suffixes = {
+        str(value).casefold() for value in config["allowed_image_suffixes"]
+    }
+    table_suffixes = {
         str(value).casefold() for value in config["allowed_table_suffixes"]
-    }:
+    }
+    if suffix in image_suffixes:
+        representation = "raster_image"
+    elif suffix in table_suffixes:
         representation = "table_or_text"
     else:
         representation = "other"
@@ -245,7 +310,9 @@ def _manifest(root: Path, files: list[Path]) -> dict[str, Any]:
     return {"artifact_count": len(artifacts), "artifacts": artifacts}
 
 
-def _validate_record(config: dict[str, Any]) -> tuple[str, dict[str, Any], dict[str, Any]]:
+def _validate_record(
+    config: dict[str, Any],
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
     dataset = _fetch_json(str(config["dataset_api_url"]))
     title = dataset.get("title")
     tokens = config.get("expected_title_tokens")
@@ -259,37 +326,54 @@ def _validate_record(config: dict[str, Any]) -> tuple[str, dict[str, Any], dict[
             "Dryad dataset title does not match pinned source identity tokens"
         )
     doi = dataset.get("identifier") or dataset.get("doi")
-    if not isinstance(doi, str) or str(config["dataset_doi"]).casefold() not in doi.casefold():
-        raise DryadTiSe2AuditError("Dryad DOI does not match pinned source")
+    expected_doi = str(config["dataset_doi"])
+    if not isinstance(doi, str) or expected_doi.casefold() not in doi.casefold():
+        raise DryadTiSe2AuditError(
+            "Dryad DOI does not match pinned source"
+        )
 
     version = _fetch_json(_link(dataset, "stash:version"))
     rows = _file_rows(_fetch_json(_link(version, "stash:files")))
     by_name = {_file_name(item): item for item in rows}
     if len(by_name) != len(rows):
-        raise DryadTiSe2AuditError("duplicate top-level Dryad filenames")
+        raise DryadTiSe2AuditError(
+            "duplicate top-level Dryad filenames"
+        )
     archive = by_name.get(str(config["expected_archive_name"]))
     readme = by_name.get(str(config["expected_readme_name"]))
     if archive is None or readme is None:
-        raise DryadTiSe2AuditError("required Dryad archive or README is missing")
+        raise DryadTiSe2AuditError(
+            "required Dryad archive or README is missing"
+        )
     if _file_id(archive) != int(config["expected_archive_file_id"]):
-        raise DryadTiSe2AuditError("Dryad archive file ID does not match pinned source")
+        raise DryadTiSe2AuditError(
+            "Dryad archive file ID does not match pinned source"
+        )
     if _file_id(readme) != int(config["expected_readme_file_id"]):
-        raise DryadTiSe2AuditError("Dryad README file ID does not match pinned source")
+        raise DryadTiSe2AuditError(
+            "Dryad README file ID does not match pinned source"
+        )
     return title, archive, readme
 
 
 def _extract_archive_from_bundle(
-    bundle_path: Path, archive_path: Path, config: dict[str, Any]
+    bundle_path: Path,
+    archive_path: Path,
+    config: dict[str, Any],
 ) -> tuple[int, str, str, int]:
     try:
         bundle = zipfile.ZipFile(bundle_path)
     except zipfile.BadZipFile as exc:
-        raise DryadTiSe2AuditError("Dryad dataset download is not a ZIP bundle") from exc
+        raise DryadTiSe2AuditError(
+            "Dryad dataset download is not a ZIP bundle"
+        ) from exc
 
     with bundle:
         infos = bundle.infolist()
         if len(infos) > int(config["max_bundle_member_count"]):
-            raise DryadTiSe2AuditError("Dryad bundle member count exceeds configured limit")
+            raise DryadTiSe2AuditError(
+                "Dryad bundle member count exceeds configured limit"
+            )
         seen: set[str] = set()
         regular: list[tuple[str, zipfile.ZipInfo]] = []
         for info in infos:
@@ -306,43 +390,50 @@ def _extract_archive_from_bundle(
         archive_matches = [
             info
             for path, info in regular
-            if PurePosixPath(path).name == str(config["expected_archive_name"])
+            if PurePosixPath(path).name
+            == str(config["expected_archive_name"])
         ]
         readme_matches = [
             info
             for path, info in regular
-            if PurePosixPath(path).name == str(config["expected_readme_name"])
+            if PurePosixPath(path).name
+            == str(config["expected_readme_name"])
         ]
         if len(archive_matches) != 1 or len(readme_matches) != 1:
             raise DryadTiSe2AuditError(
-                "Dryad dataset bundle does not uniquely contain the pinned archive and README"
+                "Dryad dataset bundle does not uniquely contain the "
+                "pinned archive and README"
             )
         archive_info = archive_matches[0]
         if archive_info.file_size > int(config["max_archive_bytes"]):
-            raise DryadTiSe2AuditError("embedded Dryad archive exceeds configured byte limit")
-        try:
-            with bundle.open(archive_info, "r") as source:
-                bytes_, md5, sha256 = _stream_copy(
-                    source, archive_path, int(config["max_archive_bytes"])
-                )
-        except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
             raise DryadTiSe2AuditError(
-                "failed to extract pinned archive from Dryad dataset bundle"
-            ) from exc
+                "embedded Dryad archive exceeds configured byte limit"
+            )
+        with bundle.open(archive_info, "r") as source:
+            bytes_, md5, sha256 = _stream_copy(
+                source,
+                archive_path,
+                int(config["max_archive_bytes"]),
+            )
         if bytes_ != archive_info.file_size:
-            raise DryadTiSe2AuditError("embedded Dryad archive byte count mismatch")
+            raise DryadTiSe2AuditError(
+                "embedded Dryad archive byte count mismatch"
+            )
         return bytes_, md5, sha256, len(regular)
 
 
 def _inventory_archive(
-    archive_path: Path, config: dict[str, Any]
+    archive_path: Path,
+    config: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], int]:
     inventory: list[dict[str, Any]] = []
     total_uncompressed = 0
     try:
         archive = zipfile.ZipFile(archive_path)
     except zipfile.BadZipFile as exc:
-        raise DryadTiSe2AuditError("pinned Dryad archive is not a valid ZIP") from exc
+        raise DryadTiSe2AuditError(
+            "pinned Dryad archive is not a valid ZIP"
+        ) from exc
 
     with archive:
         bad = archive.testzip()
@@ -350,7 +441,9 @@ def _inventory_archive(
             raise DryadTiSe2AuditError(f"ZIP CRC failure: {bad}")
         infos = archive.infolist()
         if len(infos) > int(config["max_member_count"]):
-            raise DryadTiSe2AuditError("ZIP member count exceeds configured limit")
+            raise DryadTiSe2AuditError(
+                "ZIP member count exceeds configured limit"
+            )
         seen: set[str] = set()
         for info in infos:
             path = _safe_member(info)
@@ -364,10 +457,14 @@ def _inventory_archive(
                 continue
             total_uncompressed += info.file_size
             if info.file_size > int(config["max_member_bytes"]):
-                raise DryadTiSe2AuditError(f"oversized ZIP member: {path}")
+                raise DryadTiSe2AuditError(
+                    f"oversized ZIP member: {path}"
+                )
             ratio = info.file_size / max(info.compress_size, 1)
             if ratio > float(config["max_compression_ratio"]):
-                raise DryadTiSe2AuditError(f"excessive compression ratio: {path}")
+                raise DryadTiSe2AuditError(
+                    f"excessive compression ratio: {path}"
+                )
             source_class, representation = _classify(path, config)
             inventory.append(
                 {
@@ -386,50 +483,161 @@ def _inventory_archive(
                 }
             )
     if total_uncompressed > int(config["max_total_uncompressed_bytes"]):
-        raise DryadTiSe2AuditError("ZIP expanded-size limit exceeded")
+        raise DryadTiSe2AuditError(
+            "ZIP expanded-size limit exceeded"
+        )
     if not inventory:
         raise DryadTiSe2AuditError("ZIP contains no regular members")
     return inventory, total_uncompressed
 
 
-def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
-    config = _read_json(config_path)
-    if output_dir.exists() and any(output_dir.iterdir()):
-        raise DryadTiSe2AuditError("output directory must be absent or empty")
-    output_dir.mkdir(parents=True, exist_ok=True)
+def _write_blocked_evidence(
+    output_dir: Path,
+    config: dict[str, Any],
+    title: str,
+    archive_item: dict[str, Any],
+    readme_item: dict[str, Any],
+    attempts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "status": "record_verified_but_anonymous_download_blocked",
+        "evidence_level": "Diagnostic",
+        "record": {
+            "doi": config["dataset_doi"],
+            "title": title,
+            "normalized_title": _normalize_title(title),
+            "archive_name": config["expected_archive_name"],
+            "archive_file_id": _file_id(archive_item),
+            "readme_name": config["expected_readme_name"],
+            "readme_file_id": _file_id(readme_item),
+        },
+        "access_attempts": attempts,
+        "evidence_assessment": {
+            "record_and_file_identity": "Supported",
+            "anonymous_source_download": "Unsupported",
+            "archive_integrity": "Inconclusive",
+            "experiment_simulation_partition": "Inconclusive",
+            "lossless_measurement_provenance": "Inconclusive",
+            "pattern_centre_camera_length_and_reciprocal_calibration": (
+                "Inconclusive"
+            ),
+            "acquisition_lineage_and_independence": "Inconclusive",
+        },
+        "readiness": {
+            "external_validation_ready": False,
+            "engineering_decision_ready": False,
+        },
+        "processing": {
+            "source_bundle_retained": False,
+            "source_archive_retained": False,
+            "source_members_retained": False,
+            "pixel_arrays_exported": False,
+            "model_inference_performed": False,
+            "parameter_tuning_performed": False,
+            "model_retraining_performed": False,
+            "phase_indexing_performed": False,
+        },
+        "unresolved": [
+            "authenticated or otherwise repository-supported source download",
+            "archive checksum and member inventory",
+            "archive-level verification of experimental and simulated folders",
+            "detector, exposure, camera length and reciprocal calibration",
+            "acquisition identity, sample-region mapping and independence",
+        ],
+    }
 
-    title, archive_item, readme_item = _validate_record(config)
-    with tempfile.TemporaryDirectory(prefix="dryad-tise2-") as temporary:
-        temporary_root = Path(temporary)
-        bundle_path = temporary_root / "dryad_dataset_bundle.zip"
-        archive_path = temporary_root / str(config["expected_archive_name"])
-        bundle_bytes, bundle_md5, bundle_sha256 = _download(
-            str(config["dataset_bundle_download_url"]),
-            bundle_path,
-            int(config["max_bundle_bytes"]),
+    summary_path = output_dir / "dryad_tise2_saed_audit_summary.json"
+    attempts_path = output_dir / "dryad_tise2_saed_access_attempts.csv"
+    report_path = output_dir / "dryad_tise2_saed_audit_report.md"
+    manifest_path = output_dir / "dryad_tise2_saed_audit_manifest.json"
+    summary_path.write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with attempts_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["route", "http_status", "reason"],
         )
-        archive_bytes, archive_md5, archive_sha256, bundle_member_count = (
-            _extract_archive_from_bundle(bundle_path, archive_path, config)
+        writer.writeheader()
+        writer.writerows(attempts)
+    report_path.write_text(
+        "# Dryad TiSe2 SAED/HRTEM source-access audit\n\n"
+        f"- Status: `{summary['status']}`\n"
+        f"- DOI: `{config['dataset_doi']}`\n"
+        f"- Archive file ID: `{_file_id(archive_item)}`\n"
+        "- Anonymous source download: **unsupported in the audited runner**\n"
+        "- Archive integrity: **inconclusive**\n"
+        "- External-validation ready: **no**\n\n"
+        "The official record and file identities were verified. The official "
+        "dataset-bundle and public individual-file routes rejected the audited "
+        "anonymous GitHub runner, so no archive bytes were inspected or retained. "
+        "A valid DRYAD_API_TOKEN may be supplied in a controlled environment to "
+        "resume the same fail-closed archive audit. No pixels, inference, tuning, "
+        "retraining or phase indexing were performed.\n",
+        encoding="utf-8",
+    )
+    manifest_path.write_text(
+        json.dumps(
+            _manifest(
+                output_dir,
+                [summary_path, attempts_path, report_path],
+            ),
+            indent=2,
+            sort_keys=True,
         )
-        inventory, total_uncompressed = _inventory_archive(archive_path, config)
+        + "\n",
+        encoding="utf-8",
+    )
+    return summary
 
+
+def _write_archive_evidence(
+    output_dir: Path,
+    config: dict[str, Any],
+    title: str,
+    archive_item: dict[str, Any],
+    readme_item: dict[str, Any],
+    route: str,
+    bundle_identity: dict[str, Any] | None,
+    archive_identity: dict[str, Any],
+    inventory: list[dict[str, Any]],
+    total_uncompressed: int,
+    attempts: list[dict[str, Any]],
+) -> dict[str, Any]:
     paths = [str(row["path"]) for row in inventory]
     for prefix in (
         config["required_experimental_prefixes"]
         + config["required_simulation_prefixes"]
     ):
         if not any(_contains_partition(path, prefix) for path in paths):
-            raise DryadTiSe2AuditError(f"required source partition missing: {prefix}")
+            raise DryadTiSe2AuditError(
+                f"required source partition missing: {prefix}"
+            )
 
-    experimental = [row for row in inventory if row["source_class"] == "experimental"]
-    simulation = [row for row in inventory if row["source_class"] == "simulation"]
+    experimental = [
+        row for row in inventory if row["source_class"] == "experimental"
+    ]
+    simulation = [
+        row for row in inventory if row["source_class"] == "simulation"
+    ]
     if not experimental or not simulation:
-        raise DryadTiSe2AuditError("experimental/simulation partition is empty")
-    if not any(row["representation"] == "raster_image" for row in experimental):
-        raise DryadTiSe2AuditError("no experimental raster image found")
+        raise DryadTiSe2AuditError(
+            "experimental/simulation partition is empty"
+        )
+    if not any(
+        row["representation"] == "raster_image" for row in experimental
+    ):
+        raise DryadTiSe2AuditError(
+            "no experimental raster image found"
+        )
 
-    source_counts = Counter(str(row["source_class"]) for row in inventory)
-    representation_counts = Counter(str(row["representation"]) for row in inventory)
+    source_counts = Counter(
+        str(row["source_class"]) for row in inventory
+    )
+    representation_counts = Counter(
+        str(row["representation"]) for row in inventory
+    )
     calibration_cues = [
         path
         for path in paths
@@ -459,24 +667,16 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
             "archive_file_id": _file_id(archive_item),
             "readme_file_id": _file_id(readme_item),
         },
-        "dataset_bundle": {
-            "bytes": bundle_bytes,
-            "md5": bundle_md5,
-            "sha256": bundle_sha256,
-            "regular_member_count": bundle_member_count,
-        },
-        "archive": {
-            "name": config["expected_archive_name"],
-            "file_id": _file_id(archive_item),
-            "bytes": archive_bytes,
-            "md5": archive_md5,
-            "sha256": archive_sha256,
-            "integrity_test_passed": True,
-        },
+        "successful_download_route": route,
+        "access_attempts_before_success": attempts,
+        "dataset_bundle": bundle_identity,
+        "archive": archive_identity,
         "member_count": len(inventory),
         "total_uncompressed_bytes": total_uncompressed,
         "source_class_counts": dict(sorted(source_counts.items())),
-        "representation_counts": dict(sorted(representation_counts.items())),
+        "representation_counts": dict(
+            sorted(representation_counts.items())
+        ),
         "experimental_image_count": sum(
             row["source_class"] == "experimental"
             and row["representation"] == "raster_image"
@@ -499,7 +699,9 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
             "archive_integrity": "Supported",
             "experiment_simulation_partition": "Supported",
             "lossless_measurement_provenance": "Inconclusive",
-            "pattern_centre_camera_length_and_reciprocal_calibration": "Inconclusive",
+            "pattern_centre_camera_length_and_reciprocal_calibration": (
+                "Inconclusive"
+            ),
             "acquisition_lineage_and_independence": "Inconclusive",
         },
         "readiness": {
@@ -519,8 +721,8 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
         "unresolved": [
             "authoritative mapping of every raster to acquisition ID and sample region",
             "detector, exposure, camera length and reciprocal-space calibration provenance",
-            "whether TIFF/BMP files are direct lossless detector exports or publication derivatives",
-            "complete preprocessing history for processed spreadsheets and line profiles",
+            "whether TIFF/BMP files are detector exports or publication derivatives",
+            "complete preprocessing history for spreadsheets and line profiles",
             "independence from analyzer development and parameter selection",
         ],
     }
@@ -530,7 +732,8 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
     report_path = output_dir / "dryad_tise2_saed_audit_report.md"
     manifest_path = output_dir / "dryad_tise2_saed_audit_manifest.json"
     summary_path.write_text(
-        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(summary, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
     with inventory_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(inventory[0]))
@@ -541,10 +744,12 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
         f"- Status: `{summary['status']}`\n"
         f"- DOI: `{config['dataset_doi']}`\n"
         f"- Archive file ID: `{_file_id(archive_item)}`\n"
-        f"- Archive SHA-256: `{archive_sha256}`\n"
+        f"- Archive SHA-256: `{archive_identity['sha256']}`\n"
         f"- Regular members: {len(inventory)}\n"
-        f"- Experimental raster images: {summary['experimental_image_count']}\n"
-        f"- Simulation raster images: {summary['simulation_image_count']}\n"
+        f"- Experimental raster images: "
+        f"{summary['experimental_image_count']}\n"
+        f"- Simulation raster images: "
+        f"{summary['simulation_image_count']}\n"
         "- External-validation ready: **no**\n\n"
         "Archive identity, integrity and experimental/simulation separation are "
         "supported. Detector provenance, acquisition identifiers, pattern centre, "
@@ -555,7 +760,10 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
     )
     manifest_path.write_text(
         json.dumps(
-            _manifest(output_dir, [summary_path, inventory_path, report_path]),
+            _manifest(
+                output_dir,
+                [summary_path, inventory_path, report_path],
+            ),
             indent=2,
             sort_keys=True,
         )
@@ -565,14 +773,121 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
     return summary
 
 
+def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
+    config = _read_json(config_path)
+    if output_dir.exists() and any(output_dir.iterdir()):
+        raise DryadTiSe2AuditError(
+            "output directory must be absent or empty"
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    title, archive_item, readme_item = _validate_record(config)
+    attempts: list[dict[str, Any]] = []
+    with tempfile.TemporaryDirectory(prefix="dryad-tise2-") as temporary:
+        temporary_root = Path(temporary)
+        bundle_path = temporary_root / "dryad_dataset_bundle.zip"
+        archive_path = temporary_root / str(config["expected_archive_name"])
+        bundle_identity: dict[str, Any] | None = None
+        successful_route: str | None = None
+
+        try:
+            bundle_bytes, bundle_md5, bundle_sha256 = _download(
+                str(config["dataset_bundle_download_url"]),
+                bundle_path,
+                int(config["max_bundle_bytes"]),
+                route="official_dataset_bundle",
+            )
+            (
+                archive_bytes,
+                archive_md5,
+                archive_sha256,
+                bundle_member_count,
+            ) = _extract_archive_from_bundle(
+                bundle_path,
+                archive_path,
+                config,
+            )
+            bundle_identity = {
+                "bytes": bundle_bytes,
+                "md5": bundle_md5,
+                "sha256": bundle_sha256,
+                "regular_member_count": bundle_member_count,
+            }
+            successful_route = "official_dataset_bundle"
+        except DryadAccessError as exc:
+            attempts.append(exc.as_dict())
+            public_url = (
+                "https://datadryad.org/downloads/file_stream/"
+                f"{_file_id(archive_item)}"
+            )
+            try:
+                archive_bytes, archive_md5, archive_sha256 = _download(
+                    public_url,
+                    archive_path,
+                    int(config["max_archive_bytes"]),
+                    route="public_individual_file",
+                )
+                successful_route = "public_individual_file"
+            except DryadAccessError as fallback_exc:
+                attempts.append(fallback_exc.as_dict())
+                return _write_blocked_evidence(
+                    output_dir=output_dir,
+                    config=config,
+                    title=title,
+                    archive_item=archive_item,
+                    readme_item=readme_item,
+                    attempts=attempts,
+                )
+
+        if successful_route is None:
+            raise DryadTiSe2AuditError(
+                "no Dryad source-download route completed"
+            )
+        inventory, total_uncompressed = _inventory_archive(
+            archive_path,
+            config,
+        )
+        archive_identity = {
+            "name": config["expected_archive_name"],
+            "file_id": _file_id(archive_item),
+            "bytes": archive_bytes,
+            "md5": archive_md5,
+            "sha256": archive_sha256,
+            "integrity_test_passed": True,
+        }
+
+    return _write_archive_evidence(
+        output_dir=output_dir,
+        config=config,
+        title=title,
+        archive_item=archive_item,
+        readme_item=readme_item,
+        route=successful_route,
+        bundle_identity=bundle_identity,
+        archive_identity=archive_identity,
+        inventory=inventory,
+        total_uncompressed=total_uncompressed,
+        attempts=attempts,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Audit the Dryad TiSe2 SAED/HRTEM archive without retaining source data."
+        description=(
+            "Audit the Dryad TiSe2 SAED/HRTEM archive without retaining "
+            "source data."
+        )
     )
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    print(json.dumps(run(args.config, args.output), indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            run(args.config, args.output),
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
