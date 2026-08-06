@@ -1,0 +1,89 @@
+name: Dryad TiSe2 SAED source audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/audit_dryad_tise2_saed.py"
+      - "tests/test_audit_dryad_tise2_saed.py"
+      - "case_studies/dryad_tise2_saed_source_audit/**"
+      - ".github/workflows/dryad-tise2-saed-source-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/audit_dryad_tise2_saed.py"
+      - "tests/test_audit_dryad_tise2_saed.py"
+      - "case_studies/dryad_tise2_saed_source_audit/**"
+      - ".github/workflows/dryad-tise2-saed-source-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dryad-tise2-saed-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused tests
+        run: |
+          python -m py_compile scripts/audit_dryad_tise2_saed.py
+          pytest -q tests/test_audit_dryad_tise2_saed.py
+      - name: Run live transient audit
+        run: |
+          python scripts/audit_dryad_tise2_saed.py \
+            --config case_studies/dryad_tise2_saed_source_audit/case_config.json \
+            --output outputs/dryad_tise2_saed_source_audit
+      - name: Verify scientific boundary and source leakage
+        run: |
+          python - <<'PY'
+          import csv
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/dryad_tise2_saed_source_audit")
+          summary = json.loads((root / "dryad_tise2_saed_audit_summary.json").read_text())
+          assert summary["record"]["doi"] == "10.5061/dryad.6djh9w1hw"
+          assert summary["archive"]["integrity_test_passed"] is True
+          assert len(summary["archive"]["sha256"]) == 64
+          assert summary["member_count"] > 0
+          assert summary["experimental_image_count"] > 0
+          assert summary["simulation_image_count"] > 0
+          assert summary["evidence_assessment"]["experiment_simulation_partition"] == "Supported"
+          assert summary["evidence_assessment"]["pattern_centre_camera_length_and_reciprocal_calibration"] == "Inconclusive"
+          assert summary["readiness"]["external_validation_ready"] is False
+          assert summary["readiness"]["engineering_decision_ready"] is False
+          assert all(value is False for value in summary["processing"].values())
+
+          with (root / "dryad_tise2_saed_member_inventory.csv").open(newline="", encoding="utf-8") as handle:
+              rows = list(csv.DictReader(handle))
+          assert len(rows) == summary["member_count"]
+          assert {row["source_class"] for row in rows} >= {"experimental", "simulation"}
+
+          manifest = json.loads((root / "dryad_tise2_saed_audit_manifest.json").read_text())
+          for item in manifest["artifacts"]:
+              path = root / item["path"]
+              assert path.stat().st_size == item["bytes"]
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"]
+
+          forbidden = {".zip", ".tif", ".tiff", ".bmp", ".png", ".jpg", ".jpeg", ".xlsx", ".xls"}
+          assert not [p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in forbidden]
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dryad-tise2-saed-source-audit-evidence
+          path: outputs/dryad_tise2_saed_source_audit
+          if-no-files-found: error
+          retention-days: 30
