@@ -13,7 +13,7 @@ import urllib.request
 import zipfile
 from collections import Counter
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, BinaryIO
 
 
 class DryadTiSe2AuditError(RuntimeError):
@@ -27,12 +27,19 @@ def _read_json(path: Path) -> dict[str, Any]:
     return value
 
 
-def _fetch_json(url: str) -> dict[str, Any]:
-    request = urllib.request.Request(
-        url, headers={"User-Agent": "materials-characterization-analyzer/0.11"}
+def _request(url: str) -> urllib.request.Request:
+    return urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "materials-characterization-analyzer/0.11",
+            "Accept": "application/json, application/zip, application/octet-stream;q=0.9, */*;q=0.1",
+        },
     )
+
+
+def _fetch_json(url: str) -> dict[str, Any]:
     try:
-        with urllib.request.urlopen(request, timeout=90) as response:
+        with urllib.request.urlopen(_request(url), timeout=90) as response:
             payload = json.load(response)
     except Exception as exc:
         raise DryadTiSe2AuditError(f"failed to fetch Dryad JSON: {url}") from exc
@@ -112,28 +119,19 @@ def _file_id(item: dict[str, Any]) -> int:
     return next(iter(candidates))
 
 
-def _download_url(item: dict[str, Any]) -> str:
-    """Use the public file URL emitted by the Dryad landing page."""
-
-    return f"https://datadryad.org/downloads/file_stream/{_file_id(item)}"
-
-
 def _download(url: str, target: Path, max_bytes: int) -> tuple[int, str, str]:
-    request = urllib.request.Request(
-        url, headers={"User-Agent": "materials-characterization-analyzer/0.11"}
-    )
     md5 = hashlib.md5(usedforsecurity=False)
     sha256 = hashlib.sha256()
     total = 0
     try:
-        with urllib.request.urlopen(request, timeout=180) as response, target.open(
+        with urllib.request.urlopen(_request(url), timeout=180) as response, target.open(
             "wb"
         ) as handle:
             while chunk := response.read(1024 * 1024):
                 total += len(chunk)
                 if total > max_bytes:
                     raise DryadTiSe2AuditError(
-                        "Dryad archive exceeds configured byte limit"
+                        "Dryad download exceeds configured byte limit"
                     )
                 md5.update(chunk)
                 sha256.update(chunk)
@@ -141,7 +139,26 @@ def _download(url: str, target: Path, max_bytes: int) -> tuple[int, str, str]:
     except DryadTiSe2AuditError:
         raise
     except Exception as exc:
-        raise DryadTiSe2AuditError("failed to download Dryad archive") from exc
+        raise DryadTiSe2AuditError("failed to download Dryad dataset bundle") from exc
+    return total, md5.hexdigest(), sha256.hexdigest()
+
+
+def _stream_copy(
+    source: BinaryIO, target: Path, max_bytes: int
+) -> tuple[int, str, str]:
+    md5 = hashlib.md5(usedforsecurity=False)
+    sha256 = hashlib.sha256()
+    total = 0
+    with target.open("wb") as handle:
+        while chunk := source.read(1024 * 1024):
+            total += len(chunk)
+            if total > max_bytes:
+                raise DryadTiSe2AuditError(
+                    "embedded Dryad archive exceeds configured byte limit"
+                )
+            md5.update(chunk)
+            sha256.update(chunk)
+            handle.write(chunk)
     return total, md5.hexdigest(), sha256.hexdigest()
 
 
@@ -261,12 +278,73 @@ def _validate_record(config: dict[str, Any]) -> tuple[str, dict[str, Any], dict[
     return title, archive, readme
 
 
+def _extract_archive_from_bundle(
+    bundle_path: Path, archive_path: Path, config: dict[str, Any]
+) -> tuple[int, str, str, int]:
+    try:
+        bundle = zipfile.ZipFile(bundle_path)
+    except zipfile.BadZipFile as exc:
+        raise DryadTiSe2AuditError("Dryad dataset download is not a ZIP bundle") from exc
+
+    with bundle:
+        infos = bundle.infolist()
+        if len(infos) > int(config["max_bundle_member_count"]):
+            raise DryadTiSe2AuditError("Dryad bundle member count exceeds configured limit")
+        seen: set[str] = set()
+        regular: list[tuple[str, zipfile.ZipInfo]] = []
+        for info in infos:
+            path = _safe_member(info)
+            key = path.casefold()
+            if key in seen:
+                raise DryadTiSe2AuditError(
+                    f"duplicate case-folded Dryad bundle path: {path}"
+                )
+            seen.add(key)
+            if not info.is_dir():
+                regular.append((path, info))
+
+        archive_matches = [
+            info
+            for path, info in regular
+            if PurePosixPath(path).name == str(config["expected_archive_name"])
+        ]
+        readme_matches = [
+            info
+            for path, info in regular
+            if PurePosixPath(path).name == str(config["expected_readme_name"])
+        ]
+        if len(archive_matches) != 1 or len(readme_matches) != 1:
+            raise DryadTiSe2AuditError(
+                "Dryad dataset bundle does not uniquely contain the pinned archive and README"
+            )
+        archive_info = archive_matches[0]
+        if archive_info.file_size > int(config["max_archive_bytes"]):
+            raise DryadTiSe2AuditError("embedded Dryad archive exceeds configured byte limit")
+        try:
+            with bundle.open(archive_info, "r") as source:
+                bytes_, md5, sha256 = _stream_copy(
+                    source, archive_path, int(config["max_archive_bytes"])
+                )
+        except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
+            raise DryadTiSe2AuditError(
+                "failed to extract pinned archive from Dryad dataset bundle"
+            ) from exc
+        if bytes_ != archive_info.file_size:
+            raise DryadTiSe2AuditError("embedded Dryad archive byte count mismatch")
+        return bytes_, md5, sha256, len(regular)
+
+
 def _inventory_archive(
     archive_path: Path, config: dict[str, Any]
 ) -> tuple[list[dict[str, Any]], int]:
     inventory: list[dict[str, Any]] = []
     total_uncompressed = 0
-    with zipfile.ZipFile(archive_path) as archive:
+    try:
+        archive = zipfile.ZipFile(archive_path)
+    except zipfile.BadZipFile as exc:
+        raise DryadTiSe2AuditError("pinned Dryad archive is not a valid ZIP") from exc
+
+    with archive:
         bad = archive.testzip()
         if bad is not None:
             raise DryadTiSe2AuditError(f"ZIP CRC failure: {bad}")
@@ -322,11 +400,16 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
 
     title, archive_item, readme_item = _validate_record(config)
     with tempfile.TemporaryDirectory(prefix="dryad-tise2-") as temporary:
-        archive_path = Path(temporary) / str(config["expected_archive_name"])
-        byte_count, md5, sha256 = _download(
-            _download_url(archive_item),
-            archive_path,
-            int(config["max_archive_bytes"]),
+        temporary_root = Path(temporary)
+        bundle_path = temporary_root / "dryad_dataset_bundle.zip"
+        archive_path = temporary_root / str(config["expected_archive_name"])
+        bundle_bytes, bundle_md5, bundle_sha256 = _download(
+            str(config["dataset_bundle_download_url"]),
+            bundle_path,
+            int(config["max_bundle_bytes"]),
+        )
+        archive_bytes, archive_md5, archive_sha256, bundle_member_count = (
+            _extract_archive_from_bundle(bundle_path, archive_path, config)
         )
         inventory, total_uncompressed = _inventory_archive(archive_path, config)
 
@@ -376,12 +459,18 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
             "archive_file_id": _file_id(archive_item),
             "readme_file_id": _file_id(readme_item),
         },
+        "dataset_bundle": {
+            "bytes": bundle_bytes,
+            "md5": bundle_md5,
+            "sha256": bundle_sha256,
+            "regular_member_count": bundle_member_count,
+        },
         "archive": {
             "name": config["expected_archive_name"],
             "file_id": _file_id(archive_item),
-            "bytes": byte_count,
-            "md5": md5,
-            "sha256": sha256,
+            "bytes": archive_bytes,
+            "md5": archive_md5,
+            "sha256": archive_sha256,
             "integrity_test_passed": True,
         },
         "member_count": len(inventory),
@@ -418,6 +507,7 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
             "engineering_decision_ready": False,
         },
         "processing": {
+            "source_bundle_retained": False,
             "source_archive_retained": False,
             "source_members_retained": False,
             "pixel_arrays_exported": False,
@@ -451,15 +541,16 @@ def run(config_path: Path, output_dir: Path) -> dict[str, Any]:
         f"- Status: `{summary['status']}`\n"
         f"- DOI: `{config['dataset_doi']}`\n"
         f"- Archive file ID: `{_file_id(archive_item)}`\n"
-        f"- Archive SHA-256: `{sha256}`\n"
+        f"- Archive SHA-256: `{archive_sha256}`\n"
         f"- Regular members: {len(inventory)}\n"
         f"- Experimental raster images: {summary['experimental_image_count']}\n"
         f"- Simulation raster images: {summary['simulation_image_count']}\n"
         "- External-validation ready: **no**\n\n"
         "Archive identity, integrity and experimental/simulation separation are "
         "supported. Detector provenance, acquisition identifiers, pattern centre, "
-        "camera length and reciprocal calibration remain unresolved. No pixels, "
-        "inference, tuning, retraining or phase indexing were retained or performed.\n",
+        "camera length and reciprocal calibration remain unresolved. No source "
+        "bundle, source archive, pixels, inference, tuning, retraining or phase "
+        "indexing were retained or performed.\n",
         encoding="utf-8",
     )
     manifest_path.write_text(
