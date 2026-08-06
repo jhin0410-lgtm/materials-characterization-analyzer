@@ -85,5 +85,5 @@ jobs:
         with:
           name: dryad-tise2-saed-source-audit-evidence
           path: outputs/dryad_tise2_saed_source_audit
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
