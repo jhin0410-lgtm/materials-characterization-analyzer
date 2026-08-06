@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "verified_at_utc": "2026-08-06T00:55:15Z",
+  "repository": "jhin0410-lgtm/materials-characterization-analyzer",
+  "branch": "agent/audit-mendeley-lunar-tem-saed",
+  "workflow_run_id": 31061178811,
+  "workflow_conclusion": "success",
+  "workflow_artifact": {
+    "id": 8952163349,
+    "name": "mendeley-lunar-tem-saed-source-audit-evidence",
+    "digest": "sha256:1349ff9f60689c60c8978439747e506461502b8132a8137ffea29d0a7bb272cc"
+  },
+  "datasets": [
+    {
+      "dataset_id": "fcwyz3kv3k",
+      "version": 1,
+      "doi": "10.17632/fcwyz3kv3k.1",
+      "landing_status_code": 200,
+      "landing_content_type": "text/html; charset=utf-8",
+      "landing_response_bytes": 111104,
+      "landing_response_sha256": "cdde79ac3ce8719cb54b2ddc733a63949e79f7d2883db86d5cc455843fac890d",
+      "visible_text_bytes": 1315,
+      "visible_text_sha256": "3ffb0fa7ddf3c529a6541d8122053e2d2555413124a20f77d8bf25906f3a17e8",
+      "description_terms_verified": [
+        "TEM",
+        "bright-field",
+        "High-resolution",
+        "selected area electron diffraction"
+      ],
+      "license_term_verified": "CC BY 4.0",
+      "files_section_present": true,
+      "download_all_control_present": true
+    },
+    {
+      "dataset_id": "w5jjhfp7v3",
+      "version": 1,
+      "doi": "10.17632/w5jjhfp7v3.1",
+      "landing_status_code": 200,
+      "landing_content_type": "text/html; charset=utf-8",
+      "landing_response_bytes": 112643,
+      "landing_response_sha256": "a859f4f241c476c1cbcef7fcaf50f7b4151b0d2f89d971bf10ca1f5e4948667b",
+      "visible_text_bytes": 1597,
+      "visible_text_sha256": "71a68e8798122dd482cdab14c1eff50de1a403ce00c4c5bbe384c435869a0faf",
+      "description_terms_verified": [
+        "TEM",
+        "bright-field",
+        "HR",
+        "SAED"
+      ],
+      "license_term_verified": "CC BY 4.0",
+      "files_section_present": true,
+      "download_all_control_present": true
+    }
+  ],
+  "documented_api_access": {
+    "attempt_count": 14,
+    "endpoints_per_dataset": [
+      "dataset_metadata",
+      "dataset_snapshot",
+      "dataset_versions",
+      "public_files",
+      "public_folders",
+      "zip_metadata",
+      "zip_download_redirect"
+    ],
+    "status_codes": [401],
+    "content_type": "application/json; charset=utf-8",
+    "response_bytes_per_attempt": 80,
+    "response_sample_sha256": "dd41cc70d7da6330f16adf607b5d7e7d2f8399115d891e4e47ece55b671b1722",
+    "classification": "oauth_authorization_required"
+  },
+  "scientific_assessment": {
+    "public_landing_title_doi_version_description_and_license": "Supported",
+    "public_landing_files_section_and_download_control_presence": "Supported",
+    "anonymous_api_metadata_access_from_github_runner": "Unsupported",
+    "public_file_uuid_size_sha256_and_folder_inventory": "Inconclusive",
+    "native_microscopy_container_presence": "Inconclusive",
+    "raster_export_presence": "Inconclusive",
+    "detector_native_intensity_preservation": "Inconclusive",
+    "pattern_centre_and_reciprocal_calibration": "Inconclusive",
+    "sample_acquisition_lineage_and_independence": "Inconclusive",
+    "file_inventory_ready": false,
+    "bounded_header_audit_ready": false,
+    "calibrated_saed_validation_ready": false,
+    "external_scientific_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "prohibited_inferences": [
+    "Do not infer deposited member filenames, UUIDs, sizes, SHA-256 values or folder paths from the public description.",
+    "Do not claim DM3, DM4, TIFF, BMP or other representations without authorized file-inventory and header evidence.",
+    "Do not use OAuth-required responses as source data or attempt cookie/session replay.",
+    "Do not run analyzer inference, phase indexing, parameter tuning, retraining or engineering decisions from this access audit."
+  ]
+}

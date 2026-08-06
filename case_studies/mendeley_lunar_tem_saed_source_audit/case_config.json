@@ -1,0 +1,77 @@
+{
+  "case_id": "mendeley_lunar_tem_saed_source_audit_v1",
+  "audit_date": "2026-08-06",
+  "sources": [
+    {
+      "dataset_id": "fcwyz3kv3k",
+      "version": 1,
+      "doi": "10.17632/fcwyz3kv3k.1",
+      "landing_url": "https://data.mendeley.com/datasets/fcwyz3kv3k/1",
+      "expected_title_substring": "Chang’E-5 samples reveal high water content",
+      "expected_description_terms": [
+        "TEM",
+        "bright-field",
+        "High-resolution",
+        "selected area electron diffraction"
+      ],
+      "expected_license_terms": [
+        "CC BY 4.0",
+        "Creative Commons Attribution 4.0"
+      ],
+      "material_scope": "Chang'E-5 lunar minerals; TEM/HRTEM/SAED plus SEM, EDS and OMAT products",
+      "source_quality_flags": [
+        "The source description calls the TEM/HRTEM/SAED material original data, but that wording does not prove detector-native intensity preservation or an unmodified acquisition container.",
+        "SEM, TEM, EDS and OMAT products are scientifically distinct and must remain separated by stable file and folder identifiers.",
+        "The source is lunar mineral material and is not an in-domain cobalt-oxide validation cohort.",
+        "CC BY 4.0 permits reuse with attribution but does not establish calibration, acquisition independence or analyzer-development non-use."
+      ]
+    },
+    {
+      "dataset_id": "w5jjhfp7v3",
+      "version": 1,
+      "doi": "10.17632/w5jjhfp7v3.1",
+      "landing_url": "https://data.mendeley.com/datasets/w5jjhfp7v3/1",
+      "expected_title_substring": "Solar Wind-derived Water at Middle Latitudes",
+      "expected_description_terms": [
+        "TEM",
+        "bright-field",
+        "HR",
+        "SAED"
+      ],
+      "expected_license_terms": [
+        "CC BY 4.0",
+        "Creative Commons Attribution 4.0"
+      ],
+      "material_scope": "D+ implantation experiments on lunar materials; TEM/HRTEM/SAED plus FTIR and NanoSIMS products",
+      "source_quality_flags": [
+        "The source description calls the TEM bright-field, high-resolution and SAED material original data, but that wording does not establish detector-native intensities or complete preprocessing history.",
+        "TEM, FTIR and NanoSIMS products must remain separated by stable file and folder identifiers.",
+        "The source is lunar-material implantation data and is not an in-domain cobalt-oxide validation cohort.",
+        "CC BY 4.0 permits reuse with attribution but does not establish reciprocal calibration, sample lineage, acquisition independence or analyzer-development non-use."
+      ]
+    }
+  ],
+  "limits": {
+    "maximum_file_records_per_dataset": 1000,
+    "maximum_folder_records_per_dataset": 1000,
+    "maximum_header_samples_per_dataset": 24,
+    "maximum_header_bytes_per_file": 65536,
+    "maximum_total_header_bytes_per_dataset": 1572864
+  },
+  "scientific_boundary": {
+    "public_metadata_fetch_authorized": true,
+    "public_file_inventory_authorized": true,
+    "bounded_file_header_probe_authorized": true,
+    "source_file_retention_authorized": false,
+    "source_files_may_be_uploaded_as_artifacts": false,
+    "pixel_array_export_authorized": false,
+    "image_preprocessing_authorized": false,
+    "model_inference_authorized": false,
+    "annotation_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "phase_indexing_claim_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  }
+}
