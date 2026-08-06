@@ -31,7 +31,7 @@ concurrency:
 jobs:
   source-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
 
@@ -51,19 +51,28 @@ jobs:
             tests/test_audit_mendeley_lunar_tem_saed.py \
             tests/test_run_mendeley_lunar_tem_saed_audit.py
 
-      - name: Run public landing and documented API access audit
+      - name: Run expanded public landing and API access audit
         run: |
           python -m scripts.run_mendeley_lunar_tem_saed_audit \
             --config case_studies/mendeley_lunar_tem_saed_source_audit/case_config.json \
             --output outputs/mendeley_lunar_tem_saed_source_audit
 
-      - name: Verify metadata-only access evidence and scientific boundary
+      - name: Verify expanded registry evidence and scientific boundary
         run: |
           python - <<'PY'
           import hashlib
           import json
           from pathlib import Path
 
+          expected = {
+              "fcwyz3kv3k": (1, "10.17632/fcwyz3kv3k.1"),
+              "w5jjhfp7v3": (1, "10.17632/w5jjhfp7v3.1"),
+              "p8kpdbrhrg": (2, "10.17632/p8kpdbrhrg.2"),
+              "ckpdp5wz7m": (1, "10.17632/ckpdp5wz7m.1"),
+              "xn73vjk95x": (1, "10.17632/xn73vjk95x.1"),
+              "g9rgyv53xt": (4, "10.17632/g9rgyv53xt.4"),
+              "c44477pxc7": (2, "10.17632/c44477pxc7.2"),
+          }
           root = Path("outputs/mendeley_lunar_tem_saed_source_audit")
           summary = json.loads(
               (root / "mendeley_lunar_access_audit_summary.json").read_text()
@@ -73,19 +82,28 @@ jobs:
               "header_audit_require_oauth_authorization"
           )
           assert summary["evidence_level"] == "Diagnostic"
-          assert summary["dataset_count"] == 2
+          assert summary["dataset_count"] == len(expected)
           by_id = {item["dataset_id"]: item for item in summary["datasets"]}
-          assert set(by_id) == {"fcwyz3kv3k", "w5jjhfp7v3"}
-          assert by_id["fcwyz3kv3k"]["version"] == 1
-          assert by_id["fcwyz3kv3k"]["doi"] == "10.17632/fcwyz3kv3k.1"
-          assert by_id["w5jjhfp7v3"]["version"] == 1
-          assert by_id["w5jjhfp7v3"]["doi"] == "10.17632/w5jjhfp7v3.1"
-          assert all(item["landing_evidence"]["status_code"] == 200 for item in by_id.values())
-          assert all(item["landing_evidence"]["files_section_present"] is True for item in by_id.values())
-          assert all(item["landing_evidence"]["download_all_control_present"] is True for item in by_id.values())
-          assert all(len(item["landing_evidence"]["response_sha256"]) == 64 for item in by_id.values())
-          assert all(item["api_attempt_count"] == 7 for item in by_id.values())
-          assert summary["api_attempt_count"] == 14
+          assert set(by_id) == set(expected)
+          for dataset_id, (version, doi) in expected.items():
+              item = by_id[dataset_id]
+              assert item["version"] == version
+              assert item["doi"] == doi
+              landing = item["landing_evidence"]
+              assert landing["status_code"] == 200
+              assert landing["files_section_present"] is True
+              assert landing["download_all_control_present"] is True
+              assert len(landing["response_sha256"]) == 64
+              assert len(landing["visible_text_sha256"]) == 64
+              assert landing["response_bytes"] > 50_000
+              assert landing["description_terms_verified"]
+              assert landing["license_terms_matched"]
+              assert item["api_attempt_count"] == 7
+              assert item["api_classifications"] == [
+                  "oauth_authorization_required"
+              ]
+
+          assert summary["api_attempt_count"] == 7 * len(expected)
           assert summary["all_documented_api_endpoints_require_oauth_in_current_runner"] is True
           assert summary["evidence_assessment"]["public_landing_title_doi_version_description_and_license"] == "Supported"
           assert summary["evidence_assessment"]["anonymous_api_metadata_access_from_github_runner"] == "Unsupported"
@@ -109,13 +127,19 @@ jobs:
           attempts = json.loads(
               (root / "mendeley_lunar_api_access_attempts.json").read_text()
           )
-          assert len(attempts) == 14
-          assert {item["dataset_id"] for item in attempts} == set(by_id)
+          assert len(attempts) == 7 * len(expected)
+          assert {item["dataset_id"] for item in attempts} == set(expected)
           assert all(item["status_code"] == 401 for item in attempts)
-          assert all(item["classification"] == "oauth_authorization_required" for item in attempts)
+          assert all(
+              item["classification"] == "oauth_authorization_required"
+              for item in attempts
+          )
           assert all(item["sampled_bytes"] <= 65_536 for item in attempts)
           assert all(len(item["sample_sha256"]) == 64 for item in attempts)
-          assert all(item["final_host"] == "api.data.mendeley.com" for item in attempts)
+          assert all(
+              item["final_host"] == "api.data.mendeley.com"
+              for item in attempts
+          )
 
           manifest = json.loads(
               (root / "mendeley_lunar_access_audit_manifest.json").read_text()

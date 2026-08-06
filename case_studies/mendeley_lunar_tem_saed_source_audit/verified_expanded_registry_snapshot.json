@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0",
+  "verified_at_utc": "2026-08-06T01:02:13Z",
+  "repository": "jhin0410-lgtm/materials-characterization-analyzer",
+  "branch": "agent/expand-mendeley-lunar-tem-registry",
+  "workflow_run_id": 31061537020,
+  "workflow_conclusion": "success",
+  "workflow_artifact": {
+    "id": 8952290769,
+    "name": "mendeley-lunar-tem-saed-source-audit-evidence",
+    "digest": "sha256:e2ce0beaa0d7ff954dfaa04002cde4a998f66d15ceeaf474e6023d277ffd2b39"
+  },
+  "snapshot_semantics": {
+    "landing_html_hashes": "observed response snapshots only; not immutable source-file checksums",
+    "visible_text_hashes": "observed normalized public landing text snapshots only",
+    "stable_source_identity": "dataset ID, configured version and DOI",
+    "file_identity": "unresolved until authorized file UUID, byte count and SHA-256 inventory is obtained"
+  },
+  "datasets": [
+    {
+      "dataset_id": "fcwyz3kv3k",
+      "version": 1,
+      "doi": "10.17632/fcwyz3kv3k.1",
+      "landing_response_bytes": 111105,
+      "landing_response_sha256": "5a8e0bf8a659354c21ac8185aec7fcb5a54528c7160ac0805a94e9bb7347e530",
+      "visible_text_bytes": 1315,
+      "visible_text_sha256": "3ffb0fa7ddf3c529a6541d8122053e2d2555413124a20f77d8bf25906f3a17e8"
+    },
+    {
+      "dataset_id": "w5jjhfp7v3",
+      "version": 1,
+      "doi": "10.17632/w5jjhfp7v3.1",
+      "landing_response_bytes": 112643,
+      "landing_response_sha256": "9ceab2efe33dbf5e9868e4684286d5754af2c347b537428c96216cfedf05ab84",
+      "visible_text_bytes": 1597,
+      "visible_text_sha256": "71a68e8798122dd482cdab14c1eff50de1a403ce00c4c5bbe384c435869a0faf"
+    },
+    {
+      "dataset_id": "p8kpdbrhrg",
+      "version": 2,
+      "doi": "10.17632/p8kpdbrhrg.2",
+      "landing_response_bytes": 110822,
+      "landing_response_sha256": "bcdf142ef3ef3f5bf689d2ee96081ec1e3a9e795780be29586d853e5073f56dd",
+      "visible_text_bytes": 1194,
+      "visible_text_sha256": "b4a87c7d9c6519783d151f721e77c29077414ce98d22bbb0c5e0b97cad9a8e43"
+    },
+    {
+      "dataset_id": "ckpdp5wz7m",
+      "version": 1,
+      "doi": "10.17632/ckpdp5wz7m.1",
+      "landing_response_bytes": 110381,
+      "landing_response_sha256": "73001780480f8f552811c15a303f6ae3a5791a10aa3d5c67eb0dc4471ad8f8b9",
+      "visible_text_bytes": 1150,
+      "visible_text_sha256": "5e4c28545a3fd101a5c73b82c829708f9e454be32eefbf02db5a7097f01a510d"
+    },
+    {
+      "dataset_id": "xn73vjk95x",
+      "version": 1,
+      "doi": "10.17632/xn73vjk95x.1",
+      "landing_response_bytes": 110060,
+      "landing_response_sha256": "136982d8a5dbbca4a9739cf47fdd2d18951d9a5453aa87d19f5057581fe323b4",
+      "visible_text_bytes": 1071,
+      "visible_text_sha256": "96eb386d8f41e1f39a05e5b256baea335fb93a08c21cece07597598ef5117263"
+    },
+    {
+      "dataset_id": "g9rgyv53xt",
+      "version": 4,
+      "doi": "10.17632/g9rgyv53xt.4",
+      "landing_response_bytes": 110965,
+      "landing_response_sha256": "c6d553b4bc33c06a2cd0449ba78197252d1d845fc441b90d285a89d3e5459e58",
+      "visible_text_bytes": 1261,
+      "visible_text_sha256": "ba4a394c400375a0eb07d6998727d7902cfe21165234224f6bb0b06dca6ea8a0"
+    },
+    {
+      "dataset_id": "c44477pxc7",
+      "version": 2,
+      "doi": "10.17632/c44477pxc7.2",
+      "landing_response_bytes": 111272,
+      "landing_response_sha256": "cd452fd1562432fe65e4a3e3eaea72d633e022138c502641664ab634fe52c2d0",
+      "visible_text_bytes": 1323,
+      "visible_text_sha256": "d93b8d613cc2597e1a1f34589c6e13d4d970836a3140ea9579bf396179d828cd"
+    }
+  ],
+  "documented_api_access": {
+    "dataset_count": 7,
+    "attempt_count": 49,
+    "endpoints_per_dataset": [
+      "dataset_metadata",
+      "dataset_snapshot",
+      "dataset_versions",
+      "public_files",
+      "public_folders",
+      "zip_metadata",
+      "zip_download_redirect"
+    ],
+    "status_codes": [401],
+    "response_bytes_per_attempt": 80,
+    "response_sample_sha256": "dd41cc70d7da6330f16adf607b5d7e7d2f8399115d891e4e47ece55b671b1722",
+    "classification": "oauth_authorization_required"
+  },
+  "scientific_assessment": {
+    "public_landing_title_doi_version_description_and_license": "Supported",
+    "mixed_experimental_simulation_sources_identified": "Supported_from_public_description",
+    "anonymous_api_metadata_access_from_github_runner": "Unsupported",
+    "public_file_uuid_size_sha256_and_folder_inventory": "Inconclusive",
+    "native_microscopy_container_presence": "Inconclusive",
+    "raster_export_presence": "Inconclusive",
+    "detector_native_intensity_preservation": "Inconclusive",
+    "pattern_centre_energy_and_reciprocal_calibration": "Inconclusive",
+    "sample_acquisition_lineage_and_independence": "Inconclusive",
+    "file_inventory_ready": false,
+    "bounded_header_audit_ready": false,
+    "calibrated_saed_validation_ready": false,
+    "external_scientific_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "prohibited_inferences": [
+    "Do not treat landing-page HTML hashes as immutable dataset-file checksums.",
+    "Do not infer file names, UUIDs, sizes, hashes, formats or folders from the public title and description.",
+    "Do not pool original TEM or EELS measurements with gardening or micromagnetic simulations.",
+    "Do not run analyzer inference, phase indexing, parameter tuning, model retraining or engineering decisions from the registry metadata."
+  ]
+}
