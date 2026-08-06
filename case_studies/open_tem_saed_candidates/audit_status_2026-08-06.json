@@ -1,0 +1,218 @@
+{
+  "schema_version": "1.0",
+  "status_date": "2026-08-06",
+  "purpose": "Consolidated status of completed TEM and SAED public-source audits. This file does not replace the technique-specific candidate registries and does not promote source-audit evidence to analyzer-validation evidence.",
+  "source_of_truth": {
+    "historical_candidate_snapshot": "case_studies/open_tem_saed_candidates/candidate_registry.json",
+    "tem_registry": "case_studies/tem_external_validation_candidate_registry/case_config.json",
+    "saed_registry": "case_studies/saed_public_candidate_registry/case_config.json"
+  },
+  "decision_rules": {
+    "software_validation_is_not_scientific_validation": true,
+    "source_identity_is_not_external_validation": true,
+    "access_blocked_sources_are_not_source_audit_complete": true,
+    "cross_material_sources_cannot_establish_cobalt_oxide_in_domain_performance": true,
+    "external_validation_requires_predeclared_task_matched_metadata_and_independent_reference_evidence": true
+  },
+  "current_decision": {
+    "scientific_evidence_level": "Inconclusive",
+    "bounded_source_audit_complete_diagnostic_only_count": 4,
+    "access_or_file_inventory_blocked_count": 3,
+    "external_validation_ready_count": 0,
+    "engineering_decision_ready_count": 0,
+    "performance_evaluation_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "next_execution_priority": "obtain_authoritative_sample_acquisition_lineage_independent_tem_labels_or_traceable_static_saed_calibration_before_analyzer_execution"
+  },
+  "sources": [
+    {
+      "candidate_id": "repod_siowh6_cofeni_tem_saed",
+      "case_id": "repod_cofeni_tem_saed_source_audit",
+      "repository": "RepOD",
+      "source_identity": "10.18150/SIOWH6",
+      "material_domain": "CoFeNi medium-entropy alloy coating",
+      "audit_level": "bounded_source_audit_complete",
+      "status": "diagnostic_only",
+      "verified_snapshot": "case_studies/repod_cofeni_tem_saed_source_audit/verified_snapshot.json",
+      "confirmed_evidence": [
+        "record and file identity",
+        "reuse terms",
+        "archive integrity",
+        "seven lossless-raster TIFF members",
+        "three SAED-named members"
+      ],
+      "blocking_gates": [
+        "native detector status",
+        "immutable sample and acquisition identity",
+        "acquisition independence",
+        "independent TEM segmentation labels",
+        "static SAED pattern centre and reciprocal calibration",
+        "target-domain comparability"
+      ],
+      "external_validation_ready": false,
+      "engineering_decision_ready": false
+    },
+    {
+      "candidate_id": "zenodo_18942976_silver_tem_saed",
+      "case_id": "zenodo_silver_tem_saed_archive_audit",
+      "repository": "Zenodo",
+      "source_identity": "10.5281/zenodo.18942976",
+      "material_domain": "silver nanoparticles",
+      "audit_level": "bounded_source_audit_complete",
+      "status": "diagnostic_only",
+      "verified_snapshot": "case_studies/zenodo_silver_tem_saed_archive_audit/verified_snapshot.json",
+      "confirmed_evidence": [
+        "record and archive identity",
+        "reuse terms",
+        "archive integrity and member hashing",
+        "212 TIFF raster exports",
+        "two SAED result-text filename cues"
+      ],
+      "blocking_gates": [
+        "native detector status",
+        "immutable sample and acquisition identity",
+        "independent TEM segmentation labels",
+        "unambiguous SAED result-to-pattern mapping",
+        "static SAED pattern centre and reciprocal calibration",
+        "target-domain comparability"
+      ],
+      "external_validation_ready": false,
+      "engineering_decision_ready": false
+    },
+    {
+      "candidate_id": "zenodo_10512357_wtacrv_tem_saed",
+      "case_id": "zenodo_wtacrv_tem_saed_source_audit",
+      "repository": "Zenodo",
+      "source_identity": "10.5281/zenodo.10512463",
+      "parent_record_identity": "10.5281/zenodo.10512357",
+      "material_domain": "W-Ta-Cr-V refractory high-entropy alloy before and after He irradiation",
+      "audit_level": "bounded_source_audit_complete",
+      "status": "diagnostic_only",
+      "verified_snapshot": "case_studies/zenodo_wtacrv_tem_saed_source_audit/verified_workflow_snapshot.json",
+      "confirmed_evidence": [
+        "record and archive identity",
+        "ODbL reuse terms",
+        "safe archive integrity and inventory",
+        "five native DM3 or DM4 microscopy containers",
+        "three SAED filename cues",
+        "as-deposited and irradiated condition path cues"
+      ],
+      "blocking_gates": [
+        "detector-native intensity preservation",
+        "source-assigned specimen pairing",
+        "pattern centre and reciprocal calibration",
+        "acquisition independence",
+        "verified non-use in analyzer development",
+        "target-domain comparability"
+      ],
+      "external_validation_ready": false,
+      "engineering_decision_ready": false
+    },
+    {
+      "candidate_id": "zenodo_15082448_ge_dm3_tem_saed",
+      "case_id": "zenodo_ge_dm3_tem_saed_source_audit",
+      "repository": "Zenodo",
+      "source_identity": "10.5281/zenodo.15082448",
+      "material_domain": "germanium TEM and diffraction dataset",
+      "audit_level": "bounded_source_audit_complete",
+      "status": "diagnostic_only",
+      "verified_snapshot": "case_studies/zenodo_ge_dm3_tem_saed_source_audit/verified_snapshot.json",
+      "confirmed_evidence": [
+        "record and archive identity",
+        "CC BY 4.0 reuse terms",
+        "safe archive integrity and 92-member inventory",
+        "15 native DM3 microscopy containers",
+        "record-declared same-location TEM and SAED pairs",
+        "selected DM3 header identity"
+      ],
+      "blocking_gates": [
+        "embedded microscopy metadata extraction",
+        "source-assigned sample and acquisition lineage",
+        "pattern centre and reciprocal calibration",
+        "independent TEM segmentation labels",
+        "verified non-use in analyzer development",
+        "target-domain comparability"
+      ],
+      "external_validation_ready": false,
+      "engineering_decision_ready": false
+    },
+    {
+      "candidate_id": "mendeley_lunar_tem_saed_registry",
+      "case_id": "mendeley_lunar_tem_saed_source_audit",
+      "repository": "Mendeley Data",
+      "source_identity": "seven version-pinned lunar TEM, SAED, EELS, or simulation records",
+      "material_domain": "mixed lunar experimental and simulation sources",
+      "audit_level": "public_landing_audit_complete",
+      "status": "file_inventory_blocked_by_oauth",
+      "verified_snapshot": "case_studies/mendeley_lunar_tem_saed_source_audit/verified_expanded_registry_snapshot.json",
+      "confirmed_evidence": [
+        "dataset ID, version, DOI, public title and description",
+        "public landing-page reuse terms",
+        "separation of experimental and simulation descriptions",
+        "consistent OAuth authorization requirement across documented API endpoints"
+      ],
+      "blocking_gates": [
+        "authorized file UUID, byte count and SHA-256 inventory",
+        "member formats and folder paths",
+        "native detector status",
+        "sample and acquisition lineage",
+        "pattern centre and reciprocal calibration"
+      ],
+      "external_validation_ready": false,
+      "engineering_decision_ready": false
+    },
+    {
+      "candidate_id": "dryad_6djh9w1hw_tise2_saed",
+      "case_id": "dryad_tise2_saed_source_audit",
+      "repository": "Dryad",
+      "source_identity": "10.5061/dryad.6djh9w1hw",
+      "material_domain": "TiSe2 experimental and simulation diffraction data",
+      "audit_level": "record_and_file_identity_verified",
+      "status": "anonymous_download_blocked",
+      "verified_snapshot": "case_studies/dryad_tise2_saed_source_audit/verified_snapshot.json",
+      "confirmed_evidence": [
+        "record identity",
+        "archive and README file identity",
+        "official bundle route returned HTTP 401",
+        "public individual-file route returned HTTP 403"
+      ],
+      "blocking_gates": [
+        "source archive acquisition",
+        "archive integrity and member inventory",
+        "experimental versus simulation partition",
+        "lossless measurement provenance",
+        "pattern centre, camera length and reciprocal calibration",
+        "acquisition lineage and independence"
+      ],
+      "external_validation_ready": false,
+      "engineering_decision_ready": false
+    },
+    {
+      "candidate_id": "fhi_d63268_co3o4_tem_saed",
+      "case_id": "fhi_co3o4_tem_saed_source_audit",
+      "repository": "Fritz Haber Institute AC/CATLAB Archive",
+      "source_identity": "record D63268; sample S32564",
+      "material_domain": "Co3O4 exact-material TEM source",
+      "audit_level": "institutional_record_identity_verified",
+      "status": "anonymous_download_requires_authentication",
+      "verified_snapshot": "case_studies/fhi_co3o4_tem_saed_source_audit/verified_snapshot.json",
+      "confirmed_evidence": [
+        "institutional record and sample identity",
+        "RAW DATA document type",
+        "open-access marker",
+        "exact Co3O4 material context",
+        "TEM.zip and OTEM_2.zip routes redirect to login"
+      ],
+      "blocking_gates": [
+        "authorized source-file acquisition",
+        "archive and member identity",
+        "independent TEM segmentation labels",
+        "static SAED calibration and lineage",
+        "verified non-use in analyzer development"
+      ],
+      "external_validation_ready": false,
+      "engineering_decision_ready": false
+    }
+  ]
+}
