@@ -40,11 +40,17 @@ def test_tem_saed_audit_status_is_fail_closed_and_internally_consistent() -> Non
         for source in sources
         if source["audit_level"] == "bounded_source_audit_complete"
     ]
-    blocked = [source for source in sources if "blocked" in source["status"]]
+    access_or_inventory_blocked = [
+        source
+        for source in sources
+        if source["audit_level"] != "bounded_source_audit_complete"
+    ]
     assert len(bounded) == decision[
         "bounded_source_audit_complete_diagnostic_only_count"
     ]
-    assert len(blocked) == decision["access_or_file_inventory_blocked_count"]
+    assert len(access_or_inventory_blocked) == decision[
+        "access_or_file_inventory_blocked_count"
+    ]
 
     for source in sources:
         assert source["confirmed_evidence"]
