@@ -79,15 +79,37 @@ def _file_name(item: dict[str, Any]) -> str:
 
 
 def _file_id(item: dict[str, Any]) -> int:
-    try:
-        file_id = int(item.get("id"))
-    except (TypeError, ValueError) as exc:
+    candidates: set[int] = set()
+    for key in ("id", "fileId", "file_id", "stashId", "stash_id"):
+        value = item.get(key)
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed > 0:
+            candidates.add(parsed)
+
+    def collect(value: Any) -> None:
+        if isinstance(value, dict):
+            for nested in value.values():
+                collect(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                collect(nested)
+        elif isinstance(value, str):
+            for match in re.finditer(
+                r"(?:files|file_stream)/(\d+)(?:/download)?(?:$|[?#])",
+                value,
+            ):
+                candidates.add(int(match.group(1)))
+
+    collect(item.get("_links"))
+    if len(candidates) != 1:
         raise DryadTiSe2AuditError(
-            f"Dryad file has no numeric ID: {_file_name(item)}"
-        ) from exc
-    if file_id <= 0:
-        raise DryadTiSe2AuditError(f"Dryad file has invalid ID: {_file_name(item)}")
-    return file_id
+            f"Dryad file ID is missing or ambiguous for {_file_name(item)}: "
+            f"{sorted(candidates)}"
+        )
+    return next(iter(candidates))
 
 
 def _download_url(item: dict[str, Any]) -> str:
