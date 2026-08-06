@@ -7,6 +7,7 @@ import pytest
 from scripts.audit_dryad_tise2_saed import (
     DryadTiSe2AuditError,
     _classify,
+    _file_id,
     _normalize_title,
     _safe_member,
     _title_matches,
@@ -57,6 +58,30 @@ def test_title_identity_normalizes_markup_and_subscripts() -> None:
     ]
     assert _title_matches(title, tokens)
     assert "1ttise2" in _normalize_title(title)
+
+
+def test_file_id_is_resolved_from_dryad_link_relation() -> None:
+    item = {
+        "path": "Data_TiSe2.zip",
+        "_links": {
+            "stash:download": {
+                "href": "https://datadryad.org/api/v2/files/4808550/download"
+            }
+        },
+    }
+    assert _file_id(item) == 4808550
+
+
+def test_file_id_rejects_ambiguous_links() -> None:
+    item = {
+        "path": "Data_TiSe2.zip",
+        "_links": {
+            "one": "https://datadryad.org/api/v2/files/4808550/download",
+            "two": "https://datadryad.org/api/v2/files/4808551/download",
+        },
+    }
+    with pytest.raises(DryadTiSe2AuditError, match="ambiguous"):
+        _file_id(item)
 
 
 def test_safe_member_rejects_parent_traversal() -> None:
