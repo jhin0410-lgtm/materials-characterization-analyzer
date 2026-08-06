@@ -6,7 +6,6 @@ import shutil
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
-from .downstream_use_manifest import attach_downstream_use_policy
 from .handoff_bundle import (
     FEATURE_FILE_NAME,
     MANIFEST_FILE_NAME,
@@ -101,13 +100,12 @@ def build_characterization_handoff_bundle_from_config(
             producer_repository=producer_repository,
             evidence_level=evidence_level,
             scientific_boundary=dict(scientific_boundary),
+            downstream_use_policy=(
+                dict(downstream_use_policy)
+                if downstream_use_policy is not None
+                else None
+            ),
         )
-        if downstream_use_policy is not None:
-            attach_downstream_use_policy(
-                paths["manifest"],
-                downstream_use_policy,
-                scientific_evidence_level=evidence_level,
-            )
         validation = validate_characterization_handoff_bundle(stage)
         stage.replace(output)
         return {
