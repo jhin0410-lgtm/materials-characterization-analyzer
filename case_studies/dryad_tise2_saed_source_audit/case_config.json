@@ -1,6 +1,7 @@
 {
   "dataset_doi": "10.5061/dryad.6djh9w1hw",
   "dataset_api_url": "https://datadryad.org/api/v2/datasets/doi%3A10.5061%2Fdryad.6djh9w1hw",
+  "dataset_bundle_download_url": "https://datadryad.org/api/v2/datasets/doi%3A10.5061%2Fdryad.6djh9w1hw/download",
   "expected_title_tokens": [
     "Revisiting",
     "charge-density-wave",
@@ -11,6 +12,8 @@
   "expected_archive_file_id": 4808550,
   "expected_readme_name": "README.md",
   "expected_readme_file_id": 4808551,
+  "max_bundle_bytes": 3200000000,
+  "max_bundle_member_count": 100,
   "max_archive_bytes": 3000000000,
   "max_member_count": 20000,
   "max_total_uncompressed_bytes": 12000000000,
