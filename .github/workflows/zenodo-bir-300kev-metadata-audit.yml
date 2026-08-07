@@ -48,12 +48,19 @@ jobs:
 
           root = Path("outputs/zenodo_bir_300kev_metadata")
           snapshot = json.loads((root / "metadata_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json"
+              ).read_text()
+          )
           assert snapshot["execution_status"] == "metadata_audit_completed"
           assert snapshot["source"]["record_id"] == 10995139
           assert snapshot["source"]["version_landing_page_claim"] == "v1"
           assert snapshot["source"]["version_api"] in {None, "v1"}
+          assert snapshot["source"]["license_id"] == pinned["source"]["license_id"] == "cc-by-4.0"
+          assert snapshot["file_inventory"] == pinned["file_inventory"]
           assert len(snapshot["file_inventory"]) == 6
-          assert sum(item["bytes"] for item in snapshot["file_inventory"]) > 30_000_000_000
+          assert sum(item["bytes"] for item in snapshot["file_inventory"]) == 36474833178
           assert snapshot["readiness"]["archive_audit_authorized"] is False
           assert snapshot["readiness"]["analyzer_execution_authorized"] is False
           assert snapshot["readiness"]["external_validation_ready"] is False
