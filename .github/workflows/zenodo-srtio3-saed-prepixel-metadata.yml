@@ -44,33 +44,57 @@ jobs:
           python scripts/audit_zenodo_srtio3_saed_prepixel_metadata.py \
             --config case_studies/zenodo_srtio3_saed_prepixel_metadata/case_config.json \
             --output outputs/zenodo_srtio3_saed_prepixel_metadata/prepixel_metadata_snapshot.json
-      - name: Verify no pixel boundary crossing
+      - name: Verify no pixel boundary crossing and source stability
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
           root = Path("outputs/zenodo_srtio3_saed_prepixel_metadata")
-          snapshot = json.loads((root / "prepixel_metadata_snapshot.json").read_text())
-          assert snapshot["execution_status"] == "bounded_pre_pixel_text_metadata_audit_completed"
-          assert len(snapshot["members"]) == 3
-          assert snapshot["range_evidence"]["maximum_decompressed_prefix_per_member"] == 262
-          assert snapshot["range_evidence"]["verified_first_pixel_strip_offset"] == 272
-          assert snapshot["range_evidence"]["pixel_bytes_decompressed"] == 0
-          assert snapshot["range_evidence"]["raw_tiff_bytes_retained"] == 0
-          assert snapshot["range_evidence"]["four_d_stem_bytes_read"] is False
-          assert snapshot["range_evidence"]["total_remote_bytes_read"] < 1_000_000
-          assert snapshot["readiness"]["pixel_access_authorized"] is False
-          assert snapshot["readiness"]["four_d_stem_download_authorized"] is False
-          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
-          assert snapshot["readiness"]["phase_indexing_authorized"] is False
-          assert snapshot["readiness"]["external_validation_ready"] is False
-          for member in snapshot["members"]:
-              assert member["full_member_downloaded"] is False
-              assert member["verified_first_strip_offset"] == 272
-              assert member["pre_pixel_prefix_bytes_decompressed"] == 262
-              assert member["pixel_bytes_decompressed"] == 0
-              assert set(member["text_metadata"]) == {"ImageDescription", "Software"}
+          live = json.loads((root / "prepixel_metadata_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_srtio3_saed_prepixel_metadata/verified_prepixel_metadata_snapshot.json"
+              ).read_text()
+          )
+          assert live["execution_status"] == "bounded_pre_pixel_text_metadata_audit_completed"
+          assert live["config_sha256"] == pinned["config_sha256"]
+          assert live["source"] == pinned["source"]
+          assert live["target_archive"]["key"] == pinned["target_archive"]["key"]
+          assert live["target_archive"]["bytes"] == pinned["target_archive"]["bytes"]
+          assert live["target_archive"]["repository_md5"] == pinned["target_archive"]["repository_md5"]
+          assert live["range_evidence"] == pinned["range_evidence"]
+          assert len(live["members"]) == 3
+          assert [item["path"] for item in live["members"]] == [item["path"] for item in pinned["members"]]
+          common = pinned["common_text_metadata"]
+          for live_member, pinned_member in zip(live["members"], pinned["members"], strict=True):
+              assert live_member["compressed_bytes"] == pinned_member["compressed_bytes"]
+              assert live_member["uncompressed_bytes"] == pinned_member["uncompressed_bytes"]
+              assert live_member["full_member_downloaded"] is False
+              assert live_member["verified_first_strip_offset"] == 272
+              assert live_member["pre_pixel_prefix_bytes_decompressed"] == 262
+              assert live_member["pixel_bytes_decompressed"] == 0
+              assert live_member["pre_pixel_prefix_sha256"] == common["pre_pixel_prefix_sha256"]
+              assert live_member["ifd_recheck"]["metadata_prefix_sha256"] == common["first_ifd_metadata_sha256"]
+              for tag in ("ImageDescription", "Software"):
+                  observed = live_member["text_metadata"][tag]
+                  expected = common[tag]
+                  assert observed["ascii_valid"] is True
+                  assert observed["text"] == expected["text"]
+                  assert observed["raw_length"] == expected["raw_length"]
+                  assert observed["stripped_length"] == expected["stripped_length"]
+                  assert observed["sha256"] == expected["sha256"]
+          assert live["cross_member_text_comparison"]["ImageDescription"]["all_three_equal"] is True
+          assert live["cross_member_text_comparison"]["Software"]["all_three_equal"] is True
+          assert live["range_evidence"]["pixel_bytes_decompressed"] == 0
+          assert live["range_evidence"]["raw_tiff_bytes_retained"] == 0
+          assert live["range_evidence"]["four_d_stem_bytes_read"] is False
+          assert live["range_evidence"]["total_remote_bytes_read"] == 918508
+          assert live["readiness"]["pixel_access_authorized"] is False
+          assert live["readiness"]["four_d_stem_download_authorized"] is False
+          assert live["readiness"]["analyzer_execution_authorized"] is False
+          assert live["readiness"]["phase_indexing_authorized"] is False
+          assert live["readiness"]["external_validation_ready"] is False
           forbidden = {".zip", ".npy", ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".dm3", ".dm4", ".ser"}
           leaked = [
               path for path in root.rglob("*")
