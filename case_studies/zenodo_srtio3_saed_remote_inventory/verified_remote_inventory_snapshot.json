@@ -1,0 +1,84 @@
+{
+  "audit_date": "2026-08-07",
+  "case_id": "zenodo_srtio3_saed_remote_inventory",
+  "config_sha256": "45aa8b4c9093c023f67519f190d25ba83f7fbe4ddc1a728be618798e523bac61",
+  "evidence_assessment": {
+    "archive_member_name_and_central_directory_inventory": "Supported",
+    "external_validation_readiness": "Inconclusive",
+    "pattern_center_and_reciprocal_calibration": "Inconclusive",
+    "pattern_count_and_acquisition_independence": "Inconclusive",
+    "raw_detector_native_intensity": "Inconclusive",
+    "reference_reflection_truth": "Inconclusive",
+    "saed_representation_classification_from_names_only": "Diagnostic",
+    "scientific_evidence_level": "Diagnostic"
+  },
+  "execution_status": "remote_central_directory_inventory_completed",
+  "http_range_evidence": {
+    "central_directory_bytes_read": 781,
+    "four_d_stem_bytes_read": false,
+    "full_archive_downloaded": false,
+    "member_payload_bytes_read": false,
+    "range_support_verified": true,
+    "tail_bytes_read": 131072,
+    "total_remote_bytes_read": 131853
+  },
+  "inventory_summary": {
+    "central_directory_sha256": "e421624bfaae075f4812c202645b69ef7fa36d92d9292798082897603135ba8e",
+    "directory_entry_count": 1,
+    "extension_counts": {
+      ".ds_store": 1,
+      ".tif": 6,
+      "<none>": 1
+    },
+    "file_member_count": 8,
+    "member_count": 9,
+    "member_paths": [
+      "SAED/.DS_Store",
+      "SAED/172K.tif",
+      "SAED/23K.tif",
+      "SAED/91K.tif",
+      "__MACOSX/SAED/._.DS_Store",
+      "__MACOSX/SAED/._172K.tif",
+      "__MACOSX/SAED/._23K.tif",
+      "__MACOSX/SAED/._91K.tif"
+    ],
+    "unsafe_path_count": 0
+  },
+  "outputs": {
+    "member_inventory_sha256": "453ee7db120bb2078158e5550bf5228faf56d1e8811bf4da2f290ac17978cb41"
+  },
+  "readiness": {
+    "analyzer_execution_authorized": false,
+    "engineering_decision_ready": false,
+    "external_validation_ready": false,
+    "four_d_stem_download_authorized": false,
+    "member_inventory_ready": true,
+    "phase_indexing_authorized": false,
+    "selected_member_payload_inspection_authorized": false
+  },
+  "schema_version": "1.0",
+  "scientific_boundary": [
+    "Only ZIP tail and central-directory metadata were accessed; no SAED member payload was read.",
+    "Archive member names/extensions can narrow representation hypotheses but cannot establish detector-native intensity, acquisition independence or calibration.",
+    "The 35 K and 69 K 4D-STEM NPY arrays were not accessed and remain a separate modality.",
+    "This Diagnostic format inventory creates no SAED indexing, phase, analyzer-performance or engineering evidence."
+  ],
+  "source": {
+    "doi": "10.5281/zenodo.20300700",
+    "license_id": "cc-by-4.0",
+    "record_id": 20300700
+  },
+  "source_snapshot_sha256": "07584af56ccbac1a67728ca6bc1908dadba374dc42a3550b9d5216783a159f19",
+  "target_archive": {
+    "bytes": 25850906,
+    "key": "SAED.zip",
+    "repository_md5": "0c830a9b276a491e91037872891cb440",
+    "repository_md5_recomputed": false
+  },
+  "zip_structure": {
+    "central_directory_bytes": 781,
+    "central_directory_offset": 25850103,
+    "comment_bytes": 0,
+    "entries_total": 9
+  }
+}

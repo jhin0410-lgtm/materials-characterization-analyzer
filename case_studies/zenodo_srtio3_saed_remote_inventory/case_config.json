@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_saed_remote_inventory",
+  "audit_date": "2026-08-07",
+  "source_snapshot": "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json",
+  "target_archive": {
+    "key": "SAED.zip",
+    "expected_bytes": 25850906,
+    "expected_md5": "0c830a9b276a491e91037872891cb440"
+  },
+  "range_limits": {
+    "tail_probe_bytes": 131072,
+    "maximum_central_directory_bytes": 16777216,
+    "maximum_member_count": 50000,
+    "maximum_filename_bytes": 4096,
+    "maximum_extra_bytes": 65535,
+    "maximum_comment_bytes": 65535
+  },
+  "scientific_boundary": {
+    "http_range_metadata_probe_authorized": true,
+    "central_directory_inventory_authorized": true,
+    "full_archive_download_authorized": false,
+    "archive_member_payload_download_authorized": false,
+    "four_d_stem_download_authorized": false,
+    "pixel_array_decode_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "http_206_is_required_and_http_200_must_not_be_read_as_fallback": true,
+    "zip64_or_multidisk_requires_separate_review": true,
+    "unsafe_archive_paths_are_blocking": true,
+    "member_names_do_not_establish_independent_acquisitions": true,
+    "image_extensions_do_not_establish_raw_detector_native_intensity": true,
+    "member_count_does_not_establish_sample_count": true,
+    "saed_members_must_remain_separate_from_four_d_stem_arrays": true,
+    "pattern_center_and_reciprocal_calibration_require_separate_evidence": true
+  }
+}
