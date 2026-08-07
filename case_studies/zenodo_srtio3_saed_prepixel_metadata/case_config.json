@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_saed_prepixel_metadata",
+  "audit_date": "2026-08-07",
+  "tiff_metadata_config": "case_studies/zenodo_srtio3_saed_tiff_metadata/case_config.json",
+  "tiff_metadata_snapshot": "case_studies/zenodo_srtio3_saed_tiff_metadata/verified_tiff_metadata_snapshot.json",
+  "target_members": [
+    "SAED/23K.tif",
+    "SAED/91K.tif",
+    "SAED/172K.tif"
+  ],
+  "pixel_boundary": {
+    "verified_first_strip_offset": 272,
+    "maximum_decompressed_prefix_bytes": 262
+  },
+  "authorized_text_tags": [
+    {"name": "ImageDescription", "offset": 194, "bytes": 24},
+    {"name": "Software", "offset": 250, "bytes": 12}
+  ],
+  "scientific_boundary": {
+    "recheck_tiff_structure_authorized": true,
+    "decompress_only_verified_pre_pixel_prefix_authorized": true,
+    "decode_authorized_ascii_text_tags_authorized": true,
+    "pixel_array_decode_authorized": false,
+    "decompress_at_or_beyond_first_strip_authorized": false,
+    "follow_any_other_out_of_line_tag_authorized": false,
+    "full_member_download_authorized": false,
+    "full_archive_download_authorized": false,
+    "four_d_stem_download_authorized": false,
+    "analyzer_inference_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "authorized_text_ranges_must_end_before_verified_first_strip": true,
+    "live_tiff_structure_must_match_pinned_snapshot": true,
+    "text_metadata_may_identify_export_software_but_not_detector_native_intensity": true,
+    "filename_k_suffix_must_not_be_promoted_to_temperature_without_authoritative_metadata": true,
+    "pattern_center_and_reciprocal_calibration_require_separate_evidence": true
+  }
+}
