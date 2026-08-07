@@ -35,62 +35,37 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Run focused regressions
         run: pytest -q tests/test_audit_zenodo_srtio3_saed_metadata.py
-      - name: Inspect bounded live API schema
-        run: |
-          python - <<'PY'
-          import json
-          import urllib.request
-
-          request = urllib.request.Request(
-              "https://zenodo.org/api/records/20300700",
-              headers={
-                  "User-Agent": "materials-characterization-analyzer-schema-audit/1.0",
-                  "Accept": "application/json",
-              },
-          )
-          with urllib.request.urlopen(request, timeout=120) as response:
-              payload = json.load(response)
-          metadata = payload.get("metadata", {})
-          files = payload.get("files", {})
-          entries = files.get("entries", {}) if isinstance(files, dict) else {}
-          print(json.dumps({
-              "record_id": payload.get("id"),
-              "status": payload.get("status"),
-              "metadata_resource_type": metadata.get("resource_type"),
-              "top_level_resource_type": payload.get("resource_type"),
-              "rights": metadata.get("rights"),
-              "license": metadata.get("license"),
-              "version": metadata.get("version"),
-              "file_inventory": {
-                  key: {
-                      "size": value.get("size"),
-                      "checksum": value.get("checksum"),
-                  }
-                  for key, value in entries.items()
-                  if isinstance(value, dict)
-              },
-          }, indent=2, sort_keys=True))
-          PY
       - name: Run live metadata audit
         run: |
           python scripts/audit_zenodo_srtio3_saed_metadata.py \
             --config case_studies/zenodo_srtio3_saed_metadata_audit/case_config.json \
             --output outputs/zenodo_srtio3_saed_metadata_audit/metadata_snapshot.json
-      - name: Verify metadata-only boundary
+      - name: Verify metadata-only boundary and source stability
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
-          path = Path("outputs/zenodo_srtio3_saed_metadata_audit/metadata_snapshot.json")
-          snapshot = json.loads(path.read_text())
+          live_path = Path("outputs/zenodo_srtio3_saed_metadata_audit/metadata_snapshot.json")
+          pinned_path = Path(
+              "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+          )
+          snapshot = json.loads(live_path.read_text())
+          pinned = json.loads(pinned_path.read_text())
+
+          assert snapshot == pinned, "live Zenodo metadata differs from pinned verified snapshot"
           assert snapshot["execution_status"] == "metadata_audit_completed"
           assert snapshot["source"]["record_id"] == 20300700
+          assert snapshot["source"]["resource_type"] == "dataset"
+          assert snapshot["source"]["license_id"] == "cc-by-4.0"
+          assert snapshot["source"]["version_api"] is None
           assert snapshot["saed_archive"]["key"] == "SAED.zip"
+          assert snapshot["saed_archive"]["bytes"] == 25850906
           assert snapshot["saed_archive"]["md5"] == "0c830a9b276a491e91037872891cb440"
           assert snapshot["source_archive_downloaded"] is False
           assert snapshot["source_bytes_retained"] is False
           assert snapshot["analyzer_inference_performed"] is False
+          assert snapshot["readiness"]["saed_archive_inventory_authorized"] is True
           assert snapshot["readiness"]["four_d_stem_download_authorized"] is False
           assert snapshot["readiness"]["pixel_array_access_authorized"] is False
           assert snapshot["readiness"]["analyzer_execution_authorized"] is False
