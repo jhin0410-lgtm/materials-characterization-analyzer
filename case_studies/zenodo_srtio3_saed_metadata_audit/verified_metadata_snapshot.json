@@ -1,0 +1,98 @@
+{
+  "analyzer_inference_performed": false,
+  "audit_date": "2026-08-07",
+  "case_id": "zenodo_srtio3_saed_metadata_audit",
+  "config_sha256": "012b30acd66c33d2b5a241087273866bfa9e64365a8895f601c6feadbb9b33a0",
+  "evidence_assessment": {
+    "dataset_reuse_terms": "Supported",
+    "external_validation_readiness": "Inconclusive",
+    "four_d_stem_saed_modality_separation": "Supported",
+    "four_file_identity_and_repository_md5": "Supported",
+    "pattern_center_and_reciprocal_calibration": "Inconclusive",
+    "pattern_count_and_acquisition_independence": "Inconclusive",
+    "record_identity": "Supported",
+    "saed_archive_identity": "Supported",
+    "saed_static_representation": "Inconclusive",
+    "scientific_evidence_level": "Inconclusive"
+  },
+  "execution_status": "metadata_audit_completed",
+  "file_inventory": [
+    {
+      "bytes": 2621440128,
+      "content_url": "https://zenodo.org/api/records/20300700/files/4D_35K.npy/content",
+      "id": "bfd953d7-9743-47d7-9c95-0ef764cd0941",
+      "key": "4D_35K.npy",
+      "md5": "734883ae9e44af98226ac786efc31c94"
+    },
+    {
+      "bytes": 2621440128,
+      "content_url": "https://zenodo.org/api/records/20300700/files/4D_69K.npy/content",
+      "id": "eb8e0e40-eb61-4878-bdc8-90b694401c23",
+      "key": "4D_69K.npy",
+      "md5": "243111090578c7aa808ad4107713bb05"
+    },
+    {
+      "bytes": 1711932,
+      "content_url": "https://zenodo.org/api/records/20300700/files/Kikuchi_COM.ipynb/content",
+      "id": "a354e498-7196-40a2-a1b3-4ec250c29513",
+      "key": "Kikuchi_COM.ipynb",
+      "md5": "56383d23c198347220ed751ddb3dbae5"
+    },
+    {
+      "bytes": 25850906,
+      "content_url": "https://zenodo.org/api/records/20300700/files/SAED.zip/content",
+      "id": "5c830688-feca-4a89-8be6-22c60991fce6",
+      "key": "SAED.zip",
+      "md5": "0c830a9b276a491e91037872891cb440"
+    }
+  ],
+  "next_evidence": [
+    "Inspect only SAED.zip central-directory/member metadata before any 4D-STEM transfer.",
+    "Determine whether SAED.zip contains raw/static diffraction arrays, rendered images, processed exports, or mixed representations.",
+    "Count patterns and preserve acquisition/sample identity without inferring independence from filenames alone.",
+    "Determine whether pattern centre and reciprocal calibration are embedded or traceable to authoritative acquisition metadata.",
+    "Keep 35 K and 69 K 4D-STEM raw datasets separate from SAED evidence unless an explicit versioned relationship is supported."
+  ],
+  "prohibited_inference": [
+    "Do not infer static-SAED representation from the SAED.zip filename alone.",
+    "Do not infer independent acquisitions from member count or filename order.",
+    "Do not infer calibration, phase truth or detector-native intensity preservation from repository hosting.",
+    "Do not use the two 4D-STEM arrays merely to increase SAED sample count.",
+    "Do not run analyzer inference or tune parameters at the metadata-audit stage."
+  ],
+  "readiness": {
+    "analyzer_execution_authorized": false,
+    "engineering_decision_ready": false,
+    "external_validation_ready": false,
+    "four_d_stem_download_authorized": false,
+    "metadata_supported": true,
+    "phase_indexing_authorized": false,
+    "pixel_array_access_authorized": false,
+    "reuse_status": "dataset_license_declared_review_required",
+    "saed_archive_inventory_authorized": true
+  },
+  "saed_archive": {
+    "bytes": 25850906,
+    "content_url": "https://zenodo.org/api/records/20300700/files/SAED.zip/content",
+    "id": "5c830688-feca-4a89-8be6-22c60991fce6",
+    "key": "SAED.zip",
+    "md5": "0c830a9b276a491e91037872891cb440"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "created": "2026-06-11T20:36:34.941158+00:00",
+    "doi": "10.5281/zenodo.20300700",
+    "license_id": "cc-by-4.0",
+    "publication_date": "2026-05-20",
+    "record_id": 20300700,
+    "repository": "Zenodo",
+    "resource_type": "dataset",
+    "title": "Datasets for \"Nanoscale Polar Landscapes in Quantum Paraelectric SrTiO3\"",
+    "updated": "2026-06-11T20:36:35.268069+00:00",
+    "version_api": null,
+    "version_evidence_status": "landing_page_claim_not_exposed_by_records_api",
+    "version_landing_page_claim": "v1"
+  },
+  "source_archive_downloaded": false,
+  "source_bytes_retained": false
+}
