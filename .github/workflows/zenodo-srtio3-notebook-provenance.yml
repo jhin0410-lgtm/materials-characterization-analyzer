@@ -1,0 +1,74 @@
+name: Zenodo SrTiO3 notebook provenance audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_srtio3_notebook_provenance/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "scripts/audit_zenodo_srtio3_notebook_provenance.py"
+      - "tests/test_audit_zenodo_srtio3_notebook_provenance.py"
+      - ".github/workflows/zenodo-srtio3-notebook-provenance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_srtio3_notebook_provenance/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "scripts/audit_zenodo_srtio3_notebook_provenance.py"
+      - "tests/test_audit_zenodo_srtio3_notebook_provenance.py"
+      - ".github/workflows/zenodo-srtio3-notebook-provenance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-srtio3-notebook-provenance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_srtio3_notebook_provenance.py
+      - name: Run live notebook provenance audit
+        run: |
+          python scripts/audit_zenodo_srtio3_notebook_provenance.py \
+            --config case_studies/zenodo_srtio3_notebook_provenance/case_config.json \
+            --output outputs/zenodo_srtio3_notebook_provenance/notebook_provenance_snapshot.json
+      - name: Verify text-only evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_srtio3_notebook_provenance")
+          snapshot = json.loads((root / "notebook_provenance_snapshot.json").read_text())
+          assert snapshot["execution_status"] == "verified_notebook_text_provenance_audit_completed"
+          assert snapshot["source"]["file_key"] == "Kikuchi_COM.ipynb"
+          assert snapshot["source"]["bytes"] == 1711932
+          assert snapshot["source"]["repository_md5"] == snapshot["source"]["downloaded_md5"]
+          assert snapshot["notebook"]["full_notebook_retained"] is False
+          assert snapshot["notebook"]["notebook_outputs_inspected"] is False
+          assert snapshot["search"]["search_scope"] == "markdown_and_code_cell_source_only"
+          assert snapshot["readiness"]["saed_tiff_pixel_access_authorized"] is False
+          assert snapshot["readiness"]["four_d_stem_download_authorized"] is False
+          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
+          assert snapshot["readiness"]["phase_indexing_authorized"] is False
+          assert snapshot["readiness"]["external_validation_ready"] is False
+          assert list(root.rglob("*.ipynb")) == []
+          PY
+      - name: Upload summary evidence only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-srtio3-notebook-provenance-evidence
+          path: outputs/zenodo_srtio3_notebook_provenance
+          if-no-files-found: warn
+          retention-days: 30
