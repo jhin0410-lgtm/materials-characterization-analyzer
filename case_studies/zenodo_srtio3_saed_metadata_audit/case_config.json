@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_saed_metadata_audit",
+  "audit_date": "2026-08-07",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 20300700,
+    "doi": "10.5281/zenodo.20300700",
+    "record_url": "https://zenodo.org/records/20300700",
+    "api_url": "https://zenodo.org/api/records/20300700",
+    "expected_status": "published",
+    "expected_resource_type": "dataset",
+    "expected_title": "Datasets for \"Nanoscale Polar Landscapes in Quantum Paraelectric SrTiO3\"",
+    "landing_page_version_claim": "v1",
+    "expected_files": [
+      {"key": "4D_35K.npy", "md5": "734883ae9e44af98226ac786efc31c94"},
+      {"key": "4D_69K.npy", "md5": "243111090578c7aa808ad4107713bb05"},
+      {"key": "Kikuchi_COM.ipynb", "md5": "56383d23c198347220ed751ddb3dbae5"},
+      {"key": "SAED.zip", "md5": "0c830a9b276a491e91037872891cb440"}
+    ],
+    "expected_description_terms": ["4D-STEM", "SAED", "SrTiO3"]
+  },
+  "scientific_boundary": {
+    "metadata_api_request_authorized": true,
+    "saed_archive_download_authorized": false,
+    "four_d_stem_download_authorized": false,
+    "archive_inventory_authorized": false,
+    "pixel_array_access_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "dataset_license_must_be_recorded_before_source_file_reuse": true,
+    "landing_page_version_claim_must_be_separate_from_api_version": true,
+    "saed_zip_filename_does_not_establish_static_saed_representation": true,
+    "four_d_stem_and_saed_must_remain_separate_modalities": true,
+    "archive_identity_does_not_establish_pattern_independence": true,
+    "repository_hosting_does_not_establish_pattern_center_or_reciprocal_calibration": true,
+    "wrong_temperature_or_processed_representation_cannot_be_silently_pooled": true
+  }
+}
