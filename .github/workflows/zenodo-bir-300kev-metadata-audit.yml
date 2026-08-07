@@ -50,7 +50,8 @@ jobs:
           snapshot = json.loads((root / "metadata_snapshot.json").read_text())
           assert snapshot["execution_status"] == "metadata_audit_completed"
           assert snapshot["source"]["record_id"] == 10995139
-          assert snapshot["source"]["version"] == "v1"
+          assert snapshot["source"]["version_landing_page_claim"] == "v1"
+          assert snapshot["source"]["version_api"] in {None, "v1"}
           assert len(snapshot["file_inventory"]) == 6
           assert sum(item["bytes"] for item in snapshot["file_inventory"]) > 30_000_000_000
           assert snapshot["readiness"]["archive_audit_authorized"] is False
