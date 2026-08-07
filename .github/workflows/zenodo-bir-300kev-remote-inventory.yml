@@ -1,0 +1,82 @@
+name: Zenodo BIR 300 keV remote inventory
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_bir_300kev_saed_remote_inventory/**"
+      - "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "scripts/audit_zenodo_bir_300kev_remote_inventory.py"
+      - "tests/test_audit_zenodo_bir_300kev_remote_inventory.py"
+      - ".github/workflows/zenodo-bir-300kev-remote-inventory.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_bir_300kev_saed_remote_inventory/**"
+      - "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "scripts/audit_zenodo_bir_300kev_remote_inventory.py"
+      - "tests/test_audit_zenodo_bir_300kev_remote_inventory.py"
+      - ".github/workflows/zenodo-bir-300kev-remote-inventory.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-bir-300kev-remote-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_bir_300kev_remote_inventory.py
+      - name: Run live bounded range inventory
+        run: |
+          python scripts/audit_zenodo_bir_300kev_remote_inventory.py \
+            --config case_studies/zenodo_bir_300kev_saed_remote_inventory/case_config.json \
+            --output outputs/zenodo_bir_300kev_remote_inventory
+      - name: Verify bounded evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_bir_300kev_remote_inventory")
+          snapshot = json.loads((root / "remote_inventory_snapshot.json").read_text())
+          assert snapshot["execution_status"] == "remote_central_directory_inventory_completed"
+          assert snapshot["target_archive"]["key"] == "AVAAGA_300kV_293K.zip"
+          assert snapshot["target_archive"]["bytes"] == 3527509304
+          assert snapshot["target_archive"]["repository_md5_recomputed"] is False
+          assert snapshot["http_range_evidence"]["range_support_verified"] is True
+          assert snapshot["http_range_evidence"]["full_archive_downloaded"] is False
+          assert snapshot["http_range_evidence"]["member_payload_bytes_read"] is False
+          assert snapshot["http_range_evidence"]["total_remote_bytes_read"] < 70_000_000
+          assert snapshot["inventory_summary"]["member_count"] > 0
+          assert snapshot["inventory_summary"]["unsafe_path_count"] == 0
+          assert snapshot["readiness"]["selected_member_header_inspection_authorized"] is False
+          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
+          assert snapshot["readiness"]["external_validation_ready"] is False
+          assert snapshot["evidence_assessment"]["scientific_evidence_level"] == "Diagnostic"
+          forbidden = {".zip", ".tvips", ".dm3", ".dm4", ".mrc", ".ser", ".tif", ".tiff"}
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden
+          ]
+          if leaked:
+              raise SystemExit(f"member payload leaked into remote inventory evidence: {leaked}")
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-bir-300kev-remote-inventory-evidence
+          path: outputs/zenodo_bir_300kev_remote_inventory
+          if-no-files-found: warn
+          retention-days: 30
