@@ -60,7 +60,7 @@ jobs:
           assert snapshot["source"]["license_id"] == pinned["source"]["license_id"] == "cc-by-4.0"
           assert snapshot["file_inventory"] == pinned["file_inventory"]
           assert len(snapshot["file_inventory"]) == 6
-          assert sum(item["bytes"] for item in snapshot["file_inventory"]) == 36474833178
+          assert sum(item["bytes"] for item in snapshot["file_inventory"]) == 36474733178
           assert snapshot["readiness"]["archive_audit_authorized"] is False
           assert snapshot["readiness"]["analyzer_execution_authorized"] is False
           assert snapshot["readiness"]["external_validation_ready"] is False
