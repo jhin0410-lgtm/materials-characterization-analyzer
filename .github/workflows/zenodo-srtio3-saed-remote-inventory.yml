@@ -44,30 +44,42 @@ jobs:
           python scripts/audit_zenodo_srtio3_saed_remote_inventory.py \
             --config case_studies/zenodo_srtio3_saed_remote_inventory/case_config.json \
             --output outputs/zenodo_srtio3_saed_remote_inventory
-      - name: Verify bounded evidence
+      - name: Verify bounded evidence and source stability
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
           root = Path("outputs/zenodo_srtio3_saed_remote_inventory")
-          snapshot = json.loads((root / "remote_inventory_snapshot.json").read_text())
-          assert snapshot["execution_status"] == "remote_central_directory_inventory_completed"
-          assert snapshot["target_archive"]["key"] == "SAED.zip"
-          assert snapshot["target_archive"]["bytes"] == 25850906
-          assert snapshot["target_archive"]["repository_md5_recomputed"] is False
-          assert snapshot["http_range_evidence"]["range_support_verified"] is True
-          assert snapshot["http_range_evidence"]["full_archive_downloaded"] is False
-          assert snapshot["http_range_evidence"]["member_payload_bytes_read"] is False
-          assert snapshot["http_range_evidence"]["four_d_stem_bytes_read"] is False
-          assert snapshot["http_range_evidence"]["total_remote_bytes_read"] < 17_000_000
-          assert snapshot["inventory_summary"]["member_count"] > 0
-          assert snapshot["inventory_summary"]["unsafe_path_count"] == 0
-          assert snapshot["readiness"]["selected_member_payload_inspection_authorized"] is False
-          assert snapshot["readiness"]["four_d_stem_download_authorized"] is False
-          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
-          assert snapshot["readiness"]["phase_indexing_authorized"] is False
-          assert snapshot["readiness"]["external_validation_ready"] is False
+          live = json.loads((root / "remote_inventory_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_srtio3_saed_remote_inventory/verified_remote_inventory_snapshot.json"
+              ).read_text()
+          )
+          assert live == pinned, "live SAED.zip central-directory evidence differs from pinned snapshot"
+          assert live["execution_status"] == "remote_central_directory_inventory_completed"
+          assert live["target_archive"]["key"] == "SAED.zip"
+          assert live["target_archive"]["bytes"] == 25850906
+          assert live["target_archive"]["repository_md5_recomputed"] is False
+          assert live["http_range_evidence"]["range_support_verified"] is True
+          assert live["http_range_evidence"]["full_archive_downloaded"] is False
+          assert live["http_range_evidence"]["member_payload_bytes_read"] is False
+          assert live["http_range_evidence"]["four_d_stem_bytes_read"] is False
+          assert live["http_range_evidence"]["total_remote_bytes_read"] == 131853
+          assert live["inventory_summary"]["member_count"] == 9
+          assert live["inventory_summary"]["file_member_count"] == 8
+          assert live["inventory_summary"]["unsafe_path_count"] == 0
+          assert live["inventory_summary"]["extension_counts"] == {
+              ".ds_store": 1,
+              ".tif": 6,
+              "<none>": 1,
+          }
+          assert live["readiness"]["selected_member_payload_inspection_authorized"] is False
+          assert live["readiness"]["four_d_stem_download_authorized"] is False
+          assert live["readiness"]["analyzer_execution_authorized"] is False
+          assert live["readiness"]["phase_indexing_authorized"] is False
+          assert live["readiness"]["external_validation_ready"] is False
           forbidden = {".zip", ".npy", ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".dm3", ".dm4", ".ser"}
           leaked = [
               path for path in root.rglob("*")
