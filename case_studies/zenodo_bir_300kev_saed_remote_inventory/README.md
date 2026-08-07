@@ -6,26 +6,28 @@ Inspect the ZIP **central directory only** for the smallest verified BIR-MicroED
 300 keV archive, `AVAAGA_300kV_293K.zip`, without downloading the 3.53 GB ZIP or
 any `.tvips` member payload.
 
-This is the next bounded source-audit step after the live metadata gate verified
-record identity, six archive identities, repository MD5 values, exact byte counts,
-and dataset-level CC BY 4.0 reuse metadata.
+This follows the live metadata gate that verified record identity, six archive
+identities, repository MD5 values, exact byte counts, and dataset-level CC BY 4.0
+reuse metadata.
 
 ## Why central-directory probing comes before download
 
 The current SAED evidence gap is not simply a shortage of bytes. Before source
-transfer, we need to know whether the archive contains a usable TVIPS series
-structure at all. Established TVIPS readers require the first `_000.tvips` file
-because it carries the main stream header; filename inventory can therefore answer
-a narrow format-readiness question at far lower transfer cost than a full archive.
+transfer, we need to know whether the archive contains a TVIPS structure that an
+established reader can plausibly consume. HyperSpy documents split TVIPS streams
+as files ending `_xyz.tvips`, with `_000.tvips` carrying the essential main stream
+header. Filename inventory can test compatibility with that convention at far
+lower transfer cost than a full archive.
 
 Member names still do **not** prove sample identity, acquisition independence,
 pattern centre, reciprocal calibration, detector-native intensity preservation,
-or reflection truth.
+or reflection truth. Absence of `_000` in a filename also does not prove an
+internal TVIPS header is absent; that requires member-payload/header evidence.
 
 ## Bounded transfer contract
 
-The live audit performs exactly two HTTP range reads if the source is a standard
-single-disk non-ZIP64 archive:
+The live audit performs exactly two HTTP range reads for a standard single-disk
+non-ZIP64 archive:
 
 1. the last 131,072 bytes to locate the ZIP end-of-central-directory record;
 2. the exact central-directory byte range declared by that record.
@@ -33,14 +35,50 @@ single-disk non-ZIP64 archive:
 If the server returns HTTP 200 instead of HTTP 206, the command stops before
 reading the response body. There is no full-download fallback.
 
-The audit also stops for:
+The audit also stops for multi-disk ZIP, ZIP64 metadata requiring separate review,
+a central directory larger than 64 MiB, more than 200,000 members, unsafe member
+paths, or inconsistent byte-range responses.
 
-- multi-disk ZIP;
-- ZIP64 metadata requiring a separate parser review;
-- central directories larger than 64 MiB;
-- more than 200,000 members;
-- unsafe member paths;
-- inconsistent byte-range responses.
+## Verified live result — 2026-08-07
+
+The pinned live source result is in:
+
+```text
+verified_remote_inventory_snapshot.json
+```
+
+For `AVAAGA_300kV_293K.zip`:
+
+- archive size: `3,527,509,304` bytes;
+- remote bytes read: `131,788` bytes total;
+- central directory: `716` bytes;
+- ZIP members: `5` total — one directory and four `.tvips` files;
+- `.tvips` member count: `4`;
+- conventional `_xyz.tvips` split-stream members: `0`;
+- `_000.tvips` split-stream main files: `0`;
+- full archive downloaded: **no**;
+- TVIPS member payload read: **no**.
+
+The four member paths are:
+
+```text
+AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series1.tvips
+AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series2.tvips
+AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series3.tvips
+AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series4.tvips
+```
+
+Therefore:
+
+- TVIPS member presence: **Supported**;
+- HyperSpy documented split-stream filename compatibility: **Unsupported**;
+- internal TVIPS header validity: **Inconclusive**;
+- sample/acquisition lineage: **Inconclusive**;
+- pattern centre and reciprocal calibration: **Inconclusive**;
+- external-validation readiness: **Inconclusive**.
+
+This is exactly why a full 3.53 GB download is not currently justified merely to
+"try the reader".
 
 ## Run
 
@@ -57,28 +95,28 @@ remote_inventory_snapshot.json
 remote_member_inventory.csv
 ```
 
-The CSV records only central-directory metadata such as member path, compressed
-and uncompressed byte counts, compression method, CRC-32 metadata, local-header
-offset, and TVIPS series filename structure. It contains no member payload.
+The CSV contains central-directory metadata only: member path, compressed and
+uncompressed sizes, compression method, repository CRC-32 metadata, local-header
+offset, and TVIPS filename-structure diagnostics.
 
-## Decision after the audit
+## Next decision
 
-A useful outcome is evidence that the archive contains one or more TVIPS series
-with explicit `_000.tvips` main-header files. That supports a later **selected
-header-inspection** experiment, not analyzer validation.
+Do **not** infer that the four files are invalid TVIPS containers solely because
+they lack the documented `_000` naming convention. The next useful evidence, if
+pursued, is a separately authorized **minimal member-prefix/header probe** for one
+selected `.tvips` member. That experiment should recover only enough decompressed
+prefix bytes to compare the internal header with an established TVIPS parser
+contract.
 
-If the central directory has no TVIPS members, no valid `_000` series, requires an
-unsupported container variant, or cannot be ranged safely, stop and reassess the
-source instead of downloading the full collection.
-
-If the format inventory is viable, the next authorization should remain narrow:
-read only the minimum selected TVIPS header/payload range needed to test an
-established reader and determine which microscope/detector/axis metadata are
-actually present. Quantitative SAED indexing still requires independent evidence
-for pattern centre and reciprocal calibration.
+If the header is unsupported or lacks the needed detector/axis metadata, stop
+rather than downloading the rest of the 36.47 GB collection. If the header is
+usable, any quantitative SAED validation still requires independent evidence for
+pattern centre, reciprocal calibration, acquisition lineage, and reference
+reflection truth.
 
 ## Scientific evidence level
 
-Expected closeout: **Diagnostic**. This stage can establish remote archive member
-structure and TVIPS filename-series readiness only. It creates no external
-validation, phase-indexing, causal, or engineering-decision evidence.
+**Diagnostic.** This stage establishes remote archive/member structure and a
+negative filename-compatibility result for the documented HyperSpy split-stream
+convention. It creates no analyzer-performance, phase-indexing, causal,
+external-validation, or engineering-decision evidence.
