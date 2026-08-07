@@ -42,26 +42,55 @@ jobs:
           python scripts/audit_zenodo_srtio3_notebook_provenance.py \
             --config case_studies/zenodo_srtio3_notebook_provenance/case_config.json \
             --output outputs/zenodo_srtio3_notebook_provenance/notebook_provenance_snapshot.json
-      - name: Verify text-only evidence boundary
+      - name: Verify text-only evidence and source stability
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
           root = Path("outputs/zenodo_srtio3_notebook_provenance")
-          snapshot = json.loads((root / "notebook_provenance_snapshot.json").read_text())
-          assert snapshot["execution_status"] == "verified_notebook_text_provenance_audit_completed"
-          assert snapshot["source"]["file_key"] == "Kikuchi_COM.ipynb"
-          assert snapshot["source"]["bytes"] == 1711932
-          assert snapshot["source"]["repository_md5"] == snapshot["source"]["downloaded_md5"]
-          assert snapshot["notebook"]["full_notebook_retained"] is False
-          assert snapshot["notebook"]["notebook_outputs_inspected"] is False
-          assert snapshot["search"]["search_scope"] == "markdown_and_code_cell_source_only"
-          assert snapshot["readiness"]["saed_tiff_pixel_access_authorized"] is False
-          assert snapshot["readiness"]["four_d_stem_download_authorized"] is False
-          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
-          assert snapshot["readiness"]["phase_indexing_authorized"] is False
-          assert snapshot["readiness"]["external_validation_ready"] is False
+          live = json.loads((root / "notebook_provenance_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_srtio3_notebook_provenance/verified_notebook_provenance_snapshot.json"
+              ).read_text()
+          )
+          assert live["execution_status"] == "verified_notebook_text_provenance_audit_completed"
+          for key in (
+              "file_key",
+              "bytes",
+              "repository_md5",
+              "downloaded_md5",
+              "downloaded_sha256",
+              "metadata_snapshot_sha256",
+          ):
+              assert live["source"][key] == pinned["source"][key]
+          assert live["notebook"]["nbformat"] == pinned["notebook"]["nbformat"]
+          assert live["notebook"]["nbformat_minor"] == pinned["notebook"]["nbformat_minor"]
+          assert live["notebook"]["total_cells"] == pinned["notebook"]["total_cells"]
+          assert live["notebook"]["cell_type_counts"]["code"] == pinned["notebook"]["code_cells"]
+          assert live["notebook"]["cell_type_counts"]["markdown"] == pinned["notebook"]["markdown_cells"]
+          assert live["notebook"]["code_cells_with_ignored_outputs"] == pinned["notebook"]["code_cells_with_ignored_outputs"]
+          assert live["notebook"]["full_notebook_retained"] is False
+          assert live["notebook"]["notebook_outputs_inspected"] is False
+          counts = live["search"]["category_hit_counts"]
+          expected = pinned["search_summary"]
+          assert counts["saed_identity"] == expected["saed_identity_hit_count"]
+          assert counts["representation_and_export"] == expected["representation_and_export_hit_count"]
+          assert counts["preprocessing"] == expected["preprocessing_hit_count"]
+          assert counts["calibration"] == expected["calibration_hit_count"]
+          assert counts["diffraction_context"] == expected["diffraction_context_hit_count"]
+          terms = live["search"]["term_hit_counts"]
+          assert terms["saed_identity:SAED"] == expected["explicit_saed_term_hits"]
+          assert terms["saed_identity:23K"] == expected["explicit_23K_hits"]
+          assert terms["saed_identity:91K"] == expected["explicit_91K_hits"]
+          assert terms["saed_identity:172K"] == expected["explicit_172K_hits"]
+          assert live["search"]["search_scope"] == "markdown_and_code_cell_source_only"
+          assert live["readiness"]["saed_tiff_pixel_access_authorized"] is False
+          assert live["readiness"]["four_d_stem_download_authorized"] is False
+          assert live["readiness"]["analyzer_execution_authorized"] is False
+          assert live["readiness"]["phase_indexing_authorized"] is False
+          assert live["readiness"]["external_validation_ready"] is False
           assert list(root.rglob("*.ipynb")) == []
           PY
       - name: Upload summary evidence only
