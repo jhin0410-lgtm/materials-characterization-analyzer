@@ -1,0 +1,89 @@
+name: Zenodo SrTiO3 SAED pre-pixel metadata audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_srtio3_saed_prepixel_metadata/**"
+      - "case_studies/zenodo_srtio3_saed_tiff_metadata/**"
+      - "scripts/audit_zenodo_srtio3_saed_prepixel_metadata.py"
+      - "scripts/audit_zenodo_srtio3_saed_tiff_metadata.py"
+      - "tests/test_audit_zenodo_srtio3_saed_prepixel_metadata.py"
+      - ".github/workflows/zenodo-srtio3-saed-prepixel-metadata.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_srtio3_saed_prepixel_metadata/**"
+      - "case_studies/zenodo_srtio3_saed_tiff_metadata/**"
+      - "scripts/audit_zenodo_srtio3_saed_prepixel_metadata.py"
+      - "scripts/audit_zenodo_srtio3_saed_tiff_metadata.py"
+      - "tests/test_audit_zenodo_srtio3_saed_prepixel_metadata.py"
+      - ".github/workflows/zenodo-srtio3-saed-prepixel-metadata.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-srtio3-saed-prepixel-metadata-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_srtio3_saed_prepixel_metadata.py
+      - name: Run live bounded pre-pixel metadata audit
+        run: |
+          python scripts/audit_zenodo_srtio3_saed_prepixel_metadata.py \
+            --config case_studies/zenodo_srtio3_saed_prepixel_metadata/case_config.json \
+            --output outputs/zenodo_srtio3_saed_prepixel_metadata/prepixel_metadata_snapshot.json
+      - name: Verify no pixel boundary crossing
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_srtio3_saed_prepixel_metadata")
+          snapshot = json.loads((root / "prepixel_metadata_snapshot.json").read_text())
+          assert snapshot["execution_status"] == "bounded_pre_pixel_text_metadata_audit_completed"
+          assert len(snapshot["members"]) == 3
+          assert snapshot["range_evidence"]["maximum_decompressed_prefix_per_member"] == 262
+          assert snapshot["range_evidence"]["verified_first_pixel_strip_offset"] == 272
+          assert snapshot["range_evidence"]["pixel_bytes_decompressed"] == 0
+          assert snapshot["range_evidence"]["raw_tiff_bytes_retained"] == 0
+          assert snapshot["range_evidence"]["four_d_stem_bytes_read"] is False
+          assert snapshot["range_evidence"]["total_remote_bytes_read"] < 1_000_000
+          assert snapshot["readiness"]["pixel_access_authorized"] is False
+          assert snapshot["readiness"]["four_d_stem_download_authorized"] is False
+          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
+          assert snapshot["readiness"]["phase_indexing_authorized"] is False
+          assert snapshot["readiness"]["external_validation_ready"] is False
+          for member in snapshot["members"]:
+              assert member["full_member_downloaded"] is False
+              assert member["verified_first_strip_offset"] == 272
+              assert member["pre_pixel_prefix_bytes_decompressed"] == 262
+              assert member["pixel_bytes_decompressed"] == 0
+              assert set(member["text_metadata"]) == {"ImageDescription", "Software"}
+          forbidden = {".zip", ".npy", ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".dm3", ".dm4", ".ser"}
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden
+          ]
+          if leaked:
+              raise SystemExit(f"source/pixel payload leaked into pre-pixel evidence: {leaked}")
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-srtio3-saed-prepixel-metadata-evidence
+          path: outputs/zenodo_srtio3_saed_prepixel_metadata
+          if-no-files-found: warn
+          retention-days: 30
