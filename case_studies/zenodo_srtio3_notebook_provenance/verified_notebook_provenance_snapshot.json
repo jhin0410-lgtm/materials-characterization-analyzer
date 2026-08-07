@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_notebook_provenance",
+  "audit_date": "2026-08-07",
+  "source": {
+    "record_id": 20300700,
+    "doi": "10.5281/zenodo.20300700",
+    "license_id": "cc-by-4.0",
+    "file_key": "Kikuchi_COM.ipynb",
+    "bytes": 1711932,
+    "repository_md5": "56383d23c198347220ed751ddb3dbae5",
+    "downloaded_md5": "56383d23c198347220ed751ddb3dbae5",
+    "downloaded_sha256": "4f8c911700e090ceb5703bc8b12d61f9767b5039fca616aa88dbc8849730f268",
+    "metadata_snapshot_sha256": "07584af56ccbac1a67728ca6bc1908dadba374dc42a3550b9d5216783a159f19"
+  },
+  "notebook": {
+    "nbformat": 4,
+    "nbformat_minor": 5,
+    "total_cells": 25,
+    "code_cells": 17,
+    "markdown_cells": 8,
+    "code_cells_with_ignored_outputs": 11,
+    "full_notebook_retained": false,
+    "notebook_outputs_inspected": false
+  },
+  "search_summary": {
+    "saed_identity_hit_count": 0,
+    "representation_and_export_hit_count": 8,
+    "preprocessing_hit_count": 52,
+    "calibration_hit_count": 40,
+    "diffraction_context_hit_count": 67,
+    "explicit_saed_term_hits": 0,
+    "explicit_23K_hits": 0,
+    "explicit_91K_hits": 0,
+    "explicit_172K_hits": 0
+  },
+  "supported_textual_observations": [
+    "The notebook explicitly describes itself as Kikuchi COM analysis for 4D-STEM diffraction data.",
+    "The notebook describes 4D-STEM preprocessing that flips an EMPAD diffraction axis, rotates each diffraction pattern by -9 degrees, and crops 10 edge pixels after rotation.",
+    "The notebook describes fitting the first-order Laue ring to determine a center-beam position for the 4D-STEM analysis.",
+    "The audited markdown/code source text contains no explicit SAED, 23K, 91K, or 172K search-term hit under the predeclared search contract."
+  ],
+  "evidence_assessment": {
+    "notebook_file_identity": "Supported",
+    "notebook_text_provenance": "Supported",
+    "notebook_scope_as_4d_stem_analysis": "Supported",
+    "four_d_stem_preprocessing_text": "Supported",
+    "four_d_stem_beam_center_method_text": "Supported",
+    "saed_tiff_relationship_from_notebook": "Inconclusive",
+    "filename_k_suffix_temperature_semantics": "Inconclusive",
+    "saed_tiff_preprocessing_lineage": "Inconclusive",
+    "pattern_center_and_reciprocal_calibration_for_saed": "Inconclusive",
+    "external_validation_readiness": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic"
+  },
+  "readiness": {
+    "notebook_text_audit_ready": true,
+    "saed_tiff_pixel_access_authorized_for_scientific_validation": false,
+    "four_d_stem_download_authorized": false,
+    "analyzer_execution_authorized_for_scientific_validation": false,
+    "phase_indexing_authorized": false,
+    "external_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "closeout": {
+    "saed_a2_status": "provenance_and_calibration_blocked",
+    "additional_pixel_bytes_are_current_priority": false,
+    "reason": "The available TIFF and notebook metadata establish representation/export and a separate 4D-STEM workflow, but do not provide an explicit SAED acquisition lineage, temperature semantics, detector-native intensity provenance, pattern centre, reciprocal calibration, or frozen reflection truth.",
+    "next_evidence": "Prefer authoritative SAED acquisition/calibration metadata or an independently calibrated/truthed static diffraction cohort; do not transfer the 4D-STEM preprocessing pipeline onto the SAED TIFFs by inference."
+  }
+}
