@@ -1,0 +1,99 @@
+name: Zenodo BIR 300 keV TVIPS header prefix
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_bir_300kev_saed_header_prefix/**"
+      - "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "case_studies/zenodo_bir_300kev_saed_remote_inventory/**"
+      - "scripts/audit_zenodo_bir_300kev_remote_inventory.py"
+      - "scripts/audit_zenodo_bir_300kev_tvips_header_prefix.py"
+      - "tests/test_audit_zenodo_bir_300kev_tvips_header_prefix.py"
+      - ".github/workflows/zenodo-bir-300kev-tvips-header-prefix.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_bir_300kev_saed_header_prefix/**"
+      - "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "case_studies/zenodo_bir_300kev_saed_remote_inventory/**"
+      - "scripts/audit_zenodo_bir_300kev_remote_inventory.py"
+      - "scripts/audit_zenodo_bir_300kev_tvips_header_prefix.py"
+      - "tests/test_audit_zenodo_bir_300kev_tvips_header_prefix.py"
+      - ".github/workflows/zenodo-bir-300kev-tvips-header-prefix.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-bir-300kev-tvips-header-prefix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_bir_300kev_tvips_header_prefix.py
+      - name: Run live bounded selected-header audit
+        run: |
+          python scripts/audit_zenodo_bir_300kev_tvips_header_prefix.py \
+            --config case_studies/zenodo_bir_300kev_saed_header_prefix/case_config.json \
+            --output outputs/zenodo_bir_300kev_saed_header_prefix/header_prefix_snapshot.json
+      - name: Verify fail-closed header evidence and source stability
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_bir_300kev_saed_header_prefix")
+          snapshot = json.loads((root / "header_prefix_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_bir_300kev_saed_header_prefix/verified_header_prefix_snapshot.json"
+              ).read_text()
+          )
+          assert snapshot["execution_status"] == "selected_tvips_header_prefix_audit_completed"
+          assert snapshot["target_archive"] == pinned["target_archive"]
+          assert snapshot["selected_member"] == pinned["selected_member"]
+          assert snapshot["zip_structure"] == pinned["zip_structure"]
+          assert snapshot["parser_contract"] == pinned["parser_contract"]
+          assert snapshot["local_member_header"] == pinned["local_member_header"]
+          assert snapshot["tvips_general_header"] == pinned["tvips_general_header"]
+          assert snapshot["range_evidence"] == pinned["range_evidence"]
+          assert snapshot["evidence_assessment"] == pinned["evidence_assessment"]
+          assert snapshot["readiness"] == pinned["readiness"]
+          assert snapshot["range_evidence"]["total_remote_bytes_read"] < 1_000_000
+          assert snapshot["range_evidence"]["decompressed_header_bytes_retained"] == 0
+          assert snapshot["range_evidence"]["diffraction_pixel_array_decoded"] is False
+          assert snapshot["range_evidence"]["frame_payload_decoded"] is False
+          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
+          assert snapshot["readiness"]["phase_indexing_authorized"] is False
+          assert snapshot["readiness"]["external_validation_ready"] is False
+          assert snapshot["evidence_assessment"]["scientific_evidence_level"] == "Diagnostic"
+          assert snapshot["evidence_assessment"]["tvips_general_header_structural_match"] == "Supported"
+          assert snapshot["evidence_assessment"][
+              "hyperspy_documented_split_stream_filename_compatibility"
+          ] == "Unsupported"
+          forbidden = {".zip", ".tvips", ".dm3", ".dm4", ".mrc", ".ser", ".tif", ".tiff"}
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden
+          ]
+          if leaked:
+              raise SystemExit(f"source payload leaked into header-prefix evidence: {leaked}")
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-bir-300kev-tvips-header-prefix-evidence
+          path: outputs/zenodo_bir_300kev_saed_header_prefix
+          if-no-files-found: warn
+          retention-days: 30
