@@ -1,0 +1,119 @@
+{
+  "audit_date": "2026-08-07",
+  "case_id": "zenodo_bir_300kev_saed_header_prefix",
+  "config_sha256": "fc7fde63093b6757027acce5aeed8eaace52c1e8369d336f16faceacdf330b18",
+  "evidence_assessment": {
+    "beam_energy_header_field": "Diagnostic",
+    "camera_length_or_magnification_header_field": "Inconclusive",
+    "external_validation_readiness": "Inconclusive",
+    "hyperspy_documented_split_stream_filename_compatibility": "Unsupported",
+    "pattern_center_and_reciprocal_calibration": "Inconclusive",
+    "reference_reflection_truth": "Inconclusive",
+    "sample_and_acquisition_lineage": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic",
+    "selected_member_local_header_binding": "Supported",
+    "tvips_general_header_structural_match": "Supported",
+    "verified_remote_inventory_reproduced": "Supported"
+  },
+  "execution_status": "selected_tvips_header_prefix_audit_completed",
+  "local_member_header": {
+    "compressed_prefix_bytes_read": 262144,
+    "compressed_prefix_limit": 262144,
+    "compressed_prefix_sha256": "c159006f4348c0f7a9380649cf51429d62b0f613f9637a7936da1ea63967fd36",
+    "compression_method": 8,
+    "compression_supported_for_bounded_prefix": true,
+    "data_offset": 832776010,
+    "decompressed_bytes_produced": 256,
+    "extra_bytes": 32,
+    "filename_bytes": 77,
+    "fixed_local_header_bytes_read": 30,
+    "flags": 8,
+    "local_header_offset": 832775871,
+    "uses_data_descriptor": true,
+    "variable_local_header_bytes_read": 109,
+    "version_needed": 20
+  },
+  "parser_contract": {
+    "general_header_bytes": 256,
+    "source_commit": "bc254db14cd7d4d23169b11aeb622a0a7eac1fbe",
+    "source_path": "rsciio/tvips/_api.py",
+    "source_repository": "hyperspy/rosettasciio"
+  },
+  "range_evidence": {
+    "decompressed_header_bytes_retained": 0,
+    "diffraction_pixel_array_decoded": false,
+    "frame_payload_decoded": false,
+    "remote_inventory_bytes_read": 131788,
+    "selected_member_range_bytes_read": 262283,
+    "total_remote_bytes_read": 394071
+  },
+  "readiness": {
+    "analyzer_execution_authorized": false,
+    "engineering_decision_ready": false,
+    "external_validation_ready": false,
+    "filename_adapter_or_staging_copy_may_be_investigated": true,
+    "internal_header_structure_observed": true,
+    "phase_indexing_authorized": false
+  },
+  "schema_version": "1.0",
+  "scientific_boundary": [
+    "Only the ZIP inventory, selected local ZIP header, and a bounded compressed prefix of one TVIPS member were read.",
+    "At most the first 256 decompressed member bytes were interpreted as the pinned RosettaSciIO general-header structure; no frame or diffraction pixel payload was decoded.",
+    "A structural header match is format evidence only and does not establish sample lineage, calibration truth, reflection truth, analyzer performance, or external-validation readiness."
+  ],
+  "selected_member": {
+    "compressed_bytes": 953752752,
+    "compression_method": 8,
+    "full_member_downloaded": false,
+    "path": "AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series1.tvips",
+    "uncompressed_bytes": 2357249684
+  },
+  "source": {
+    "dataset_license": "cc-by-4.0",
+    "doi": "10.5281/zenodo.10995139",
+    "record_id": 10995139,
+    "remote_inventory_snapshot_sha256": "d438bdc417f14d795edcebc5a2b40ae03442600358299bc629896590c97d2a32"
+  },
+  "target_archive": {
+    "bytes": 3527509304,
+    "full_archive_downloaded": false,
+    "key": "AVAAGA_300kV_293K.zip",
+    "repository_md5": "95a209f805dab516b2e5175943878079"
+  },
+  "tvips_general_header": {
+    "checks": {
+      "binning_positive": true,
+      "bits_per_pixel_supported": true,
+      "dimensions_positive": true,
+      "frame_header_core_compatible": true,
+      "size_matches_256": true,
+      "version_supported": true
+    },
+    "dummy_printable_fraction": 0.0,
+    "dummy_sha256": "c0c74543cc9dcc7f0ddc24eaced85c278aa3e357d3cb319977a8140d26268d06",
+    "dummy_tvips_token_count": 0,
+    "fields": {
+      "binx": 2,
+      "biny": 2,
+      "bitsperpixel": 16,
+      "dimx": 2048,
+      "dimy": 2048,
+      "frameheaderbytes": 180,
+      "ht": 300,
+      "magtotal": 0,
+      "offsetx": 0,
+      "offsety": 0,
+      "pixelsize": 15500,
+      "size": 256,
+      "version": 2
+    },
+    "header_sha256": "c9b0e619552cc40be0a99703e8b141346384f413311020c235e342e22c814499",
+    "structural_match": true
+  },
+  "zip_structure": {
+    "central_directory_bytes": 716,
+    "central_directory_offset": 3527508566,
+    "comment_bytes": 0,
+    "entries_total": 5
+  }
+}
