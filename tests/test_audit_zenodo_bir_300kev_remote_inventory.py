@@ -22,8 +22,7 @@ def _zip_bytes(names: list[str]) -> bytes:
 def _parse_fixture(names: list[str]) -> tuple[dict[str, int], list[dict[str, Any]]]:
     payload = _zip_bytes(names)
     tail_size = min(131072, len(payload))
-    tail = payload[-tail_size:]
-    eocd = audit.parse_eocd(tail, archive_size=len(payload))
+    eocd = audit.parse_eocd(payload[-tail_size:], archive_size=len(payload))
     start = eocd["central_directory_offset"]
     end = start + eocd["central_directory_bytes"]
     records = audit.parse_central_directory(
@@ -39,7 +38,7 @@ def _parse_fixture(names: list[str]) -> tuple[dict[str, int], list[dict[str, Any
     return eocd, records
 
 
-def test_zip_central_directory_inventory_detects_tvips_series_and_main_header() -> None:
+def test_zip_inventory_detects_conventional_tvips_split_stream_and_main_file() -> None:
     eocd, records = _parse_fixture(
         [
             "AVAAGA/crystalA_000.tvips",
@@ -53,13 +52,14 @@ def test_zip_central_directory_inventory_detects_tvips_series_and_main_header() 
     assert eocd["entries_total"] == 4
     assert summary["member_count"] == 4
     assert summary["tvips_member_count"] == 3
-    assert summary["tvips_series_count"] == 1
-    assert summary["tvips_main_header_count"] == 1
-    assert summary["tvips_series_missing_main_header_count"] == 0
-    assert summary["tvips_main_header_paths"] == ["AVAAGA/crystalA_000.tvips"]
+    assert summary["tvips_split_stream_member_count"] == 3
+    assert summary["tvips_split_stream_series_count"] == 1
+    assert summary["tvips_split_stream_main_file_count"] == 1
+    assert summary["tvips_split_series_missing_main_count"] == 0
+    assert summary["tvips_split_main_paths"] == ["AVAAGA/crystalA_000.tvips"]
 
 
-def test_tvips_series_without_zero_frame_is_reported_not_inferred() -> None:
+def test_tvips_split_stream_without_zero_file_is_reported_not_inferred() -> None:
     _, records = _parse_fixture(
         [
             "AVAAGA/crystalB_001.tvips",
@@ -68,10 +68,27 @@ def test_tvips_series_without_zero_frame_is_reported_not_inferred() -> None:
     )
     summary = audit.summarize_inventory(records, central_sha256="b" * 64)
 
-    assert summary["tvips_series_count"] == 1
-    assert summary["tvips_main_header_count"] == 0
-    assert summary["tvips_series_missing_main_header_count"] == 1
-    assert summary["tvips_series_missing_main_header"] == ["crystalB"]
+    assert summary["tvips_split_stream_series_count"] == 1
+    assert summary["tvips_split_stream_main_file_count"] == 0
+    assert summary["tvips_split_series_missing_main_count"] == 1
+    assert summary["tvips_split_series_missing_main"] == ["crystalB"]
+
+
+def test_standalone_named_tvips_members_are_not_promoted_to_split_stream_series() -> None:
+    _, records = _parse_fixture(
+        [
+            "AVAAGA/static_series1.tvips",
+            "AVAAGA/static_series2.tvips",
+            "AVAAGA/static_series3.tvips",
+        ]
+    )
+    summary = audit.summarize_inventory(records, central_sha256="c" * 64)
+
+    assert summary["tvips_member_count"] == 3
+    assert summary["tvips_nonstandard_filename_count"] == 3
+    assert summary["tvips_split_stream_member_count"] == 0
+    assert summary["tvips_split_stream_series_count"] == 0
+    assert summary["tvips_split_stream_main_file_count"] == 0
 
 
 def test_central_directory_preserves_unsafe_path_as_flag() -> None:
