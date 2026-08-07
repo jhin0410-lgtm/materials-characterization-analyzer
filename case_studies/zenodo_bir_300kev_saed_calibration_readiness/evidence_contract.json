@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_bir_300kev_saed_calibration_readiness",
+  "assessment_date": "2026-08-07",
+  "dataset": {
+    "doi": "10.5281/zenodo.10995139",
+    "record_id": 10995139,
+    "verified_metadata_snapshot": "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json",
+    "verified_remote_inventory_snapshot": "case_studies/zenodo_bir_300kev_saed_remote_inventory/verified_remote_inventory_snapshot.json",
+    "verified_header_prefix_snapshot": "case_studies/zenodo_bir_300kev_saed_header_prefix/verified_header_prefix_snapshot.json"
+  },
+  "authoritative_method_source": {
+    "doi": "10.1107/S2052252524012132",
+    "title": "Accounting for electron-beam-induced warping of molecular nanocrystals in MicroED structure determination",
+    "source_scope": "published_methods_for_the_300_kV_diffraction_cohort",
+    "supported_method_facts": {
+      "accelerating_voltage_kv": 300,
+      "microscope": "Tecnai F30 TEM",
+      "detector": "TVIPS TemCam XF416 CMOS",
+      "source_file_format": "TVIPS",
+      "illumination_mode": "microprobe diffraction mode",
+      "beam_geometry": "parallel beam",
+      "selected_area_aperture_um": 100,
+      "stationary_crystal_exposure_seconds_reported": [0.25, 1.0, 2.0]
+    },
+    "claim_boundary": [
+      "These are cohort-level published method facts and are not immutable per-file acquisition identifiers.",
+      "The method source does not by itself bind a specific series#.tvips file to a unique crystal identity or acquisition ID.",
+      "The audited method evidence is not treated as a traceable camera-length, camera-constant, beam-centre, or reciprocal-scale calibration."
+    ]
+  },
+  "verified_header_facts": {
+    "size": 256,
+    "version": 2,
+    "dimx": 2048,
+    "dimy": 2048,
+    "bitsperpixel": 16,
+    "binx": 2,
+    "biny": 2,
+    "offsetx": 0,
+    "offsety": 0,
+    "pixelsize_raw": 15500,
+    "ht_raw": 300,
+    "magtotal_raw": 0,
+    "frameheaderbytes": 180
+  },
+  "calibration_requirements": {
+    "pattern_center": {
+      "required": true,
+      "acceptable_evidence": [
+        "source-supported pattern centre for the selected acquisition",
+        "independently reproducible centre-calibration procedure frozen before analyzer tuning"
+      ]
+    },
+    "reciprocal_scale": {
+      "required": true,
+      "acceptable_evidence": [
+        "traceable camera constant or reciprocal-space calibration for the selected acquisition",
+        "camera length plus detector geometry and a documented conversion validated against an independent reference"
+      ]
+    },
+    "sample_acquisition_lineage": {
+      "required": true,
+      "acceptable_evidence": [
+        "source-assigned immutable sample/crystal ID and acquisition/series ID",
+        "authoritative mapping from the exact TVIPS series to a source-defined crystal/acquisition record"
+      ]
+    },
+    "reference_truth": {
+      "required_for_phase_or_reflection_validation": true,
+      "acceptable_evidence": [
+        "source-author reflection/ring assignments with traceable phase and zone-axis context",
+        "independently curated structure/reference plus a predeclared indexing protocol"
+      ]
+    }
+  },
+  "current_evidence_state": {
+    "record_and_reuse_terms": "Supported",
+    "archive_and_member_identity": "Supported",
+    "tvips_internal_header_structure": "Supported",
+    "published_microscope_detector_and_diffraction_mode": "Supported",
+    "source_native_hyperspy_split_filename_compatibility": "Unsupported",
+    "pattern_center": "Inconclusive",
+    "reciprocal_scale": "Inconclusive",
+    "sample_acquisition_lineage": "Inconclusive",
+    "reference_truth": "Inconclusive",
+    "quantitative_saed_indexing_readiness": "Unsupported",
+    "external_validation_readiness": "Inconclusive",
+    "engineering_decision_readiness": "Unsupported"
+  },
+  "decision_rules": {
+    "do_not_infer_header_units_from_field_names_only": true,
+    "do_not_convert_pixelsize_raw_to_reciprocal_scale_without_traceable_semantics": true,
+    "do_not_treat_ht_raw_as_independent_accelerating_voltage_calibration": true,
+    "do_not_treat_magtotal_zero_as_camera_length": true,
+    "do_not_read_frame_or_pixel_payload_when_published_methods_already_answer_detector_or_diffraction_mode": true,
+    "do_not_start_phase_indexing_until_pattern_center_reciprocal_scale_and_reference_protocol_are_frozen": true,
+    "do_not_download_remaining_archives_without_a_specific_unresolved_evidence_requirement": true
+  },
+  "next_evidence_requirement": {
+    "priority": 1,
+    "requirement": "authoritative_or_independently_reproducible_pattern_center_and_reciprocal_calibration_for_an_exact_BIR_300keV_TVIPS_acquisition",
+    "why": "This is the narrowest unresolved blocker that changes whether quantitative SAED indexing validation is scientifically admissible.",
+    "source_bytes_required_now": false
+  },
+  "scientific_boundary": [
+    "This contract combines already verified repository evidence with published cohort-level method facts; it does not inspect new diffraction pixels.",
+    "A structurally valid TVIPS header and known microscope/detector model do not establish reciprocal calibration or beam centre.",
+    "No phase, reflection, zone-axis, analyzer-performance, external-validation, or engineering claim is authorized by this assessment."
+  ]
+}
