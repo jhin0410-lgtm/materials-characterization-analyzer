@@ -13,7 +13,6 @@
   "range_limits": {
     "maximum_compressed_prefix_bytes_per_member": 262144,
     "initial_tiff_header_bytes": 8,
-    "maximum_first_ifd_offset": 16384,
     "maximum_ifd_entries": 256,
     "maximum_decompressed_metadata_bytes": 65536,
     "maximum_local_filename_bytes": 4096,
@@ -21,6 +20,7 @@
   },
   "tiff_contract": {
     "allowed_magic": 42,
+    "required_first_ifd_offset": 8,
     "supported_byte_orders": ["II", "MM"],
     "recorded_tags": {
       "256": "ImageWidth",
@@ -62,7 +62,7 @@
     "all_three_substantive_tiff_members_must_be_uniquely_present": true,
     "local_and_central_zip_metadata_must_match": true,
     "encrypted_or_unsupported_zip_compression_is_blocking": true,
-    "first_ifd_must_fit_inside_bounded_metadata_prefix": true,
+    "first_ifd_must_begin_immediately_after_tiff_header": true,
     "out_of_line_tiff_values_must_not_be_followed": true,
     "tiff_dimensions_and_bit_depth_are_only_supported_if_present_in_ifd": true,
     "filename_k_suffix_must_not_be_promoted_to_temperature_without_authoritative_metadata": true,
