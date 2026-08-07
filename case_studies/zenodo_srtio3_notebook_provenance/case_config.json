@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_notebook_provenance",
+  "audit_date": "2026-08-07",
+  "metadata_snapshot": "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json",
+  "source_file": {
+    "key": "Kikuchi_COM.ipynb",
+    "expected_bytes": 1711932,
+    "expected_md5": "56383d23c198347220ed751ddb3dbae5",
+    "maximum_download_bytes": 2000000
+  },
+  "search_terms": {
+    "saed_identity": ["SAED", "23K", "91K", "172K", "23 K", "91 K", "172 K"],
+    "representation_and_export": ["tifffile", "imwrite", "imsave", "float64", "astype", "normalize", "normalise"],
+    "preprocessing": ["background", "subtract", "filter", "smooth", "threshold", "clip", "crop", "mask"],
+    "calibration": ["calibration", "camera length", "camera_length", "reciprocal", "pixel size", "pixelsize", "center", "centre", "beam center", "beam centre"],
+    "diffraction_context": ["diffraction", "Kikuchi", "COM", "center of mass", "centre of mass"]
+  },
+  "scientific_boundary": {
+    "download_verified_notebook_authorized": true,
+    "parse_notebook_markdown_and_code_text_authorized": true,
+    "inspect_notebook_outputs_authorized": false,
+    "retain_full_notebook_authorized": false,
+    "four_d_stem_download_authorized": false,
+    "saed_tiff_pixel_access_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "notebook_md5_must_match_repository_metadata": true,
+    "only_markdown_and_code_source_text_may_be_searched": true,
+    "notebook_outputs_must_not_be_used_as_evidence": true,
+    "absence_of_search_hits_must_not_be_converted_into_evidence_of_absence": true,
+    "filename_temperature_semantics_require_explicit_textual_support": true,
+    "preprocessing_must_not_be_inferred_from_tifffile_export_alone": true,
+    "calibration_requires_explicit_method_or_value_provenance": true
+  }
+}
