@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_bir_300kev_saed_header_prefix",
+  "audit_date": "2026-08-07",
+  "metadata_snapshot": "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json",
+  "remote_inventory_config": "case_studies/zenodo_bir_300kev_saed_remote_inventory/case_config.json",
+  "remote_inventory_snapshot": "case_studies/zenodo_bir_300kev_saed_remote_inventory/verified_remote_inventory_snapshot.json",
+  "target_member": {
+    "archive_key": "AVAAGA_300kV_293K.zip",
+    "archive_bytes": 3527509304,
+    "archive_md5": "95a209f805dab516b2e5175943878079",
+    "member_path": "AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series1.tvips"
+  },
+  "range_limits": {
+    "maximum_compressed_prefix_bytes": 262144,
+    "required_decompressed_header_bytes": 256,
+    "maximum_local_filename_bytes": 4096,
+    "maximum_local_extra_bytes": 65535
+  },
+  "parser_contract": {
+    "source_repository": "hyperspy/rosettasciio",
+    "source_commit": "bc254db14cd7d4d23169b11aeb622a0a7eac1fbe",
+    "source_path": "rsciio/tvips/_api.py",
+    "general_header_bytes": 256,
+    "general_header_uint32_fields": [
+      "size",
+      "version",
+      "dimx",
+      "dimy",
+      "bitsperpixel",
+      "offsetx",
+      "offsety",
+      "binx",
+      "biny",
+      "pixelsize",
+      "ht",
+      "magtotal",
+      "frameheaderbytes"
+    ],
+    "dummy_bytes": 204,
+    "allowed_versions": [1, 2],
+    "allowed_bits_per_pixel": [8, 16],
+    "frame_header_core_bytes": 60
+  },
+  "scientific_boundary": {
+    "remote_central_directory_recheck_authorized": true,
+    "selected_local_zip_header_read_authorized": true,
+    "selected_compressed_member_prefix_read_authorized": true,
+    "decompress_only_first_256_header_bytes_authorized": true,
+    "full_archive_download_authorized": false,
+    "full_member_download_authorized": false,
+    "diffraction_pixel_array_decode_authorized": false,
+    "frame_payload_decode_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "member_path_must_match_verified_remote_inventory": true,
+    "local_header_name_and_compression_must_match_central_directory": true,
+    "encrypted_member_is_rejected": true,
+    "unsupported_compression_is_inconclusive_not_download_fallback": true,
+    "nonstandard_filename_does_not_invalidate_internal_header_by_itself": true,
+    "internal_header_match_is_format_evidence_only": true,
+    "header_fields_do_not_establish_reciprocal_calibration_without_traceable_semantics": true
+  }
+}
