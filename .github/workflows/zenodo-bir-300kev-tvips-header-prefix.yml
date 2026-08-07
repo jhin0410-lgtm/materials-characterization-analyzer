@@ -46,7 +46,7 @@ jobs:
           python scripts/audit_zenodo_bir_300kev_tvips_header_prefix.py \
             --config case_studies/zenodo_bir_300kev_saed_header_prefix/case_config.json \
             --output outputs/zenodo_bir_300kev_saed_header_prefix/header_prefix_snapshot.json
-      - name: Verify fail-closed header evidence
+      - name: Verify fail-closed header evidence and source stability
         run: |
           python - <<'PY'
           import json
@@ -54,11 +54,21 @@ jobs:
 
           root = Path("outputs/zenodo_bir_300kev_saed_header_prefix")
           snapshot = json.loads((root / "header_prefix_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_bir_300kev_saed_header_prefix/verified_header_prefix_snapshot.json"
+              ).read_text()
+          )
           assert snapshot["execution_status"] == "selected_tvips_header_prefix_audit_completed"
-          assert snapshot["target_archive"]["key"] == "AVAAGA_300kV_293K.zip"
-          assert snapshot["target_archive"]["full_archive_downloaded"] is False
-          assert snapshot["selected_member"]["path"].endswith("series1.tvips")
-          assert snapshot["selected_member"]["full_member_downloaded"] is False
+          assert snapshot["target_archive"] == pinned["target_archive"]
+          assert snapshot["selected_member"] == pinned["selected_member"]
+          assert snapshot["zip_structure"] == pinned["zip_structure"]
+          assert snapshot["parser_contract"] == pinned["parser_contract"]
+          assert snapshot["local_member_header"] == pinned["local_member_header"]
+          assert snapshot["tvips_general_header"] == pinned["tvips_general_header"]
+          assert snapshot["range_evidence"] == pinned["range_evidence"]
+          assert snapshot["evidence_assessment"] == pinned["evidence_assessment"]
+          assert snapshot["readiness"] == pinned["readiness"]
           assert snapshot["range_evidence"]["total_remote_bytes_read"] < 1_000_000
           assert snapshot["range_evidence"]["decompressed_header_bytes_retained"] == 0
           assert snapshot["range_evidence"]["diffraction_pixel_array_decoded"] is False
@@ -67,6 +77,7 @@ jobs:
           assert snapshot["readiness"]["phase_indexing_authorized"] is False
           assert snapshot["readiness"]["external_validation_ready"] is False
           assert snapshot["evidence_assessment"]["scientific_evidence_level"] == "Diagnostic"
+          assert snapshot["evidence_assessment"]["tvips_general_header_structural_match"] == "Supported"
           assert snapshot["evidence_assessment"][
               "hyperspy_documented_split_stream_filename_compatibility"
           ] == "Unsupported"
