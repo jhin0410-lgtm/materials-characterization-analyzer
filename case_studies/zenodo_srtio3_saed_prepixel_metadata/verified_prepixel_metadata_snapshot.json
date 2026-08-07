@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_saed_prepixel_metadata",
+  "audit_date": "2026-08-07",
+  "config_sha256": "407aed07e00b95770dc4980f53ec75e3ff78b8e3afcee4a2715d6d1489514514",
+  "source": {
+    "record_id": 20300700,
+    "doi": "10.5281/zenodo.20300700",
+    "license_id": "cc-by-4.0",
+    "tiff_metadata_snapshot_sha256": "c002f555c0b7648ab9f3b68adf08126c5dd5a7b2cf9bcdfa7d75393f6dba12de"
+  },
+  "target_archive": {
+    "key": "SAED.zip",
+    "bytes": 25850906,
+    "repository_md5": "0c830a9b276a491e91037872891cb440"
+  },
+  "range_evidence": {
+    "remote_inventory_bytes_read": 131853,
+    "selected_member_range_bytes_read": 786655,
+    "total_remote_bytes_read": 918508,
+    "maximum_decompressed_prefix_per_member": 262,
+    "verified_first_pixel_strip_offset": 272,
+    "pixel_bytes_decompressed": 0,
+    "raw_tiff_bytes_retained": 0,
+    "four_d_stem_bytes_read": false
+  },
+  "common_text_metadata": {
+    "ImageDescription": {
+      "text": "{\"shape\": [2048, 2048]}",
+      "raw_length": 24,
+      "stripped_length": 23,
+      "sha256": "4aa1790c5997d9192c66e69d47dc8160a1424744d2e83a22d90091bb99730495"
+    },
+    "Software": {
+      "text": "tifffile.py",
+      "raw_length": 12,
+      "stripped_length": 11,
+      "sha256": "15218e83e7d52d30092b80e5002207077670f9e2a0a206dadb0208ff605290bc"
+    },
+    "pre_pixel_prefix_sha256": "44596d642a216426b37c024129499a41faa52d34baf967f2cb8808c41f1daed4",
+    "first_ifd_metadata_sha256": "0868402c25b72828952b1150f9e57a67df20d8e777337184cbac5f2cba7b42fe"
+  },
+  "members": [
+    {"path": "SAED/23K.tif", "compressed_bytes": 8710357, "uncompressed_bytes": 33554704},
+    {"path": "SAED/91K.tif", "compressed_bytes": 8612247, "uncompressed_bytes": 33554704},
+    {"path": "SAED/172K.tif", "compressed_bytes": 8525589, "uncompressed_bytes": 33554704}
+  ],
+  "evidence_assessment": {
+    "pre_pixel_image_description": "Supported",
+    "pre_pixel_software_metadata": "Supported",
+    "tifffile_serialized_export_representation": "Supported",
+    "floating_point_tiff_export_context": "Diagnostic",
+    "raw_detector_native_intensity": "Inconclusive",
+    "filename_k_suffix_temperature_semantics": "Inconclusive",
+    "acquisition_independence": "Inconclusive",
+    "pattern_center_and_reciprocal_calibration": "Inconclusive",
+    "external_validation_readiness": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic"
+  },
+  "readiness": {
+    "pre_pixel_text_metadata_ready": true,
+    "pixel_access_authorized": false,
+    "four_d_stem_download_authorized": false,
+    "analyzer_execution_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "next_evidence": {
+    "current_pixel_download_need": false,
+    "priority": "Search authoritative textual/code provenance for the semantics of 23K/91K/172K and for any preprocessing/calibration relationship before considering diffraction pixels.",
+    "candidate_small_source": "Kikuchi_COM.ipynb",
+    "candidate_small_source_bytes": 1711932,
+    "pixel_bytes_authorized": false
+  }
+}
