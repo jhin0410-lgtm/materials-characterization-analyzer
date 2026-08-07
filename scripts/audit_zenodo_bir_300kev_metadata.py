@@ -198,10 +198,10 @@ def normalize_record(payload: Mapping[str, Any]) -> dict[str, Any]:
     metadata = payload.get("metadata")
     if not isinstance(metadata, Mapping):
         metadata = {}
-    files: list[dict[str, Any]] = []
     raw_files = payload.get("files") or []
     if not isinstance(raw_files, list):
         raise Bir300MetadataAuditError("record files must be a list")
+    files: list[dict[str, Any]] = []
     for raw in raw_files:
         if not isinstance(raw, Mapping):
             raise Bir300MetadataAuditError("record file entry must be an object")
@@ -223,7 +223,7 @@ def normalize_record(payload: Mapping[str, Any]) -> dict[str, Any]:
         "doi": payload.get("doi") or metadata.get("doi"),
         "status": payload.get("status"),
         "title": metadata.get("title"),
-        "version": metadata.get("version"),
+        "version_api": metadata.get("version"),
         "description": metadata.get("description"),
         "resource_type_id": _resource_type_id(metadata),
         "license_id": _license_id(metadata),
@@ -241,7 +241,6 @@ def verify_record(config: Mapping[str, Any], record: Mapping[str, Any]) -> dict[
         "doi": source["doi"],
         "status": source["expected_status"],
         "title": source["expected_title"],
-        "version": source["expected_version"],
         "resource_type_id": source["expected_resource_type"],
     }
     for key, value in expected.items():
@@ -249,6 +248,11 @@ def verify_record(config: Mapping[str, Any], record: Mapping[str, Any]) -> dict[
             raise Bir300MetadataAuditError(
                 f"record mismatch for {key}: {record.get(key)!r} != {value!r}"
             )
+    api_version = record.get("version_api")
+    if api_version is not None and api_version != source["expected_version"]:
+        raise Bir300MetadataAuditError(
+            f"API version conflicts with landing-page claim: {api_version!r}"
+        )
 
     description = record.get("description")
     if not isinstance(description, str):
@@ -265,9 +269,7 @@ def verify_record(config: Mapping[str, Any], record: Mapping[str, Any]) -> dict[
         )
 
     files = record.get("files")
-    if not isinstance(files, list):
-        raise Bir300MetadataAuditError("normalized files must be a list")
-    if len(files) != len(source["expected_files"]):
+    if not isinstance(files, list) or len(files) != 6:
         raise Bir300MetadataAuditError("record file count differs from the six-file contract")
     by_key = {item.get("key"): item for item in files if isinstance(item, Mapping)}
     expected_keys = {entry["key"] for entry in source["expected_files"]}
@@ -309,15 +311,16 @@ def verify_record(config: Mapping[str, Any], record: Mapping[str, Any]) -> dict[
     license_id = record.get("license_id")
     if license_id is not None and not isinstance(license_id, str):
         raise Bir300MetadataAuditError("dataset license metadata has an unexpected type")
-    reuse_status = (
-        "dataset_license_declared_review_required"
-        if license_id
-        else "dataset_license_missing_reuse_blocked"
-    )
     return {
         "verified_files": verified_files,
         "license_id": license_id,
-        "reuse_status": reuse_status,
+        "reuse_status": (
+            "dataset_license_declared_review_required"
+            if license_id
+            else "dataset_license_missing_reuse_blocked"
+        ),
+        "api_version": api_version,
+        "landing_page_version_claim": source["expected_version"],
     }
 
 
@@ -329,9 +332,7 @@ def build_snapshot(
     config_sha256: str,
 ) -> dict[str, Any]:
     license_id = verification["license_id"]
-    reuse_status = verification["reuse_status"]
-    metadata_supported = True
-    archive_audit_authorized = False
+    api_version = verification["api_version"]
     return {
         "schema_version": SCHEMA_VERSION,
         "case_id": config["case_id"],
@@ -342,7 +343,13 @@ def build_snapshot(
             "record_id": record["id"],
             "doi": record["doi"],
             "title": record["title"],
-            "version": record["version"],
+            "version_api": api_version,
+            "version_landing_page_claim": verification["landing_page_version_claim"],
+            "version_evidence_status": (
+                "api_and_landing_page_consistent"
+                if api_version is not None
+                else "landing_page_claim_not_exposed_by_records_api"
+            ),
             "resource_type": record["resource_type_id"],
             "license_id": license_id,
             "publication_date": record["publication_date"],
@@ -353,6 +360,7 @@ def build_snapshot(
         "evidence_assessment": {
             "record_identity": "Supported",
             "six_archive_identity_and_repository_md5": "Supported",
+            "version_identity": "Diagnostic" if api_version is None else "Supported",
             "dataset_reuse_terms": "Supported" if license_id else "Inconclusive",
             "tvips_member_identity_and_integrity": "Inconclusive",
             "sample_and_acquisition_lineage": "Inconclusive",
@@ -362,21 +370,23 @@ def build_snapshot(
             "scientific_evidence_level": "Inconclusive",
         },
         "readiness": {
-            "metadata_supported": metadata_supported,
-            "reuse_status": reuse_status,
-            "archive_audit_authorized": archive_audit_authorized,
+            "metadata_supported": True,
+            "reuse_status": verification["reuse_status"],
+            "archive_audit_authorized": False,
             "analyzer_execution_authorized": False,
             "external_validation_ready": False,
             "engineering_decision_ready": False,
         },
         "next_evidence": [
-            "Pin and review the dataset-level reuse terms from the Zenodo record before any source-file reuse.",
+            "Pin and review dataset-level reuse terms from the Zenodo record before any source-file reuse.",
+            "Preserve the landing-page v1 claim separately because the current Records API does not expose metadata.version.",
             "If reuse is authorized, select a bounded archive-audit subset before considering the 36.5 GB collection.",
-            "Inspect native .tvips member identity, file structure, detector/microscope metadata, acquisition-series identity, pattern-centre evidence and reciprocal calibration without analyzer inference.",
+            "Inspect native .tvips member identity, detector/microscope metadata, acquisition-series identity, pattern-centre evidence and reciprocal calibration without analyzer inference.",
             "Keep the three compounds and two temperatures as separate source conditions and do not pool them with other BIR datasets solely to increase sample count.",
         ],
         "prohibited_inference": [
             "Do not use the article CC BY 4.0 licence as a substitute for dataset-level rights metadata.",
+            "Do not claim the Records API verified v1 when its version field is absent.",
             "Do not infer sample or acquisition identity from filename order alone.",
             "Do not infer pattern centre, reciprocal calibration, detector-native intensity preservation or reflection truth from static-diffraction wording.",
             "Do not treat molecular-crystal data as in-domain cobalt-oxide performance evidence.",
@@ -412,8 +422,8 @@ def run_audit(config_path: str | Path, output_path: str | Path) -> dict[str, Any
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Audit only the Zenodo record metadata and six archive identities for "
-            "BIR-MicroED 300 keV. This command does not download source archives."
+            "Audit only Zenodo metadata and six archive identities for BIR-MicroED "
+            "300 keV. This command does not download source archives."
         )
     )
     parser.add_argument(
