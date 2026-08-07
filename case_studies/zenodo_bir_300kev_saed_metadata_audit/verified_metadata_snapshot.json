@@ -1,0 +1,102 @@
+{
+  "analyzer_inference_performed": false,
+  "audit_date": "2026-08-07",
+  "case_id": "zenodo_bir_300kev_saed_metadata_audit",
+  "config_sha256": "26a445fcc76efd25369180a6e072c7562c183047b05525869bac7c508b44083d",
+  "evidence_assessment": {
+    "analyzer_development_independence": "Inconclusive",
+    "dataset_reuse_terms": "Supported",
+    "pattern_center_and_reciprocal_calibration": "Inconclusive",
+    "record_identity": "Supported",
+    "reference_reflection_truth": "Inconclusive",
+    "sample_and_acquisition_lineage": "Inconclusive",
+    "scientific_evidence_level": "Inconclusive",
+    "six_archive_identity_and_repository_md5": "Supported",
+    "tvips_member_identity_and_integrity": "Inconclusive",
+    "version_identity": "Diagnostic"
+  },
+  "execution_status": "metadata_audit_completed",
+  "file_inventory": [
+    {
+      "bytes": 3787236509,
+      "content_url": "https://zenodo.org/api/records/10995139/files/AVAAGA_300kV_100K.zip/content",
+      "id": "43172da1-1093-4ee5-b1c0-59b82ec36579",
+      "key": "AVAAGA_300kV_100K.zip",
+      "md5": "6406974032698cbe7cdba5394a0cc496"
+    },
+    {
+      "bytes": 3527509304,
+      "content_url": "https://zenodo.org/api/records/10995139/files/AVAAGA_300kV_293K.zip/content",
+      "id": "ef377579-0eea-42f2-9cd8-d541d0bd7178",
+      "key": "AVAAGA_300kV_293K.zip",
+      "md5": "95a209f805dab516b2e5175943878079"
+    },
+    {
+      "bytes": 6301153761,
+      "content_url": "https://zenodo.org/api/records/10995139/files/coPorphryin_300kV_100K.zip/content",
+      "id": "18ecffb0-f6d5-462d-a07f-22fcc7404662",
+      "key": "coPorphryin_300kV_100K.zip",
+      "md5": "96eb040f3683de651b4b120d30566b99"
+    },
+    {
+      "bytes": 8981244999,
+      "content_url": "https://zenodo.org/api/records/10995139/files/coPorphryin_300kV_293K.zip/content",
+      "id": "9b6d5857-8a96-4525-ab78-146f2798de2e",
+      "key": "coPorphryin_300kV_293K.zip",
+      "md5": "74dc982d4f0a974be96072ef64fcaa4a"
+    },
+    {
+      "bytes": 5316521176,
+      "content_url": "https://zenodo.org/api/records/10995139/files/znHis_300kV_100K.zip/content",
+      "id": "93367d6b-01e7-4ff2-83a5-9efc7791252f",
+      "key": "znHis_300kV_100K.zip",
+      "md5": "b4d892fd4c41a3d9527ef178e56b105d"
+    },
+    {
+      "bytes": 8561067429,
+      "content_url": "https://zenodo.org/api/records/10995139/files/znHis_300kV_293K.zip/content",
+      "id": "9eed19e6-6e29-4d55-83a4-473fd3c29576",
+      "key": "znHis_300kV_293K.zip",
+      "md5": "154bbb73d3fa53665167b7ce1c844ff3"
+    }
+  ],
+  "next_evidence": [
+    "Pin and review dataset-level reuse terms from the Zenodo record before any source-file reuse.",
+    "Preserve the landing-page v1 claim separately because the current Records API does not expose metadata.version.",
+    "If reuse is authorized, select a bounded archive-audit subset before considering the 36.5 GB collection.",
+    "Inspect native .tvips member identity, detector/microscope metadata, acquisition-series identity, pattern-centre evidence and reciprocal calibration without analyzer inference.",
+    "Keep the three compounds and two temperatures as separate source conditions and do not pool them with other BIR datasets solely to increase sample count."
+  ],
+  "prohibited_inference": [
+    "Do not use the article CC BY 4.0 licence as a substitute for dataset-level rights metadata.",
+    "Do not claim the Records API verified v1 when its version field is absent.",
+    "Do not infer sample or acquisition identity from filename order alone.",
+    "Do not infer pattern centre, reciprocal calibration, detector-native intensity preservation or reflection truth from static-diffraction wording.",
+    "Do not treat molecular-crystal data as in-domain cobalt-oxide performance evidence."
+  ],
+  "readiness": {
+    "analyzer_execution_authorized": false,
+    "archive_audit_authorized": false,
+    "engineering_decision_ready": false,
+    "external_validation_ready": false,
+    "metadata_supported": true,
+    "reuse_status": "dataset_license_declared_review_required"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "created": "2024-04-19T01:27:02.418834+00:00",
+    "doi": "10.5281/zenodo.10995139",
+    "license_id": "cc-by-4.0",
+    "publication_date": "2024-04-18",
+    "record_id": 10995139,
+    "repository": "Zenodo",
+    "resource_type": "dataset",
+    "title": "BIR-MicroED: selected area electron diffraction datasets from static microcrystals (Zn(II)-histidine, Co(II) meso-tetraphenyl porphyrin, AVAAGA) at 300 keV",
+    "updated": "2024-04-19T01:27:02.947237+00:00",
+    "version_api": null,
+    "version_evidence_status": "landing_page_claim_not_exposed_by_records_api",
+    "version_landing_page_claim": "v1"
+  },
+  "source_archive_downloaded": false,
+  "source_bytes_retained": false
+}

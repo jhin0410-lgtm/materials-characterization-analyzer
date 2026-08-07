@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_bir_300kev_saed_metadata_audit",
+  "audit_date": "2026-08-07",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 10995139,
+    "doi": "10.5281/zenodo.10995139",
+    "record_url": "https://zenodo.org/records/10995139",
+    "api_url": "https://zenodo.org/api/records/10995139",
+    "expected_status": "published",
+    "expected_resource_type": "dataset",
+    "expected_title": "BIR-MicroED: selected area electron diffraction datasets from static microcrystals (Zn(II)-histidine, Co(II) meso-tetraphenyl porphyrin, AVAAGA) at 300 keV",
+    "expected_version": "v1",
+    "expected_files": [
+      {
+        "key": "AVAAGA_300kV_100K.zip",
+        "md5": "6406974032698cbe7cdba5394a0cc496"
+      },
+      {
+        "key": "AVAAGA_300kV_293K.zip",
+        "md5": "95a209f805dab516b2e5175943878079"
+      },
+      {
+        "key": "coPorphryin_300kV_100K.zip",
+        "md5": "96eb040f3683de651b4b120d30566b99"
+      },
+      {
+        "key": "coPorphryin_300kV_293K.zip",
+        "md5": "74dc982d4f0a974be96072ef64fcaa4a"
+      },
+      {
+        "key": "znHis_300kV_100K.zip",
+        "md5": "b4d892fd4c41a3d9527ef178e56b105d"
+      },
+      {
+        "key": "znHis_300kV_293K.zip",
+        "md5": "154bbb73d3fa53665167b7ce1c844ff3"
+      }
+    ],
+    "expected_description_terms": [
+      ".tvips",
+      "electron diffraction",
+      "static_diffraction"
+    ]
+  },
+  "scientific_boundary": {
+    "metadata_api_request_authorized": true,
+    "source_archive_download_authorized": false,
+    "source_file_retention_authorized": false,
+    "archive_inventory_authorized": false,
+    "pixel_array_access_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "missing_dataset_license_is_blocking_for_reuse": true,
+    "article_license_cannot_substitute_for_dataset_license": true,
+    "archive_identity_does_not_establish_tvips_member_identity": true,
+    "filename_conditions_do_not_establish_acquisition_lineage": true,
+    "static_diffraction_wording_does_not_establish_pattern_center_or_reciprocal_calibration": true,
+    "cross_material_data_cannot_establish_cobalt_oxide_in_domain_performance": true
+  }
+}

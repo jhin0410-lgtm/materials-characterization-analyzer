@@ -1,0 +1,87 @@
+name: Zenodo BIR 300 keV metadata audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_bir_300kev_saed_metadata_audit/**"
+      - "scripts/audit_zenodo_bir_300kev_metadata.py"
+      - "tests/test_audit_zenodo_bir_300kev_metadata.py"
+      - ".github/workflows/zenodo-bir-300kev-metadata-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_bir_300kev_saed_metadata_audit/**"
+      - "scripts/audit_zenodo_bir_300kev_metadata.py"
+      - "tests/test_audit_zenodo_bir_300kev_metadata.py"
+      - ".github/workflows/zenodo-bir-300kev-metadata-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-bir-300kev-metadata-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_bir_300kev_metadata.py
+      - name: Run live metadata-only audit
+        run: |
+          python scripts/audit_zenodo_bir_300kev_metadata.py \
+            --config case_studies/zenodo_bir_300kev_saed_metadata_audit/case_config.json \
+            --output outputs/zenodo_bir_300kev_metadata/metadata_snapshot.json
+      - name: Verify fail-closed metadata evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_bir_300kev_metadata")
+          snapshot = json.loads((root / "metadata_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json"
+              ).read_text()
+          )
+          assert snapshot["execution_status"] == "metadata_audit_completed"
+          assert snapshot["source"]["record_id"] == 10995139
+          assert snapshot["source"]["version_landing_page_claim"] == "v1"
+          assert snapshot["source"]["version_api"] in {None, "v1"}
+          assert snapshot["source"]["license_id"] == pinned["source"]["license_id"] == "cc-by-4.0"
+          assert snapshot["file_inventory"] == pinned["file_inventory"]
+          assert len(snapshot["file_inventory"]) == 6
+          assert sum(item["bytes"] for item in snapshot["file_inventory"]) == 36474733178
+          assert snapshot["readiness"]["archive_audit_authorized"] is False
+          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
+          assert snapshot["readiness"]["external_validation_ready"] is False
+          assert snapshot["readiness"]["engineering_decision_ready"] is False
+          assert snapshot["source_archive_downloaded"] is False
+          assert snapshot["source_bytes_retained"] is False
+          assert snapshot["analyzer_inference_performed"] is False
+          assert snapshot["evidence_assessment"]["scientific_evidence_level"] == "Inconclusive"
+          forbidden = {".zip", ".tvips", ".dm3", ".dm4", ".mrc", ".ser", ".tif", ".tiff"}
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden
+          ]
+          if leaked:
+              raise SystemExit(f"source content leaked into metadata evidence: {leaked}")
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-bir-300kev-metadata-audit-evidence
+          path: outputs/zenodo_bir_300kev_metadata
+          if-no-files-found: warn
+          retention-days: 30
