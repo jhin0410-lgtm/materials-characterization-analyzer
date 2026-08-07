@@ -4,11 +4,16 @@ import argparse
 import csv
 import hashlib
 import json
+import sys
 from collections import Counter
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
-from scripts.audit_zenodo_bir_300kev_remote_inventory import (
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.audit_zenodo_bir_300kev_remote_inventory import (  # noqa: E402
     Bir300RemoteInventoryError,
     fetch_range,
     parse_central_directory,
@@ -96,10 +101,15 @@ def _validate_config(value: dict[str, Any]) -> dict[str, Any]:
     for key in ("http_range_metadata_probe_authorized", "central_directory_inventory_authorized"):
         if boundary.get(key) is not True:
             raise SrTiO3SaedRemoteInventoryError(f"bounded inventory action is not authorized: {key}")
-    if any(item is not False for key, item in boundary.items() if key not in {
-        "http_range_metadata_probe_authorized",
-        "central_directory_inventory_authorized",
-    }):
+    if any(
+        item is not False
+        for key, item in boundary.items()
+        if key
+        not in {
+            "http_range_metadata_probe_authorized",
+            "central_directory_inventory_authorized",
+        }
+    ):
         raise SrTiO3SaedRemoteInventoryError("stronger archive/analyzer actions must remain disabled")
     rules = value["decision_rules"]
     if not isinstance(rules, dict) or any(item is not True for item in rules.values()):
@@ -127,7 +137,11 @@ def _resolve_target(config: Mapping[str, Any], snapshot: Mapping[str, Any]) -> d
     if not isinstance(inventory, list):
         raise SrTiO3SaedRemoteInventoryError("source file inventory is invalid")
     expected = config["target_archive"]
-    matches = [item for item in inventory if isinstance(item, Mapping) and item.get("key") == expected["key"]]
+    matches = [
+        item
+        for item in inventory
+        if isinstance(item, Mapping) and item.get("key") == expected["key"]
+    ]
     if len(matches) != 1:
         raise SrTiO3SaedRemoteInventoryError("SAED.zip is not uniquely present in source snapshot")
     target = dict(matches[0])
@@ -175,7 +189,12 @@ def _write_csv(path: Path, records: list[dict[str, Any]]) -> None:
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore", lineterminator="\n")
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=fields,
+            extrasaction="ignore",
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(records)
 
@@ -260,9 +279,7 @@ def run_audit(*, config_path: str | Path, output_dir: str | Path) -> dict[str, A
             "comment_bytes": int(eocd["comment_bytes"]),
         },
         "inventory_summary": summary,
-        "outputs": {
-            "member_inventory_sha256": _sha256_file(inventory_path),
-        },
+        "outputs": {"member_inventory_sha256": _sha256_file(inventory_path)},
         "evidence_assessment": {
             "archive_member_name_and_central_directory_inventory": "Supported",
             "saed_representation_classification_from_names_only": "Diagnostic",
