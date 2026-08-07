@@ -1,0 +1,82 @@
+{
+  "audit_date": "2026-08-07",
+  "case_id": "zenodo_bir_300kev_saed_remote_inventory",
+  "config_sha256": "50b54f59fef85f546ad0712d988c1379dca3686d14ccc9911bf1c011672dc1bc",
+  "evidence_assessment": {
+    "archive_member_name_and_central_directory_inventory": "Supported",
+    "external_validation_readiness": "Inconclusive",
+    "hyperspy_split_stream_filename_compatibility": "Unsupported",
+    "pattern_center_and_reciprocal_calibration": "Inconclusive",
+    "reference_reflection_truth": "Inconclusive",
+    "sample_and_acquisition_lineage": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic",
+    "tvips_header_payload_metadata": "Inconclusive",
+    "tvips_internal_header_validity": "Inconclusive",
+    "tvips_member_presence": "Supported"
+  },
+  "execution_status": "remote_central_directory_inventory_completed",
+  "http_range_evidence": {
+    "central_directory_bytes_read": 716,
+    "full_archive_downloaded": false,
+    "member_payload_bytes_read": false,
+    "range_support_verified": true,
+    "tail_bytes_read": 131072,
+    "total_remote_bytes_read": 131788
+  },
+  "inventory_summary": {
+    "central_directory_sha256": "2b361d86eb82ebe5779bd4d62473b6c55b2b03684cda514fa93bb8a3c083f4eb",
+    "directory_entry_count": 1,
+    "member_count": 5,
+    "tvips_member_count": 4,
+    "tvips_member_paths": [
+      "AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series1.tvips",
+      "AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series2.tvips",
+      "AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series3.tvips",
+      "AVAAGA_300kV_293K/AVAAGA-dry_static_diffraction_300kV_293K_1fps_series4.tvips"
+    ],
+    "tvips_nonstandard_filename_count": 4,
+    "tvips_split_main_paths": [],
+    "tvips_split_series_missing_main": [],
+    "tvips_split_series_missing_main_count": 0,
+    "tvips_split_stream_main_file_count": 0,
+    "tvips_split_stream_member_count": 0,
+    "tvips_split_stream_series_count": 0,
+    "unsafe_path_count": 0
+  },
+  "outputs": {
+    "member_inventory_sha256": "2db38859cba28b5ebd8423aff81be40e1e25794697a087ef71e88f833369380a"
+  },
+  "readiness": {
+    "analyzer_execution_authorized": false,
+    "engineering_decision_ready": false,
+    "external_validation_ready": false,
+    "hyperspy_split_stream_naming_ready": false,
+    "selected_member_header_inspection_authorized": false,
+    "tvips_member_inventory_ready": true
+  },
+  "schema_version": "1.0",
+  "source": {
+    "doi": "10.5281/zenodo.10995139",
+    "license_id": "cc-by-4.0",
+    "record_id": 10995139,
+    "source_snapshot_sha256": "97201eeb55a64b9b63738c54f2443b554f9e9e9c63379378e8570ae411c8d136"
+  },
+  "target_archive": {
+    "bytes": 3527509304,
+    "key": "AVAAGA_300kV_293K.zip",
+    "repository_md5": "95a209f805dab516b2e5175943878079",
+    "repository_md5_recomputed": false
+  },
+  "zip_structure": {
+    "central_directory_bytes": 716,
+    "central_directory_offset": 3527508566,
+    "comment_bytes": 0,
+    "entries_total": 5
+  },
+  "scientific_boundary": [
+    "Only ZIP tail and central-directory metadata were accessed; no TVIPS member payload was read.",
+    "The four discovered .tvips names do not follow the established *_000.tvips split-stream convention required by the documented HyperSpy loader.",
+    "Filename incompatibility does not prove that an internal TVIPS main header is absent; header validity remains unresolved until a separately authorized minimal member-prefix audit.",
+    "This result is Diagnostic format evidence and does not establish sample lineage, reciprocal calibration, reflection truth, analyzer performance, or external-validation readiness."
+  ]
+}

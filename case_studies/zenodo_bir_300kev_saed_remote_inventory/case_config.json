@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_bir_300kev_saed_remote_inventory",
+  "audit_date": "2026-08-07",
+  "source_snapshot": "case_studies/zenodo_bir_300kev_saed_metadata_audit/verified_metadata_snapshot.json",
+  "target_archive": {
+    "key": "AVAAGA_300kV_293K.zip",
+    "expected_bytes": 3527509304,
+    "expected_md5": "95a209f805dab516b2e5175943878079"
+  },
+  "range_limits": {
+    "tail_probe_bytes": 131072,
+    "maximum_central_directory_bytes": 67108864,
+    "maximum_member_count": 200000,
+    "maximum_filename_bytes": 4096,
+    "maximum_extra_bytes": 65535,
+    "maximum_comment_bytes": 65535
+  },
+  "scientific_boundary": {
+    "http_range_metadata_probe_authorized": true,
+    "central_directory_inventory_authorized": true,
+    "full_archive_download_authorized": false,
+    "archive_member_payload_download_authorized": false,
+    "source_file_retention_authorized": false,
+    "tvips_pixel_array_access_authorized": false,
+    "tvips_header_payload_inspection_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "range_support_is_required": true,
+    "full_download_fallback_is_prohibited": true,
+    "zip64_or_multidisk_requires_separate_review": true,
+    "member_filename_is_not_acquisition_lineage": true,
+    "main_header_series_presence_is_format_readiness_only": true,
+    "tvips_inventory_does_not_establish_reciprocal_calibration": true
+  }
+}
