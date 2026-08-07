@@ -1,0 +1,103 @@
+name: Zenodo SrTiO3 notebook provenance audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_srtio3_notebook_provenance/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "scripts/audit_zenodo_srtio3_notebook_provenance.py"
+      - "tests/test_audit_zenodo_srtio3_notebook_provenance.py"
+      - ".github/workflows/zenodo-srtio3-notebook-provenance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_srtio3_notebook_provenance/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "scripts/audit_zenodo_srtio3_notebook_provenance.py"
+      - "tests/test_audit_zenodo_srtio3_notebook_provenance.py"
+      - ".github/workflows/zenodo-srtio3-notebook-provenance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-srtio3-notebook-provenance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_srtio3_notebook_provenance.py
+      - name: Run live notebook provenance audit
+        run: |
+          python scripts/audit_zenodo_srtio3_notebook_provenance.py \
+            --config case_studies/zenodo_srtio3_notebook_provenance/case_config.json \
+            --output outputs/zenodo_srtio3_notebook_provenance/notebook_provenance_snapshot.json
+      - name: Verify text-only evidence and source stability
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_srtio3_notebook_provenance")
+          live = json.loads((root / "notebook_provenance_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_srtio3_notebook_provenance/verified_notebook_provenance_snapshot.json"
+              ).read_text()
+          )
+          assert live["execution_status"] == "verified_notebook_text_provenance_audit_completed"
+          for key in (
+              "file_key",
+              "bytes",
+              "repository_md5",
+              "downloaded_md5",
+              "downloaded_sha256",
+              "metadata_snapshot_sha256",
+          ):
+              assert live["source"][key] == pinned["source"][key]
+          assert live["notebook"]["nbformat"] == pinned["notebook"]["nbformat"]
+          assert live["notebook"]["nbformat_minor"] == pinned["notebook"]["nbformat_minor"]
+          assert live["notebook"]["total_cells"] == pinned["notebook"]["total_cells"]
+          assert live["notebook"]["cell_type_counts"]["code"] == pinned["notebook"]["code_cells"]
+          assert live["notebook"]["cell_type_counts"]["markdown"] == pinned["notebook"]["markdown_cells"]
+          assert live["notebook"]["code_cells_with_ignored_outputs"] == pinned["notebook"]["code_cells_with_ignored_outputs"]
+          assert live["notebook"]["full_notebook_retained"] is False
+          assert live["notebook"]["notebook_outputs_inspected"] is False
+          counts = live["search"]["category_hit_counts"]
+          expected = pinned["search_summary"]
+          assert counts["saed_identity"] == expected["saed_identity_hit_count"]
+          assert counts["representation_and_export"] == expected["representation_and_export_hit_count"]
+          assert counts["preprocessing"] == expected["preprocessing_hit_count"]
+          assert counts["calibration"] == expected["calibration_hit_count"]
+          assert counts["diffraction_context"] == expected["diffraction_context_hit_count"]
+          terms = live["search"]["term_hit_counts"]
+          assert terms["saed_identity:SAED"] == expected["explicit_saed_term_hits"]
+          assert terms["saed_identity:23K"] == expected["explicit_23K_hits"]
+          assert terms["saed_identity:91K"] == expected["explicit_91K_hits"]
+          assert terms["saed_identity:172K"] == expected["explicit_172K_hits"]
+          assert live["search"]["search_scope"] == "markdown_and_code_cell_source_only"
+          assert live["readiness"]["saed_tiff_pixel_access_authorized"] is False
+          assert live["readiness"]["four_d_stem_download_authorized"] is False
+          assert live["readiness"]["analyzer_execution_authorized"] is False
+          assert live["readiness"]["phase_indexing_authorized"] is False
+          assert live["readiness"]["external_validation_ready"] is False
+          assert list(root.rglob("*.ipynb")) == []
+          PY
+      - name: Upload summary evidence only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-srtio3-notebook-provenance-evidence
+          path: outputs/zenodo_srtio3_notebook_provenance
+          if-no-files-found: warn
+          retention-days: 30
