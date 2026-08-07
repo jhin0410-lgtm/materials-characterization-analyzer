@@ -1,0 +1,94 @@
+name: Zenodo SrTiO3 SAED TIFF metadata audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_srtio3_saed_tiff_metadata/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_remote_inventory/**"
+      - "scripts/audit_zenodo_srtio3_saed_tiff_metadata.py"
+      - "scripts/audit_zenodo_srtio3_saed_remote_inventory.py"
+      - "tests/test_audit_zenodo_srtio3_saed_tiff_metadata.py"
+      - ".github/workflows/zenodo-srtio3-saed-tiff-metadata.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_srtio3_saed_tiff_metadata/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_remote_inventory/**"
+      - "scripts/audit_zenodo_srtio3_saed_tiff_metadata.py"
+      - "scripts/audit_zenodo_srtio3_saed_remote_inventory.py"
+      - "tests/test_audit_zenodo_srtio3_saed_tiff_metadata.py"
+      - ".github/workflows/zenodo-srtio3-saed-tiff-metadata.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-srtio3-saed-tiff-metadata-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_srtio3_saed_tiff_metadata.py
+      - name: Run live bounded TIFF metadata audit
+        run: |
+          python scripts/audit_zenodo_srtio3_saed_tiff_metadata.py \
+            --config case_studies/zenodo_srtio3_saed_tiff_metadata/case_config.json \
+            --output outputs/zenodo_srtio3_saed_tiff_metadata/tiff_metadata_snapshot.json
+      - name: Verify pixel-free evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_srtio3_saed_tiff_metadata")
+          snapshot = json.loads((root / "tiff_metadata_snapshot.json").read_text())
+          assert snapshot["execution_status"] == "bounded_tiff_ifd_metadata_audit_completed"
+          assert len(snapshot["members"]) == 3
+          assert [member["path"] for member in snapshot["members"]] == [
+              "SAED/23K.tif",
+              "SAED/91K.tif",
+              "SAED/172K.tif",
+          ]
+          assert snapshot["target_archive"]["full_archive_downloaded"] is False
+          assert snapshot["range_evidence"]["raw_tiff_bytes_retained"] == 0
+          assert snapshot["range_evidence"]["pixel_array_decoded"] is False
+          assert snapshot["range_evidence"]["four_d_stem_bytes_read"] is False
+          assert snapshot["range_evidence"]["total_remote_bytes_read"] < 1_000_000
+          assert snapshot["readiness"]["pixel_access_authorized"] is False
+          assert snapshot["readiness"]["four_d_stem_download_authorized"] is False
+          assert snapshot["readiness"]["analyzer_execution_authorized"] is False
+          assert snapshot["readiness"]["phase_indexing_authorized"] is False
+          assert snapshot["readiness"]["external_validation_ready"] is False
+          for member in snapshot["members"]:
+              assert member["full_member_downloaded"] is False
+              assert member["tiff"]["first_ifd_offset"] == 8
+              assert member["tiff"]["out_of_line_values_followed"] is False
+              assert member["decompression_evidence"]["pixel_array_decoded"] is False
+          forbidden = {".zip", ".npy", ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".dm3", ".dm4", ".ser"}
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden
+          ]
+          if leaked:
+              raise SystemExit(f"source/pixel payload leaked into TIFF metadata evidence: {leaked}")
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-srtio3-saed-tiff-metadata-evidence
+          path: outputs/zenodo_srtio3_saed_tiff_metadata
+          if-no-files-found: warn
+          retention-days: 30
