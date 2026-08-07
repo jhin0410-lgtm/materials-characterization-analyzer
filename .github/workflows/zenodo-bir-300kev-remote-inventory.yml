@@ -42,7 +42,7 @@ jobs:
           python scripts/audit_zenodo_bir_300kev_remote_inventory.py \
             --config case_studies/zenodo_bir_300kev_saed_remote_inventory/case_config.json \
             --output outputs/zenodo_bir_300kev_remote_inventory
-      - name: Verify bounded evidence
+      - name: Verify bounded evidence and source stability
         run: |
           python - <<'PY'
           import json
@@ -50,16 +50,29 @@ jobs:
 
           root = Path("outputs/zenodo_bir_300kev_remote_inventory")
           snapshot = json.loads((root / "remote_inventory_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_bir_300kev_saed_remote_inventory/verified_remote_inventory_snapshot.json"
+              ).read_text()
+          )
           assert snapshot["execution_status"] == "remote_central_directory_inventory_completed"
-          assert snapshot["target_archive"]["key"] == "AVAAGA_300kV_293K.zip"
-          assert snapshot["target_archive"]["bytes"] == 3527509304
-          assert snapshot["target_archive"]["repository_md5_recomputed"] is False
+          assert snapshot["target_archive"] == pinned["target_archive"]
+          assert snapshot["zip_structure"] == pinned["zip_structure"]
+          assert snapshot["inventory_summary"] == pinned["inventory_summary"]
+          assert snapshot["source"] == pinned["source"]
           assert snapshot["http_range_evidence"]["range_support_verified"] is True
           assert snapshot["http_range_evidence"]["full_archive_downloaded"] is False
           assert snapshot["http_range_evidence"]["member_payload_bytes_read"] is False
-          assert snapshot["http_range_evidence"]["total_remote_bytes_read"] < 70_000_000
-          assert snapshot["inventory_summary"]["member_count"] > 0
-          assert snapshot["inventory_summary"]["unsafe_path_count"] == 0
+          assert snapshot["http_range_evidence"]["total_remote_bytes_read"] == 131788
+          assert snapshot["inventory_summary"]["member_count"] == 5
+          assert snapshot["inventory_summary"]["tvips_member_count"] == 4
+          assert snapshot["inventory_summary"]["tvips_nonstandard_filename_count"] == 4
+          assert snapshot["inventory_summary"]["tvips_split_stream_member_count"] == 0
+          assert snapshot["inventory_summary"]["tvips_split_stream_main_file_count"] == 0
+          assert snapshot["evidence_assessment"]["tvips_member_presence"] == "Supported"
+          assert snapshot["evidence_assessment"]["hyperspy_split_stream_filename_compatibility"] == "Unsupported"
+          assert snapshot["evidence_assessment"]["tvips_internal_header_validity"] == "Inconclusive"
+          assert snapshot["readiness"]["hyperspy_split_stream_naming_ready"] is False
           assert snapshot["readiness"]["selected_member_header_inspection_authorized"] is False
           assert snapshot["readiness"]["analyzer_execution_authorized"] is False
           assert snapshot["readiness"]["external_validation_ready"] is False
