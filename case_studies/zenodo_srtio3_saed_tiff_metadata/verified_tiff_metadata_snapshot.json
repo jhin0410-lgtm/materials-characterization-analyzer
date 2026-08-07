@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_saed_tiff_metadata",
+  "audit_date": "2026-08-07",
+  "config_sha256": "a9840eb58cd923f361582ae6b38a9082eb8a62a4fdcd945920c0b03bf4a8baca",
+  "source": {
+    "record_id": 20300700,
+    "doi": "10.5281/zenodo.20300700",
+    "license_id": "cc-by-4.0",
+    "remote_inventory_snapshot_sha256": "cfc0a559736f34a8042f9e40a9529a99504f6664b6ee782c90ea3d839534638f"
+  },
+  "target_archive": {
+    "key": "SAED.zip",
+    "bytes": 25850906,
+    "repository_md5": "0c830a9b276a491e91037872891cb440"
+  },
+  "range_evidence": {
+    "remote_inventory_bytes_read": 131853,
+    "selected_member_range_bytes_read": 786655,
+    "total_remote_bytes_read": 918508,
+    "raw_tiff_bytes_retained": 0,
+    "pixel_array_decoded": false,
+    "four_d_stem_bytes_read": false
+  },
+  "common_tiff_structure": {
+    "byte_order": "II",
+    "magic": 42,
+    "first_ifd_offset": 8,
+    "first_ifd_entry_count": 15,
+    "first_ifd_metadata_bytes": 194,
+    "metadata_prefix_sha256": "0868402c25b72828952b1150f9e57a67df20d8e777337184cbac5f2cba7b42fe",
+    "page_count": 1,
+    "ImageWidth": 2048,
+    "ImageLength": 2048,
+    "BitsPerSample": 64,
+    "Compression": 1,
+    "PhotometricInterpretation": 1,
+    "SamplesPerPixel": 1,
+    "RowsPerStrip": 2048,
+    "StripOffsets": 272,
+    "StripByteCounts": 33554432,
+    "SampleFormat": 3,
+    "ImageDescription": {
+      "storage": "out_of_line",
+      "count": 24,
+      "value_offset": 194,
+      "followed": false
+    },
+    "Software": {
+      "storage": "out_of_line",
+      "count": 12,
+      "value_offset": 250,
+      "followed": false
+    }
+  },
+  "members": [
+    {
+      "path": "SAED/23K.tif",
+      "compressed_bytes": 8710357,
+      "uncompressed_bytes": 33554704,
+      "compressed_prefix_sha256": "00fefe96712d45b26065f7139b622a81d86fe3ecb9ce9cb9e06412c7f7ad8be1"
+    },
+    {
+      "path": "SAED/91K.tif",
+      "compressed_bytes": 8612247,
+      "uncompressed_bytes": 33554704,
+      "compressed_prefix_sha256": "27391ea542ab19fe7d75e82f69404002f4ac7c877ed4080560c7926ddc3bf99e"
+    },
+    {
+      "path": "SAED/172K.tif",
+      "compressed_bytes": 8525589,
+      "uncompressed_bytes": 33554704,
+      "compressed_prefix_sha256": "d090d3a30554dd9a14c7ef70dc00a9d2cb94a97ad4daab244f3cc7354f6282f4"
+    }
+  ],
+  "evidence_assessment": {
+    "three_substantive_tiff_member_identity": "Supported",
+    "classic_tiff_header_and_first_ifd_structure": "Supported",
+    "image_dimensions": "Supported",
+    "bits_per_sample": "Supported",
+    "floating_point_storage_representation": "Supported",
+    "raw_detector_native_intensity": "Inconclusive",
+    "filename_k_suffix_temperature_semantics": "Inconclusive",
+    "acquisition_independence": "Inconclusive",
+    "pattern_center_and_reciprocal_calibration": "Inconclusive",
+    "reference_reflection_truth": "Inconclusive",
+    "external_validation_readiness": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic"
+  },
+  "readiness": {
+    "tiff_metadata_ready": true,
+    "pre_pixel_text_metadata_range_identified": true,
+    "pixel_access_authorized": false,
+    "four_d_stem_download_authorized": false,
+    "analyzer_execution_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "next_evidence": {
+    "description": "Read only explicitly bounded out-of-line TIFF metadata that lies entirely before the verified first pixel strip at byte 272.",
+    "authorized_candidate_ranges": [
+      {"tag": "ImageDescription", "offset": 194, "bytes": 24},
+      {"tag": "Software", "offset": 250, "bytes": 12}
+    ],
+    "pixel_strip_offset": 272,
+    "pixel_bytes_authorized": false
+  }
+}
