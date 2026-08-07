@@ -7,9 +7,9 @@ import re
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
-USER_AGENT = "materials-characterization-analyzer-zenodo-metadata-audit/1.0"
+USER_AGENT = "materials-characterization-analyzer-zenodo-metadata-audit/1.1"
 
 
 class SrTiO3SaedMetadataAuditError(RuntimeError):
@@ -84,6 +84,8 @@ def _validate_config(value: dict[str, Any]) -> dict[str, Any]:
         raise SrTiO3SaedMetadataAuditError("source config keys do not match contract")
     if source.get("record_id") != 20300700:
         raise SrTiO3SaedMetadataAuditError("unexpected SrTiO3 Zenodo record id")
+    if source.get("expected_resource_type") != "dataset":
+        raise SrTiO3SaedMetadataAuditError("expected resource type must remain dataset")
     _trusted_zenodo_url(source.get("record_url"))
     _trusted_zenodo_url(source.get("api_url"))
     files = source.get("expected_files")
@@ -102,6 +104,9 @@ def _validate_config(value: dict[str, Any]) -> dict[str, Any]:
         seen.add(key)
     if "SAED.zip" not in seen:
         raise SrTiO3SaedMetadataAuditError("SAED.zip is absent from expected inventory")
+    terms = source.get("expected_description_terms")
+    if not isinstance(terms, list) or not terms or any(not isinstance(term, str) or not term for term in terms):
+        raise SrTiO3SaedMetadataAuditError("expected description terms are invalid")
     boundary = value["scientific_boundary"]
     if not isinstance(boundary, dict) or boundary.get("metadata_api_request_authorized") is not True:
         raise SrTiO3SaedMetadataAuditError("metadata API request is not authorized")
@@ -140,15 +145,22 @@ def _fetch_record(url: str) -> dict[str, Any]:
 def _resource_type_id(metadata: Mapping[str, Any]) -> str | None:
     value = metadata.get("resource_type")
     if isinstance(value, Mapping):
-        raw = value.get("id")
-        return str(raw) if isinstance(raw, str) else None
-    return str(value) if isinstance(value, str) else None
+        for key in ("id", "type"):
+            raw = value.get(key)
+            if isinstance(raw, str) and raw:
+                return raw
+        return None
+    return value if isinstance(value, str) and value else None
 
 
 def _license_id(metadata: Mapping[str, Any]) -> str | None:
     rights = metadata.get("rights")
     if isinstance(rights, list):
-        ids = [str(item.get("id")) for item in rights if isinstance(item, Mapping) and isinstance(item.get("id"), str)]
+        ids = [
+            str(item.get("id"))
+            for item in rights
+            if isinstance(item, Mapping) and isinstance(item.get("id"), str)
+        ]
         unique = sorted(set(ids))
         if len(unique) == 1:
             return unique[0]
@@ -162,22 +174,35 @@ def _license_id(metadata: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _file_entries(record: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _raw_file_records(record: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     files = record.get("files")
-    entries: Any = None
-    if isinstance(files, Mapping):
+    if isinstance(files, Sequence) and not isinstance(files, (str, bytes, bytearray)):
+        raw_records = list(files)
+    elif isinstance(files, Mapping):
         entries = files.get("entries")
-    if not isinstance(entries, Mapping):
-        raise SrTiO3SaedMetadataAuditError("Zenodo file entries are not exposed as an object")
+        if isinstance(entries, Mapping):
+            raw_records = list(entries.values())
+        elif isinstance(entries, Sequence) and not isinstance(entries, (str, bytes, bytearray)):
+            raw_records = list(entries)
+        else:
+            raise SrTiO3SaedMetadataAuditError("Zenodo file entries are not exposed in a supported schema")
+    else:
+        raise SrTiO3SaedMetadataAuditError("Zenodo files field is not a supported list/object schema")
+    if not raw_records or any(not isinstance(item, Mapping) for item in raw_records):
+        raise SrTiO3SaedMetadataAuditError("Zenodo file inventory is empty or malformed")
+    return [item for item in raw_records if isinstance(item, Mapping)]
+
+
+def _file_entries(record: Mapping[str, Any]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
-    for map_key, raw in entries.items():
-        if not isinstance(raw, Mapping):
-            raise SrTiO3SaedMetadataAuditError("Zenodo file entry is not an object")
-        key = raw.get("key") if isinstance(raw.get("key"), str) else str(map_key)
+    for raw in _raw_file_records(record):
+        key = raw.get("key")
         size = raw.get("size")
         checksum = raw.get("checksum")
         links = raw.get("links")
         file_id = raw.get("id")
+        if not isinstance(key, str) or not key:
+            raise SrTiO3SaedMetadataAuditError("Zenodo file key is missing")
         if not isinstance(size, int) or size <= 0:
             raise SrTiO3SaedMetadataAuditError(f"invalid file size for {key}")
         if not isinstance(checksum, str) or not checksum.startswith("md5:"):
@@ -187,7 +212,8 @@ def _file_entries(record: Mapping[str, Any]) -> list[dict[str, Any]]:
             raise SrTiO3SaedMetadataAuditError(f"invalid repository MD5 for {key}")
         if not isinstance(links, Mapping):
             raise SrTiO3SaedMetadataAuditError(f"missing file links for {key}")
-        content_url = _trusted_zenodo_url(links.get("content"))
+        content_candidate = links.get("content") or links.get("self") or links.get("download")
+        content_url = _trusted_zenodo_url(content_candidate)
         result.append(
             {
                 "id": str(file_id) if file_id is not None else None,
@@ -197,6 +223,9 @@ def _file_entries(record: Mapping[str, Any]) -> list[dict[str, Any]]:
                 "content_url": content_url,
             }
         )
+    keys = [item["key"] for item in result]
+    if len(keys) != len(set(keys)):
+        raise SrTiO3SaedMetadataAuditError("Zenodo file inventory contains duplicate keys")
     return sorted(result, key=lambda item: item["key"])
 
 
@@ -214,7 +243,9 @@ def _validate_record(config: Mapping[str, Any], record: Mapping[str, Any]) -> di
         raise SrTiO3SaedMetadataAuditError("Zenodo title drifted")
     resource_type = _resource_type_id(metadata)
     if resource_type != source["expected_resource_type"]:
-        raise SrTiO3SaedMetadataAuditError("Zenodo resource type drifted")
+        raise SrTiO3SaedMetadataAuditError(
+            f"Zenodo resource type drifted: observed={resource_type!r}, raw={metadata.get('resource_type')!r}"
+        )
     description = str(metadata.get("description") or "")
     description_fold = description.casefold()
     for term in source["expected_description_terms"]:
@@ -331,7 +362,9 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Audit Zenodo metadata for the SrTiO3 SAED candidate.")
+    parser = argparse.ArgumentParser(
+        description="Audit Zenodo metadata for the SrTiO3 SAED candidate."
+    )
     parser.add_argument(
         "--config",
         type=Path,
