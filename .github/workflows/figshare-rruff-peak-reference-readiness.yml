@@ -1,0 +1,86 @@
+name: Figshare RRUFF peak-reference readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/figshare_rruff_peak_reference_readiness/**"
+      - "scripts/audit_figshare_rruff_peak_reference_readiness.py"
+      - "tests/test_audit_figshare_rruff_peak_reference_readiness.py"
+      - ".github/workflows/figshare-rruff-peak-reference-readiness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/figshare_rruff_peak_reference_readiness/**"
+      - "scripts/audit_figshare_rruff_peak_reference_readiness.py"
+      - "tests/test_audit_figshare_rruff_peak_reference_readiness.py"
+      - ".github/workflows/figshare-rruff-peak-reference-readiness.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: figshare-rruff-peak-reference-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_figshare_rruff_peak_reference_readiness.py
+      - name: Run live Figshare metadata audit
+        run: |
+          python scripts/audit_figshare_rruff_peak_reference_readiness.py \
+            --config case_studies/figshare_rruff_peak_reference_readiness/case_config.json \
+            --output outputs/figshare_rruff_peak_reference_readiness/readiness_snapshot.json
+      - name: Verify metadata-only scientific boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/figshare_rruff_peak_reference_readiness")
+          result = json.loads((root / "readiness_snapshot.json").read_text())
+          assert result["execution_status"] == "figshare_rruff_peak_reference_metadata_audit_completed"
+          assert result["article"]["id"] == 7427393
+          assert result["article"]["version"] == 2
+          assert result["figshare_api"]["status"] == 200
+          assert result["figshare_api"]["raw_metadata_retained"] is False
+          assert result["file_inventory_summary"]["dataset_file_payload_bytes_read"] == 0
+          assert result["file_inventory_summary"]["file_count"] > 0
+          evidence = result["evidence_assessment"]
+          assert evidence["figshare_article_identity_and_version"] == "Supported"
+          assert evidence["figshare_file_identity_metadata"] == "Supported"
+          assert evidence["experimental_peak_annotation_provenance"] == "Diagnostic"
+          assert evidence["independent_authoritative_peak_position_truth"] == "Inconclusive"
+          readiness = result["readiness"]
+          assert readiness["dataset_file_download_authorized"] is False
+          assert readiness["experimental_json_download_authorized"] is False
+          assert readiness["rruff_spectrum_download_authorized"] is False
+          assert readiness["raman_analyzer_execution_authorized"] is False
+          assert readiness["parameter_tuning_authorized"] is False
+          assert readiness["model_fit_or_training_authorized"] is False
+          assert readiness["mineral_classification_claim_authorized"] is False
+          assert readiness["vibrational_mode_assignment_claim_authorized"] is False
+          assert readiness["external_validation_ready"] is False
+          assert list(root.rglob("*.json")) == [root / "readiness_snapshot.json"]
+          assert list(root.rglob("*.zip")) == []
+          assert list(root.rglob("*.csv")) == []
+          assert list(root.rglob("*.txt")) == []
+          PY
+      - name: Upload structured metadata evidence only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: figshare-rruff-peak-reference-readiness-evidence
+          path: outputs/figshare_rruff_peak_reference_readiness/readiness_snapshot.json
+          if-no-files-found: warn
+          retention-days: 30
