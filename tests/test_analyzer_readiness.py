@@ -27,6 +27,7 @@ def test_pinned_registry_generates_fail_closed_readiness_evidence(tmp_path: Path
     assert result["engineering_decision_ready_count"] == 0
 
     summary = json.loads((output / "analyzer_readiness_summary.json").read_text(encoding="utf-8"))
+    assert summary["snapshot_date"] == "2026-08-09"
     assert summary["software_supported_count"] == 10
     assert summary["public_real_data_exercised_count"] == 10
     assert summary["independent_external_validation_ready_count"] == 0
@@ -46,6 +47,9 @@ def test_pinned_registry_generates_fail_closed_readiness_evidence(tmp_path: Path
     assert "Passing software tests does not establish scientific validity" in report
     assert "Transmission electron microscopy" in report
     assert "Selected-area electron diffraction" in report
+    assert "2048 by 2048 float64 source TIFF pixels" in report
+    assert "do not acquire more SAED pixels" in report
+    assert "cross-material source-format evidence" in report
 
     manifest = json.loads(
         (output / "analyzer_readiness_artifact_manifest.json").read_text(encoding="utf-8")
@@ -53,6 +57,26 @@ def test_pinned_registry_generates_fail_closed_readiness_evidence(tmp_path: Path
     assert len(manifest["artifacts"]) == 3
     assert manifest["scientific_boundary"]["scientific_claims_promoted"] is False
     assert manifest["scientific_boundary"]["missing_metadata_inferred"] is False
+
+
+def test_registry_keeps_recent_tem_and_saed_evidence_bounded() -> None:
+    payload = json.loads(CONFIG.read_text(encoding="utf-8"))
+    rows = {row["analyzer_id"]: row for row in payload["analyzers"]}
+
+    tem = rows["tem"]
+    assert tem["scientific_evidence_level"] == "Inconclusive"
+    assert "cross-material DM3/DM4 sources" in tem["primary_limitation"]
+    assert "exact-Co3O4 institutional source remains access-blocked" in tem["primary_limitation"]
+    assert "Do not substitute cross-material source-format evidence" in tem["next_required_evidence"]
+
+    saed = rows["saed"]
+    assert saed["scientific_evidence_level"] == "Inconclusive"
+    assert "23 K, 91 K, and 172 K temperature semantics" in saed["primary_limitation"]
+    assert "Diagnostic source-pattern-family correspondence" in saed["primary_limitation"]
+    assert "BIR 300 keV" in saed["primary_limitation"]
+    assert "do not acquire more SAED pixels" in saed["next_required_evidence"]
+    assert saed["independent_external_validation_ready"] is False
+    assert saed["engineering_decision_ready"] is False
 
 
 def test_registry_rejects_any_promoted_external_or_engineering_readiness(

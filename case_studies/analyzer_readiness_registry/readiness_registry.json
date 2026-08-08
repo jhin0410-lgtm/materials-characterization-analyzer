@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "snapshot_date": "2026-08-04",
+  "snapshot_date": "2026-08-09",
   "scope": {
     "repository": "jhin0410-lgtm/materials-characterization-analyzer",
     "analyzer_ids": [
@@ -166,10 +166,10 @@
       "software_evidence_level": "Supported",
       "scientific_evidence_level": "Inconclusive",
       "representative_cases": ["public_cobalt_oxide_tem", "phaset3m_co3o4_candidate_audit", "tem_external_validation_candidate_registry"],
-      "supported_uses": ["image and mask ingestion diagnostics", "explicit scale and contrast-region baseline", "source and parent-overlap audits", "fail-closed external-validation intake and readiness contracts"],
+      "supported_uses": ["image and mask ingestion diagnostics", "explicit scale and contrast-region baseline", "source and parent-overlap audits", "fail-closed external-validation intake and readiness contracts", "native-format and archive-level source provenance audits"],
       "blocked_claims": ["independent cobalt-oxide segmentation accuracy", "parent-disjoint generalization", "automatic particle, phase, defect, pore, grain, or lattice-feature identity", "model retraining justified by external evidence", "engineering release decisions"],
-      "primary_limitation": "No independent raw or demonstrably lossless in-domain Co3O4 TEM or HRTEM cohort with authoritative sample and acquisition lineage, blinded labels, content disjointness, and model-development non-use has passed intake.",
-      "next_required_evidence": "Acquire at least two independent Co3O4 samples and acquisitions with raw or lossless images, immutable lineage, calibration, reuse rights, two blinded labelers plus adjudicated consensus, overlap audits, and a frozen evaluation protocol.",
+      "primary_limitation": "Multiple public TEM/HRTEM candidates now have bounded source, archive, native-format, or access-readiness evidence, including cross-material DM3/DM4 sources, while the strongest exact-Co3O4 institutional source remains access-blocked. None provides an independent raw or demonstrably lossless in-domain Co3O4 cohort with authoritative sample and acquisition lineage, blinded labels, content disjointness, and model-development non-use that has passed intake.",
+      "next_required_evidence": "Acquire at least two independent Co3O4 samples and acquisitions with raw or lossless images, immutable lineage, calibration, reuse rights, two blinded labelers plus adjudicated consensus, overlap audits, and a frozen evaluation protocol. Do not substitute cross-material source-format evidence for in-domain segmentation truth.",
       "independent_external_validation_ready": false,
       "engineering_decision_ready": false
     },
@@ -183,10 +183,10 @@
       "software_evidence_level": "Supported",
       "scientific_evidence_level": "Inconclusive",
       "representative_cases": ["public_finds_saed", "saed_external_validation_candidate_registry", "saed_bir_200kev_metadata_audit"],
-      "supported_uses": ["explicit-centre radial-profile diagnostics", "ring candidates", "explicit reciprocal calibration handling", "centre and smoothing sensitivity", "fail-closed source, transfer, intake, and protocol contracts"],
+      "supported_uses": ["explicit-centre radial-profile diagnostics", "ring candidates", "explicit reciprocal calibration handling", "centre and smoothing sensitivity", "fail-closed source, transfer, intake, and protocol contracts", "checksum-bound source-pixel and publication-provenance audits"],
       "blocked_claims": ["reflection, phase, structure, or zone-axis assignment", "calibrated d-spacing accuracy against independent ground truth", "crystallographic performance", "parameter tuning from post-hoc references", "engineering release decisions"],
-      "primary_limitation": "No independent checksum-bound raw or demonstrably lossless static-SAED cohort with authoritative centre, reciprocal calibration, material and acquisition identity, frozen references, and analyzer-development non-use has passed intake.",
-      "next_required_evidence": "Acquire at least two independent calibrated static-SAED patterns or acquisitions with raw or lossless intensity, immutable lineage, detector and voltage metadata, traceable centre and reciprocal calibration, frozen references, overlap review, and a predeclared protocol.",
+      "primary_limitation": "The SrTiO3 chain now verifies exact 2048 by 2048 float64 source TIFF pixels, supports the 23 K, 91 K, and 172 K temperature semantics from the final publication, and provides Diagnostic source-pattern-family correspondence to Figure 1d. Individual TIFF-to-panel identity, source-TIFF pattern centre, reciprocal calibration, acquisition independence, detector-native intensity provenance, and complete reflection truth remain Inconclusive. The BIR 300 keV audit independently supports instrument and internal TVIPS-format context but also remains blocked on traceable centre and reciprocal calibration. No independent calibrated static-SAED cohort satisfying the frozen external-validation requirement has passed intake.",
+      "next_required_evidence": "Prefer authoritative pattern-centre and reciprocal-calibration evidence plus frozen reflection truth for at least two independent static-SAED acquisitions with immutable lineage and analyzer-development non-use. For the current SrTiO3 source, do not acquire more SAED pixels or attempt automatic registration unless an authoritative higher-resolution Figure 1d asset or explicit source-to-panel mapping becomes available under a predeclared protocol.",
       "independent_external_validation_ready": false,
       "engineering_decision_ready": false
     }
