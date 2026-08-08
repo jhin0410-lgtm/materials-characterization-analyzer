@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "case_id": "charisma_raman_reference_readiness",
+  "audit_date": "2026-08-09",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 13387413,
+    "doi": "10.5281/zenodo.13387413",
+    "record_url": "https://zenodo.org/records/13387413",
+    "api_url": "https://zenodo.org/api/records/13387413",
+    "expected_status": "published",
+    "expected_resource_type": "dataset",
+    "expected_title": "An analysis of peak fitting in reference material spectra for calibration of Raman spectroscopy instruments",
+    "landing_page_version_claim": "v1",
+    "expected_files": [
+      {
+        "key": "peak_fitting_spectra.nxs",
+        "md5": "88485671e56662b00aaad9303dc653d6"
+      }
+    ]
+  },
+  "publication_evidence": "case_studies/charisma_raman_reference_readiness/publication_evidence.json",
+  "scientific_target": {
+    "future_claim": "reference_material_peak_position_localization_and_wavelength_calibration_support",
+    "materials": ["neon", "silicon", "calcite", "polystyrene"],
+    "compound_or_phase_identification_claim": false,
+    "vibrational_mode_assignment_claim": false,
+    "quantitative_defect_or_crystallinity_claim": false,
+    "cross_instrument_generalization_claim": false
+  },
+  "scientific_boundary": {
+    "metadata_api_request_authorized": true,
+    "record_license_and_version_metadata_authorized": true,
+    "record_file_identity_and_checksum_metadata_authorized": true,
+    "download_nexus_file_authorized": false,
+    "inspect_nexus_structure_authorized": false,
+    "read_spectrum_arrays_authorized": false,
+    "run_mca_raman_authorized": false,
+    "tune_mca_raman_parameters_authorized": false,
+    "select_validation_subset_authorized": false,
+    "select_matching_tolerance_authorized": false,
+    "claim_external_validation_authorized": false,
+    "claim_engineering_readiness_authorized": false
+  },
+  "decision_rules": {
+    "dataset_license_must_come_from_zenodo_api_metadata_not_secondary_pages": true,
+    "file_identity_requires_exact_zenodo_key_and_md5": true,
+    "metadata_readiness_does_not_establish_reference_peak_truth": true,
+    "nexus_payload_requires_a_separate_predeclared_contract": true,
+    "mca_outputs_must_not_be_viewed_before_reference_structure_and_truth_definition_are_frozen": true,
+    "no_scientific_evidence_level_promotion_occurs_at_metadata_readiness_stage": true
+  }
+}
