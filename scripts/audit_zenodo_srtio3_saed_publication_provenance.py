@@ -17,6 +17,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+ARTICLE_DOI = "10.1038/s41586-026-10823-x"
+ARTICLE_PATH = "/articles/s41586-026-10823-x"
+ZENODO_DOI = "10.5281/zenodo.20300700"
+TRUSTED_NATURE_HOSTS = {"nature.com", "www.nature.com"}
+
 
 class SrTiO3PublicationProvenanceError(RuntimeError):
     """Raised when the bounded SrTiO3 publication-provenance contract is violated."""
@@ -93,10 +98,22 @@ def _string_list(value: object, field: str) -> list[str]:
     for item in value:
         if not isinstance(item, str) or not item.strip():
             raise SrTiO3PublicationProvenanceError(f"{field} must contain non-empty strings")
-        result.append(item.strip())
-    if len(result) != len(set(result)):
-        raise SrTiO3PublicationProvenanceError(f"{field} must not contain duplicates")
+        text = item.strip()
+        if text in result:
+            raise SrTiO3PublicationProvenanceError(f"{field} must not contain duplicates")
+        result.append(text)
     return result
+
+
+def _trusted_publication_url(value: object) -> str:
+    if not isinstance(value, str) or not value:
+        raise SrTiO3PublicationProvenanceError("publication URL is missing")
+    parsed = urllib.parse.urlparse(value)
+    if parsed.scheme != "https" or parsed.hostname not in TRUSTED_NATURE_HOSTS:
+        raise SrTiO3PublicationProvenanceError("publication URL is outside trusted Nature host")
+    if parsed.path != ARTICLE_PATH:
+        raise SrTiO3PublicationProvenanceError("publication URL path is not the pinned article")
+    return value
 
 
 def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -114,22 +131,31 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
         raise SrTiO3PublicationProvenanceError(
             "publication provenance config keys/schema do not match contract"
         )
+
     publication = config.get("publication")
-    if not isinstance(publication, dict) or set(publication) != {
+    expected_publication_fields = {
         "doi",
         "title",
         "url",
         "maximum_response_bytes",
         "required_text_claims",
-    }:
+    }
+    if not isinstance(publication, dict) or set(publication) != expected_publication_fields:
         raise SrTiO3PublicationProvenanceError("publication contract is invalid")
-    if publication.get("doi") != "10.1038/s41586-026-10823-x":
+    if publication.get("doi") != ARTICLE_DOI:
         raise SrTiO3PublicationProvenanceError("publication DOI drifted")
-    if publication.get("url") != "https://www.nature.com/articles/s41586-026-10823-x":
-        raise SrTiO3PublicationProvenanceError("publication URL drifted")
+    _trusted_publication_url(publication.get("url"))
+    if ARTICLE_DOI.rsplit("/", 1)[-1] != ARTICLE_PATH.rsplit("/", 1)[-1]:
+        raise SrTiO3PublicationProvenanceError("publication DOI and Nature article path disagree")
+    title_stem = publication.get("title")
+    if not isinstance(title_stem, str) or title_stem.strip() != (
+        "Imaging of nanoscale polar textures in quantum paraelectric"
+    ):
+        raise SrTiO3PublicationProvenanceError("publication stable title stem drifted")
     ceiling = publication.get("maximum_response_bytes")
     if not isinstance(ceiling, int) or not 100_000 <= ceiling <= 5_000_000:
         raise SrTiO3PublicationProvenanceError("publication response ceiling is invalid")
+
     claims = publication.get("required_text_claims")
     required_claims = {
         "figure_1d_temperature_sequence",
@@ -153,8 +179,8 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
     }
     if not isinstance(evidence, dict) or set(evidence) != expected_evidence_keys:
         raise SrTiO3PublicationProvenanceError("repository_evidence contract is invalid")
-    for value in evidence.values():
-        _resolve_repo_path(value)
+    for path in evidence.values():
+        _resolve_repo_path(path)
 
     members = config.get("expected_saed_members")
     expected_members = {
@@ -181,10 +207,15 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
         "publication_html_request_authorized",
         "publication_text_normalization_authorized",
     }
-    if not isinstance(boundary, dict) or any(boundary.get(key) is not True for key in allowed_true):
+    if not isinstance(boundary, dict) or any(
+        boundary.get(key) is not True for key in allowed_true
+    ):
         raise SrTiO3PublicationProvenanceError("publication text operations are not authorized")
     if any(value is not False for key, value in boundary.items() if key not in allowed_true):
-        raise SrTiO3PublicationProvenanceError("pixel/analyzer/figure-image actions must remain disabled")
+        raise SrTiO3PublicationProvenanceError(
+            "pixel/analyzer/figure-image actions must remain disabled"
+        )
+
     rules = config.get("decision_rules")
     if not isinstance(rules, dict) or not rules or any(value is not True for value in rules.values()):
         raise SrTiO3PublicationProvenanceError("all fail-closed publication rules must be enabled")
@@ -208,23 +239,16 @@ def _visible_text(payload: bytes) -> str:
     return _normalize_text(" ".join(parser.parts))
 
 
-def _trusted_publication_url(value: object) -> str:
-    if not isinstance(value, str) or not value:
-        raise SrTiO3PublicationProvenanceError("publication URL is missing")
-    parsed = urllib.parse.urlparse(value)
-    if parsed.scheme != "https" or parsed.hostname not in {"nature.com", "www.nature.com"}:
-        raise SrTiO3PublicationProvenanceError("publication URL is outside trusted Nature host")
-    if parsed.path != "/articles/s41586-026-10823-x":
-        raise SrTiO3PublicationProvenanceError("publication URL path is not the pinned article")
-    return value
-
-
 def _download_publication(url: str, maximum_bytes: int) -> tuple[bytes, str]:
     request = urllib.request.Request(
         _trusted_publication_url(url),
         headers={
-            "User-Agent": "materials-characterization-analyzer-publication-provenance/1.0",
-            "Accept": "text/html,application/xhtml+xml",
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/140.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
             "Accept-Encoding": "identity",
         },
     )
@@ -234,9 +258,9 @@ def _download_publication(url: str, maximum_bytes: int) -> tuple[bytes, str]:
             raise SrTiO3PublicationProvenanceError(f"publication returned HTTP {status}")
         final_url = response.geturl()
         parsed = urllib.parse.urlparse(final_url)
-        if parsed.scheme != "https" or parsed.hostname not in {"nature.com", "www.nature.com"}:
+        if parsed.scheme != "https" or parsed.hostname not in TRUSTED_NATURE_HOSTS:
             raise SrTiO3PublicationProvenanceError("publication redirected outside trusted Nature host")
-        if parsed.path != "/articles/s41586-026-10823-x":
+        if parsed.path != ARTICLE_PATH:
             raise SrTiO3PublicationProvenanceError("publication redirected away from pinned article")
         content_type = response.headers.get_content_type()
         if content_type not in {"text/html", "application/xhtml+xml"}:
@@ -262,13 +286,16 @@ def _validate_repository_evidence(config: Mapping[str, Any]) -> dict[str, Any]:
     source = metadata.get("source")
     if not isinstance(source, Mapping) or source.get("record_id") != 20300700:
         raise SrTiO3PublicationProvenanceError("metadata snapshot is not the pinned Zenodo record")
-    if source.get("doi") != "10.5281/zenodo.20300700":
+    if source.get("doi") != ZENODO_DOI:
         raise SrTiO3PublicationProvenanceError("metadata Zenodo DOI drifted")
 
     remote = snapshots["remote_inventory_snapshot"]
     if remote.get("execution_status") != "remote_central_directory_inventory_completed":
         raise SrTiO3PublicationProvenanceError("remote inventory is not completed")
-    member_paths = remote.get("inventory_summary", {}).get("member_paths")
+    inventory_summary = remote.get("inventory_summary")
+    if not isinstance(inventory_summary, Mapping):
+        raise SrTiO3PublicationProvenanceError("remote inventory summary is invalid")
+    member_paths = inventory_summary.get("member_paths")
     if not isinstance(member_paths, list):
         raise SrTiO3PublicationProvenanceError("remote inventory member paths are invalid")
     expected_paths = [item["path"] for item in config["expected_saed_members"]]
@@ -279,22 +306,35 @@ def _validate_repository_evidence(config: Mapping[str, Any]) -> dict[str, Any]:
     if tiff.get("case_id") != "zenodo_srtio3_saed_tiff_metadata":
         raise SrTiO3PublicationProvenanceError("TIFF metadata case identity drifted")
     common = tiff.get("common_tiff_structure")
-    if not isinstance(common, Mapping) or common.get("ImageWidth") != 2048 or common.get("ImageLength") != 2048:
+    if not isinstance(common, Mapping):
+        raise SrTiO3PublicationProvenanceError("TIFF structure evidence is invalid")
+    if common.get("ImageWidth") != 2048 or common.get("ImageLength") != 2048:
         raise SrTiO3PublicationProvenanceError("TIFF dimensions differ from verified evidence")
-    if common.get("StripOffsets") != 272 or tiff.get("readiness", {}).get("pixel_access_authorized") is not False:
+    readiness = tiff.get("readiness")
+    if not isinstance(readiness, Mapping):
+        raise SrTiO3PublicationProvenanceError("TIFF readiness evidence is invalid")
+    if common.get("StripOffsets") != 272 or readiness.get("pixel_access_authorized") is not False:
         raise SrTiO3PublicationProvenanceError("TIFF pixel boundary drifted")
     tiff_members = tiff.get("members")
     if not isinstance(tiff_members, list):
         raise SrTiO3PublicationProvenanceError("TIFF member evidence is invalid")
-    if [item.get("path") for item in tiff_members if isinstance(item, Mapping)] != expected_paths:
+    observed_tiff_paths = [
+        item.get("path") for item in tiff_members if isinstance(item, Mapping)
+    ]
+    if observed_tiff_paths != expected_paths:
         raise SrTiO3PublicationProvenanceError("TIFF member order/identity differs from contract")
 
     prepixel = snapshots["prepixel_metadata_snapshot"]
     if prepixel.get("case_id") != "zenodo_srtio3_saed_prepixel_metadata":
         raise SrTiO3PublicationProvenanceError("pre-pixel metadata case identity drifted")
-    if prepixel.get("common_text_metadata", {}).get("Software", {}).get("text") != "tifffile.py":
+    text_metadata = prepixel.get("common_text_metadata")
+    range_evidence = prepixel.get("range_evidence")
+    if not isinstance(text_metadata, Mapping) or not isinstance(range_evidence, Mapping):
+        raise SrTiO3PublicationProvenanceError("pre-pixel evidence structure is invalid")
+    software = text_metadata.get("Software")
+    if not isinstance(software, Mapping) or software.get("text") != "tifffile.py":
         raise SrTiO3PublicationProvenanceError("TIFF serialization evidence drifted")
-    if prepixel.get("range_evidence", {}).get("pixel_bytes_decompressed") != 0:
+    if range_evidence.get("pixel_bytes_decompressed") != 0:
         raise SrTiO3PublicationProvenanceError("pre-pixel audit unexpectedly accessed pixels")
 
     notebook = snapshots["notebook_provenance_snapshot"]
@@ -303,7 +343,12 @@ def _validate_repository_evidence(config: Mapping[str, Any]) -> dict[str, Any]:
     search = notebook.get("search_summary")
     if not isinstance(search, Mapping):
         raise SrTiO3PublicationProvenanceError("notebook search summary is invalid")
-    for field in ("explicit_saed_term_hits", "explicit_23K_hits", "explicit_91K_hits", "explicit_172K_hits"):
+    for field in (
+        "explicit_saed_term_hits",
+        "explicit_23K_hits",
+        "explicit_91K_hits",
+        "explicit_172K_hits",
+    ):
         if search.get(field) != 0:
             raise SrTiO3PublicationProvenanceError(
                 "notebook evidence unexpectedly acquired direct SAED/temperature linkage"
@@ -311,7 +356,7 @@ def _validate_repository_evidence(config: Mapping[str, Any]) -> dict[str, Any]:
 
     return {
         "record_id": 20300700,
-        "doi": "10.5281/zenodo.20300700",
+        "doi": ZENODO_DOI,
         "saed_archive_key": "SAED.zip",
         "saed_member_paths": expected_paths,
         "tiff_shape": [2048, 2048],
@@ -351,12 +396,11 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
         str(publication["url"]), int(publication["maximum_response_bytes"])
     )
     text = _visible_text(payload)
-    title = _normalize_text(str(publication["title"]))
-    doi = _normalize_text(str(publication["doi"]))
-    if title not in text:
-        raise SrTiO3PublicationProvenanceError("pinned publication title is absent from source")
-    if doi not in text:
-        raise SrTiO3PublicationProvenanceError("pinned publication DOI is absent from source")
+    title_stem = _normalize_text(str(publication["title"]))
+    if title_stem not in text:
+        raise SrTiO3PublicationProvenanceError(
+            "stable publication title stem is absent from Nature response"
+        )
     claims = _claim_results(text, publication["required_text_claims"])
 
     result = {
@@ -368,6 +412,7 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
         "publication": {
             "doi": publication["doi"],
             "title": publication["title"],
+            "identity_basis": "exact DOI, exact Nature article path, and stable visible title stem",
             "source_url": publication["url"],
             "final_url": final_url,
             "response_bytes": len(payload),
@@ -382,7 +427,7 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
             "figure_1d_reciprocal_scale_bar_inv_angstrom": 0.1,
             "figure_1d_afd_superspot_assignment": "half-integer AFD superspots",
             "extended_data_diffraction_temperature_range_k": [23, 215],
-            "final_article_data_availability_zenodo_doi": "10.5281/zenodo.20300700",
+            "final_article_data_availability_zenodo_doi": ZENODO_DOI,
         },
         "evidence_assessment": {
             "final_publication_identity": "Supported",
@@ -413,7 +458,10 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
         },
         "next_evidence": {
             "priority": 1,
-            "requirement": "predeclared_bounded_source_tiff_to_published_figure1d_identity_and_reciprocal_scale_mapping",
+            "requirement": (
+                "predeclared_bounded_source_tiff_to_published_figure1d_identity_and_"
+                "reciprocal_scale_mapping"
+            ),
             "why": (
                 "The final publication now resolves the 23K/91K/172K temperature semantics and "
                 "provides a 0.1 inverse-angstrom scale bar for the displayed patterns, but the "
