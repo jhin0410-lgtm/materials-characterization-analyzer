@@ -11,6 +11,12 @@ from scripts import inspect_zenodo_srtio3_saed_figure1d_pixels as inspect
 CONFIG_PATH = Path(
     "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/evidence_contract.json"
 )
+SOURCE_SNAPSHOT_PATH = Path(
+    "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/verified_pixel_source_snapshot.json"
+)
+MANUAL_REVIEW_PATH = Path(
+    "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/manual_identity_review.json"
+)
 
 
 def _config_payload() -> dict:
@@ -54,6 +60,64 @@ def test_tracked_evidence_chain_allows_only_predeclared_pixel_stage() -> None:
         "publication_provenance_snapshot",
     }
     assert all(len(value) == 64 for value in hashes.values())
+
+
+def test_live_pixel_source_snapshot_pins_exact_source_and_figure_bytes() -> None:
+    snapshot = json.loads(SOURCE_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+
+    assert snapshot["schema_version"] == "1.0"
+    assert snapshot["contract_config_sha256"] == (
+        "f7e2947cd28143ac1376ca43866dec1e70366a36d226cb2783b5f1d6a29a0a9d"
+    )
+    assert snapshot["source_archive"] == {
+        "bytes": 25850906,
+        "md5": "0c830a9b276a491e91037872891cb440",
+        "sha256": "5f4c9406a7b22691414e4145784ef0548f19c152c8c529991d978d6f94e2f828",
+    }
+    assert [item["temperature_k"] for item in snapshot["source_tiffs"]] == [23, 91, 172]
+    assert [item["sha256"] for item in snapshot["source_tiffs"]] == [
+        "b7fc809f09a7807a89792fa7b581fe086894a820cb507f2ab6e06562c9ec8c2b",
+        "26d704f99821a651bc12d4ccf910e809d47eeaf2ebfc20ebaa228b2b4d7a5799",
+        "bc94402678b67dacea6bd7d3235176ad2fcd5086784662941ecb7dc11d479758",
+    ]
+    for item in snapshot["source_tiffs"]:
+        assert item["shape"] == [2048, 2048]
+        assert item["dtype"] == "float64"
+        assert item["finite_count"] == 4194304
+        assert item["nonfinite_count"] == 0
+        assert item["finite_max"] >= item["finite_min"]
+    assert snapshot["publication_figure"]["sha256"] == (
+        "3ac7a9ba3f349ca74020008319f3994cc6dfe2e3b9653075a369eabf47a1a426"
+    )
+    assert snapshot["publication_figure"]["decoded_shape"] == [398, 685, 4]
+    assert all(value is False for value in snapshot["retention_boundary"].values())
+
+
+def test_manual_review_preserves_diagnostic_identity_and_blocks_calibration() -> None:
+    review = json.loads(MANUAL_REVIEW_PATH.read_text(encoding="utf-8"))
+    decision = review["decision"]
+    next_evidence = review["next_evidence_requirement"]
+
+    assert review["review_method"] == (
+        "manual_visual_review_of_fixed_source_previews_and_pinned_publication_figure"
+    )
+    assert review["publication_panel_context"]["manual_panel_boxes_xyxy"] == {
+        "left": [383, 137, 462, 216],
+        "middle": [482, 137, 561, 216],
+        "right": [579, 137, 658, 216],
+    }
+    assert decision["overall_source_family_to_figure1d_correspondence"] == "Diagnostic"
+    assert decision["individual_23k_tiff_to_left_panel_identity"] == "Inconclusive"
+    assert decision["individual_91k_tiff_to_middle_panel_identity"] == "Inconclusive"
+    assert decision["individual_172k_tiff_to_right_panel_identity"] == "Inconclusive"
+    assert decision["temperature_semantics"] == "Supported"
+    assert decision["source_tiff_reciprocal_calibration"] == "Inconclusive"
+    assert decision["source_tiff_pattern_center"] == "Inconclusive"
+    assert decision["external_validation_readiness"] == "Inconclusive"
+    assert next_evidence["automatic_registration_authorized"] is False
+    assert next_evidence["reciprocal_scale_inference_authorized"] is False
+    assert next_evidence["additional_saed_source_bytes_required"] is False
+    assert next_evidence["four_d_stem_bytes_required"] is False
 
 
 def _tiny_tiff_payload(values: np.ndarray) -> bytes:
