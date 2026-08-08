@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_saed_publication_provenance",
+  "audit_date": "2026-08-08",
+  "publication": {
+    "doi": "10.1038/s41586-026-10823-x",
+    "title": "Imaging of nanoscale polar textures in quantum paraelectric SrTiO3",
+    "url": "https://www.nature.com/articles/s41586-026-10823-x",
+    "maximum_response_bytes": 5000000,
+    "required_text_claims": {
+      "figure_1d_temperature_sequence": [
+        "electron diffraction patterns collected at 23 k",
+        "91 k",
+        "172 k"
+      ],
+      "figure_1d_reciprocal_scale": [
+        "scale bars",
+        "0.1",
+        "å"
+      ],
+      "afd_superspot_assignment": [
+        "afd superspots",
+        "half-integer"
+      ],
+      "extended_temperature_series": [
+        "electron diffraction patterns collected from 23 to 215 k"
+      ],
+      "zenodo_data_binding": [
+        "10.5281/zenodo.20300700"
+      ]
+    }
+  },
+  "repository_evidence": {
+    "metadata_snapshot": "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json",
+    "remote_inventory_snapshot": "case_studies/zenodo_srtio3_saed_remote_inventory/verified_remote_inventory_snapshot.json",
+    "tiff_metadata_snapshot": "case_studies/zenodo_srtio3_saed_tiff_metadata/verified_tiff_metadata_snapshot.json",
+    "prepixel_metadata_snapshot": "case_studies/zenodo_srtio3_saed_prepixel_metadata/verified_prepixel_metadata_snapshot.json",
+    "notebook_provenance_snapshot": "case_studies/zenodo_srtio3_notebook_provenance/verified_notebook_provenance_snapshot.json"
+  },
+  "expected_saed_members": [
+    {"path": "SAED/23K.tif", "temperature_k": 23},
+    {"path": "SAED/91K.tif", "temperature_k": 91},
+    {"path": "SAED/172K.tif", "temperature_k": 172}
+  ],
+  "scientific_boundary": {
+    "publication_html_request_authorized": true,
+    "publication_text_normalization_authorized": true,
+    "saed_archive_download_authorized": false,
+    "saed_tiff_pixel_access_authorized": false,
+    "four_d_stem_download_authorized": false,
+    "published_figure_image_download_authorized": false,
+    "image_registration_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "phase_indexing_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "publication_temperature_labels_may_resolve_filename_temperature_semantics_only_when_final_article_binds_data_to_the_same_zenodo_record": true,
+    "matching_three_temperature_labels_do_not_prove_byte_exact_figure_panel_identity": true,
+    "published_figure_scale_bar_does_not_automatically_calibrate_source_tiff_pixels": true,
+    "publication_statement_about_realigning_the_same_region_for_4d_stem_must_not_be_transferred_to_saed_acquisition_independence": true,
+    "source_author_afd_superspot_assignment_is_diagnostic_reference_evidence_not_a_complete_indexing_truth_set": true,
+    "pixel_access_requires_a_separate_predeclared_source_to_figure_mapping_contract": true,
+    "notebook_4d_stem_preprocessing_must_not_be_applied_to_saed_tiffs": true
+  }
+}
