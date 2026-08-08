@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "review_id": "srtio3-saed-figure1d-manual-identity-review-v1",
+  "reviewed_at": "2026-08-08",
+  "review_method": "manual_visual_review_of_fixed_source_previews_and_pinned_publication_figure",
+  "source_snapshot": "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/verified_pixel_source_snapshot.json",
+  "publication_panel_context": {
+    "figure": "1d",
+    "figure_raster_shape": [398, 685, 4],
+    "manual_panel_boxes_xyxy": {
+      "left": [383, 137, 462, 216],
+      "middle": [482, 137, 561, 216],
+      "right": [579, 137, 658, 216]
+    },
+    "panel_box_role": "manual layout annotation only; coordinates are not a reciprocal-space calibration or registration result",
+    "authoritative_temperature_context_k": {
+      "left": 23,
+      "middle": 91,
+      "right": 172
+    }
+  },
+  "observations": [
+    "All three source TIFF previews and all three Figure 1d diffraction panels show the same qualitative oblique two-axis reciprocal-lattice family and orientation.",
+    "The source previews contain strong fundamental reflections together with weaker interstitial reflections that are qualitatively compatible with the publication's half-integer AFD superspot assignment.",
+    "The low-temperature source preview contains visibly stronger weak interstitial reflections than the high-temperature preview, qualitatively consistent with the publication's displayed temperature-dependent diffraction behavior, but this observation is not treated as an independent label decoder.",
+    "Each lw685 publication diffraction panel occupies only about 79 by 79 rendered pixels and shows a narrow cropped reciprocal-space region, whereas each source TIFF is 2048 by 2048 and contains a much wider reciprocal-space field.",
+    "Publication rendering uses different polarity/contrast and may include crop, resize, rasterization, annotation, and other display transformations that are not yet reconstructed.",
+    "No unique defect, asymmetric reflection fingerprint, or other temperature-label-independent feature is sufficiently resolved in the lw685 panels to prove an individual source TIFF maps to one specific rendered panel without relying on the authoritative temperature order."
+  ],
+  "decision": {
+    "overall_source_family_to_figure1d_correspondence": "Diagnostic",
+    "individual_23k_tiff_to_left_panel_identity": "Inconclusive",
+    "individual_91k_tiff_to_middle_panel_identity": "Inconclusive",
+    "individual_172k_tiff_to_right_panel_identity": "Inconclusive",
+    "temperature_semantics": "Supported",
+    "source_tiff_reciprocal_calibration": "Inconclusive",
+    "source_tiff_pattern_center": "Inconclusive",
+    "saed_acquisition_independence": "Inconclusive",
+    "complete_phase_indexing_truth": "Inconclusive",
+    "external_validation_readiness": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic"
+  },
+  "prohibited_inferences": [
+    "Do not promote individual TIFF-to-panel identity from left-to-right temperature order alone.",
+    "Do not infer source-TIFF reciprocal pixel scale from the rendered 0.1 inverse-angstrom scale bar.",
+    "Do not infer pattern centre from the rendered panel crop.",
+    "Do not run automatic image registration, peak detection, phase indexing, analyzer tuning, or 4D-STEM comparison from this review."
+  ],
+  "next_evidence_requirement": {
+    "priority": 1,
+    "requirement": "authoritative_higher_resolution_figure1d_or_explicit_source_to_panel_mapping",
+    "rationale": "The currently pinned lw685 rendering supports pattern-family consistency but is too coarse to establish label-independent individual source-to-panel identity or a defensible source-pixel calibration.",
+    "automatic_registration_authorized": false,
+    "reciprocal_scale_inference_authorized": false,
+    "additional_saed_source_bytes_required": false,
+    "four_d_stem_bytes_required": false
+  }
+}

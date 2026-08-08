@@ -1,0 +1,146 @@
+name: Zenodo SrTiO3 SAED Figure 1d pixel inventory
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_remote_inventory/verified_remote_inventory_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_tiff_metadata/verified_tiff_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_prepixel_metadata/verified_prepixel_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_publication_provenance/verified_publication_claims_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_publication_provenance/verified_publication_provenance_snapshot.json"
+      - "scripts/inspect_zenodo_srtio3_saed_figure1d_pixels.py"
+      - "tests/test_inspect_zenodo_srtio3_saed_figure1d_pixels.py"
+      - ".github/workflows/zenodo-srtio3-saed-figure1d-pixel-inventory.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-srtio3-saed-figure1d-pixel-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_inspect_zenodo_srtio3_saed_figure1d_pixels.py
+      - name: Run predeclared live pixel inventory
+        run: |
+          python scripts/inspect_zenodo_srtio3_saed_figure1d_pixels.py \
+            --config case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/evidence_contract.json \
+            --output outputs/zenodo_srtio3_saed_figure1d_identity_mapping
+      - name: Verify pinned source identity and analysis boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_srtio3_saed_figure1d_identity_mapping")
+          result = json.loads((root / "pixel_access_inventory.json").read_text())
+          pinned = json.loads(Path(
+              "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/"
+              "verified_pixel_source_snapshot.json"
+          ).read_text())
+          review = json.loads(Path(
+              "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/"
+              "manual_identity_review.json"
+          ).read_text())
+
+          assert result["execution_status"] == "bounded_source_and_figure_pixel_inventory_completed"
+          assert result["config_sha256"] == pinned["contract_config_sha256"]
+          assert result["evidence_input_sha256"] == pinned["evidence_input_sha256"]
+
+          source = result["source_archive"]
+          assert source["bytes"] == pinned["source_archive"]["bytes"]
+          assert source["md5"] == pinned["source_archive"]["md5"]
+          assert source["sha256"] == pinned["source_archive"]["sha256"]
+          assert source["archive_retained"] is False
+
+          records = result["source_tiffs"]
+          assert [record["temperature_k"] for record in records] == [23, 91, 172]
+          assert [record["path"] for record in records] == [
+              "SAED/23K.tif",
+              "SAED/91K.tif",
+              "SAED/172K.tif",
+          ]
+          assert [record["member_sha256"] for record in records] == [
+              item["sha256"] for item in pinned["source_tiffs"]
+          ]
+          for record, expected in zip(records, pinned["source_tiffs"], strict=True):
+              assert record["member_uncompressed_bytes"] == 33554704
+              assert record["array"]["shape"] == expected["shape"]
+              assert record["array"]["dtype"] == expected["dtype"]
+              assert record["array"]["finite_count"] == expected["finite_count"]
+              assert record["array"]["nonfinite_count"] == expected["nonfinite_count"]
+              assert record["array"]["finite_min"] == expected["finite_min"]
+              assert record["array"]["finite_max"] == expected["finite_max"]
+              assert (root / record["preview_file"]).is_file()
+
+          figure = result["publication_figure"]
+          assert figure["content_type"] == "image/png"
+          assert figure["sha256"] == pinned["publication_figure"]["sha256"]
+          assert figure["bytes"] == pinned["publication_figure"]["bytes"]
+          assert figure["decoded_shape"] == pinned["publication_figure"]["decoded_shape"]
+          assert figure["decoded_dtype"] == pinned["publication_figure"]["decoded_dtype"]
+          assert (root / figure["artifact_file"]).is_file()
+
+          actions = result["analysis_actions"]
+          assert actions["manual_identity_review_ready"] is True
+          assert actions["identity_mapping_performed"] is False
+          assert actions["automatic_registration_performed"] is False
+          assert actions["reciprocal_pixel_scale_inference_performed"] is False
+          assert actions["pattern_center_inference_performed"] is False
+          assert actions["peak_detection_performed"] is False
+          assert actions["phase_indexing_performed"] is False
+          assert actions["analyzer_execution_performed"] is False
+          assert actions["parameter_tuning_performed"] is False
+          assert actions["four_d_stem_accessed"] is False
+
+          decision = review["decision"]
+          next_evidence = review["next_evidence_requirement"]
+          assert decision["overall_source_family_to_figure1d_correspondence"] == "Diagnostic"
+          assert decision["individual_23k_tiff_to_left_panel_identity"] == "Inconclusive"
+          assert decision["individual_91k_tiff_to_middle_panel_identity"] == "Inconclusive"
+          assert decision["individual_172k_tiff_to_right_panel_identity"] == "Inconclusive"
+          assert decision["source_tiff_reciprocal_calibration"] == "Inconclusive"
+          assert decision["source_tiff_pattern_center"] == "Inconclusive"
+          assert decision["external_validation_readiness"] == "Inconclusive"
+          assert next_evidence["automatic_registration_authorized"] is False
+          assert next_evidence["reciprocal_scale_inference_authorized"] is False
+          assert next_evidence["additional_saed_source_bytes_required"] is False
+          assert next_evidence["four_d_stem_bytes_required"] is False
+
+          assert list(root.rglob("*.zip")) == []
+          assert list(root.rglob("*.tif")) == []
+          assert list(root.rglob("*.npy")) == []
+          assert sorted(path.name for path in root.glob("*.png")) == [
+              "publication_figure1.png",
+              "source_172K_preview.png",
+              "source_23K_preview.png",
+              "source_91K_preview.png",
+          ]
+          PY
+      - name: Upload bounded review artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-srtio3-saed-figure1d-pixel-inventory
+          path: |
+            outputs/zenodo_srtio3_saed_figure1d_identity_mapping/pixel_access_inventory.json
+            outputs/zenodo_srtio3_saed_figure1d_identity_mapping/source_23K_preview.png
+            outputs/zenodo_srtio3_saed_figure1d_identity_mapping/source_91K_preview.png
+            outputs/zenodo_srtio3_saed_figure1d_identity_mapping/source_172K_preview.png
+            outputs/zenodo_srtio3_saed_figure1d_identity_mapping/publication_figure1.png
+          if-no-files-found: warn
+          retention-days: 7
