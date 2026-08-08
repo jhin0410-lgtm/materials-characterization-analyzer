@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "evidence_id": "charisma-interlaboratory-raman-peak-fitting-publication",
+  "reviewed_at": "2026-08-09",
+  "publication": {
+    "title": "Interlaboratory Study to Minimize Wavelength Calibration Uncertainty Due to Peak Fitting of Reference Material Spectra in Raman Spectroscopy",
+    "doi": "10.1177/00037028251330654",
+    "pmid": "40270103",
+    "zenodo_dataset_doi": "10.5281/zenodo.13387413"
+  },
+  "supported_publication_facts": {
+    "interlaboratory_design": true,
+    "ten_raman_instruments_reported": true,
+    "neon_emission_reference_used": true,
+    "silicon_reference_material_used": true,
+    "calcite_reference_material_used": true,
+    "polystyrene_reference_material_used": true,
+    "peak_fitting_function_choice_evaluated": true,
+    "wavelength_calibration_uncertainty_is_a_primary_target": true,
+    "signal_to_noise_effect_on_peak_fitting_is_evaluated": true,
+    "reference_spectra_are_linked_to_the_zenodo_dataset": true
+  },
+  "scientific_interpretation": {
+    "candidate_role": "independent_reference_material_dataset_for_peak_position_localization_and_calibration_support",
+    "strongest_supported_future_question": "Can MCA localize Raman/reference emission peaks consistently against a predeclared reference-material peak-position protocol?",
+    "not_supported_by_publication_alone": [
+      "compound_or_phase_identification_accuracy",
+      "vibrational_mode_assignment_accuracy",
+      "quantitative_defect_or_crystallinity_accuracy",
+      "universal_cross_instrument_generalization",
+      "engineering_release_readiness"
+    ]
+  },
+  "current_evidence_assessment": {
+    "publication_identity": "Supported",
+    "reference_material_context": "Supported",
+    "interlaboratory_measurement_context": "Supported",
+    "peak_position_validation_relevance": "Supported",
+    "exact_nexus_internal_structure": "Inconclusive",
+    "exact_reference_peak_truth_available_in_dataset": "Inconclusive",
+    "mca_raman_external_validation_readiness": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic"
+  }
+}
