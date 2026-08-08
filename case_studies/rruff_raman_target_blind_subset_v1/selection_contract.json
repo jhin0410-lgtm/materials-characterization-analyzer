@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "selection_id": "rruff-raman-target-blind-subset-v1",
+  "predeclared_at": "2026-08-09",
+  "source_inventory": "case_studies/figshare_rruff_experimental_annotation_inventory/verified_annotation_inventory_snapshot.json",
+  "eligible_id_field": "annotation_inventory.rruff_ids",
+  "expected_eligible_id_count": 55,
+  "selection_size": 10,
+  "ranking": {
+    "algorithm": "sha256_ascending_hex",
+    "seed": "mca-rruff-peak-localization-v1",
+    "message_format": "{seed}:{rruff_id}",
+    "tie_breaker": "rruff_id_ascending",
+    "replacement_rule": "If a selected ID fails later source-readiness criteria, use the next unused ID in this same frozen ranking. Never replace based on analyzer performance."
+  },
+  "authorized_selection_inputs": {
+    "rruff_id_strings_only": true,
+    "peak_counts": false,
+    "peak_wavenumbers": false,
+    "peak_intensities": false,
+    "noise": false,
+    "start": false,
+    "formula_or_mineral_name": false,
+    "mineral_type": false,
+    "crystal_system": false,
+    "materials_project_id": false,
+    "computed_raman_modes": false,
+    "source_spectrum_pixels_or_arrays": false,
+    "mca_raman_outputs": false,
+    "manual_visual_preference": false
+  },
+  "authorized_operations": {
+    "read_pinned_rruff_id_list": true,
+    "compute_deterministic_hash_ranking": true,
+    "emit_full_ranking_and_selected_ids": true,
+    "download_rruff_spectra": false,
+    "inspect_rruff_spectrum_metadata": false,
+    "run_mca_raman": false,
+    "tune_parameters_or_matching_tolerance": false,
+    "score_selected_ids": false,
+    "replace_selected_ids_from_performance": false,
+    "claim_external_validation": false
+  },
+  "decision_rules": {
+    "selection_must_depend_only_on_exact_pinned_rruff_ids_and_public_seed": true,
+    "all_55_ids_must_have_unique_hash_ranks": true,
+    "selected_ids_must_be_first_10_in_frozen_ranking": true,
+    "replacement_order_must_be_the_remaining_frozen_ranking": true,
+    "selection_is_not_evidence_of_source_availability_or_scientific_validity": true,
+    "no_spectrum_or_analyzer_access_occurs_during_selection": true
+  }
+}
