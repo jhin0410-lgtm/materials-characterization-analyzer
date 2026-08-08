@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_saed_figure1d_identity_mapping",
+  "predeclared_at": "2026-08-08",
+  "objective": "Determine whether the three verified source SAED TIFFs correspond to the 23 K, 91 K, and 172 K diffraction panels displayed in Nature Figure 1d, without using the patterns for analyzer tuning, phase indexing, or reciprocal-space calibration.",
+  "source_archive": {
+    "doi": "10.5281/zenodo.20300700",
+    "key": "SAED.zip",
+    "content_url": "https://zenodo.org/api/records/20300700/files/SAED.zip/content",
+    "bytes": 25850906,
+    "md5": "0c830a9b276a491e91037872891cb440",
+    "maximum_download_bytes": 30000000
+  },
+  "authorized_source_members": [
+    {
+      "path": "SAED/23K.tif",
+      "temperature_k": 23,
+      "expected_uncompressed_bytes": 33554704,
+      "expected_shape": [2048, 2048],
+      "expected_storage": "float64"
+    },
+    {
+      "path": "SAED/91K.tif",
+      "temperature_k": 91,
+      "expected_uncompressed_bytes": 33554704,
+      "expected_shape": [2048, 2048],
+      "expected_storage": "float64"
+    },
+    {
+      "path": "SAED/172K.tif",
+      "temperature_k": 172,
+      "expected_uncompressed_bytes": 33554704,
+      "expected_shape": [2048, 2048],
+      "expected_storage": "float64"
+    }
+  ],
+  "publication_figure": {
+    "doi": "10.1038/s41586-026-10823-x",
+    "figure": "1",
+    "panel": "d",
+    "figure_page_url": "https://www.nature.com/articles/s41586-026-10823-x/figures/1",
+    "image_url": "https://media.springernature.com/lw685/springer-static/image/art%3A10.1038%2Fs41586-026-10823-x/MediaObjects/41586_2026_10823_Fig1_HTML.png",
+    "maximum_download_bytes": 5000000,
+    "authoritative_panel_temperatures_k": [23, 91, 172],
+    "authoritative_display_scale_bar_inv_angstrom": 0.1
+  },
+  "evidence_inputs": {
+    "metadata_snapshot": "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json",
+    "remote_inventory_snapshot": "case_studies/zenodo_srtio3_saed_remote_inventory/verified_remote_inventory_snapshot.json",
+    "tiff_metadata_snapshot": "case_studies/zenodo_srtio3_saed_tiff_metadata/verified_tiff_metadata_snapshot.json",
+    "prepixel_metadata_snapshot": "case_studies/zenodo_srtio3_saed_prepixel_metadata/verified_prepixel_metadata_snapshot.json",
+    "publication_claims_snapshot": "case_studies/zenodo_srtio3_saed_publication_provenance/verified_publication_claims_snapshot.json",
+    "publication_provenance_snapshot": "case_studies/zenodo_srtio3_saed_publication_provenance/verified_publication_provenance_snapshot.json"
+  },
+  "authorized_operations": {
+    "download_exact_saed_archive": true,
+    "verify_archive_md5_before_member_decode": true,
+    "decode_exact_three_saed_tiff_arrays": true,
+    "download_exact_publication_figure_png": true,
+    "record_source_and_figure_sha256": true,
+    "record_array_shape_dtype_finite_range": true,
+    "create_display_only_linear_minmax_uint8_previews": true,
+    "manual_panel_localization_for_identity_review": true,
+    "record_descriptive_identity_mapping_decision": true,
+    "automatic_image_registration": false,
+    "reciprocal_pixel_scale_inference": false,
+    "pattern_center_inference": false,
+    "peak_detection": false,
+    "phase_indexing": false,
+    "analyzer_execution": false,
+    "parameter_tuning": false,
+    "four_d_stem_access": false,
+    "external_validation_claim": false,
+    "engineering_decision_claim": false
+  },
+  "decision_rules": {
+    "archive_must_match_exact_bytes_and_md5_before_tiff_decode": true,
+    "only_three_authorized_tiff_members_may_be_decoded": true,
+    "member_shape_and_storage_must_match_prior_verified_tiff_metadata": true,
+    "figure_download_must_remain_on_media_springernature_com_and_exact_configured_path": true,
+    "identity_mapping_may_use_diffraction_spot_geometry_but_not_publication_temperature_order_alone": true,
+    "temperature_label_agreement_is_supporting_context_not_sufficient_identity_evidence": true,
+    "display_normalization_must_be_linear_per_image_from_finite_minimum_to_finite_maximum_and_must_not_change_source_arrays": true,
+    "manual_panel_localization_is_layout_annotation_not_analyzer_parameter_tuning": true,
+    "ambiguous_or_low_resolution_mapping_must_remain_inconclusive": true,
+    "published_scale_bar_must_not_be_transferred_to_source_tiff_pixels_in_this_stage": true,
+    "source_or_figure_pixels_must_not_be_retained_in_git": true,
+    "four_d_stem_arrays_remain_out_of_scope": true
+  },
+  "expected_closeout_states": {
+    "source_to_figure_panel_identity": ["Supported", "Diagnostic", "Inconclusive"],
+    "temperature_semantics": "Supported",
+    "source_tiff_reciprocal_calibration": "Inconclusive",
+    "source_tiff_pattern_center": "Inconclusive",
+    "saed_acquisition_independence": "Inconclusive",
+    "external_validation_readiness": "Inconclusive"
+  }
+}
