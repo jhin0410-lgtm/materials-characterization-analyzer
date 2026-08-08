@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "evidence_id": "liang-2019-figshare-rruff-experimental-record",
+  "reviewed_at": "2026-08-09",
+  "publication_doi": "10.1038/s41597-019-0138-y",
+  "figshare_base_doi": "10.6084/m9.figshare.7427393",
+  "supported_publication_facts": {
+    "figshare_contains_separate_experimental_json": true,
+    "experimental_data_extracted_from_rruff": true,
+    "experimental_json_includes_rruff_id": true,
+    "experimental_json_includes_peak_wavenumbers": true,
+    "experimental_json_includes_peak_intensities": true,
+    "experimental_json_includes_noise_and_start_fields": true,
+    "rruff_spectra_and_used_cif_files_included_for_reproduction": true,
+    "paper_reports_55_compounds": true,
+    "paper_reports_205_matched_peak_mode_pairs": true
+  },
+  "unresolved_reference_provenance": {
+    "exact_algorithm_or_manual_protocol_used_to_extract_experimental_peak_locations": "Inconclusive",
+    "inter_reviewer_or_annotation_uncertainty_for_peak_locations": "Inconclusive",
+    "independence_of_peak_annotations_from_mca_peak_detection_method": "Diagnostic",
+    "suitability_as_authoritative_physical_peak_truth": "Inconclusive"
+  },
+  "scientific_interpretation": {
+    "candidate_role": "frozen_reference_annotation_candidate_for_peak_localization_only",
+    "current_evidence_level": "Diagnostic",
+    "prohibited_role": "authoritative_mineral_identity_or_vibrational_mode_truth_for_mca"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "verified_at": "2026-08-09",
+  "article": {
+    "id": 7427393,
+    "title": "High-throughput Computation and Evaluation of Raman Spectra",
+    "doi": "10.6084/m9.figshare.7427393.v2",
+    "version": 2,
+    "published_date": "2018-12-05T20:08:06Z",
+    "modified_date": "2018-12-05T20:08:06Z",
+    "defined_type": 3,
+    "defined_type_name": "dataset"
+  },
+  "license": {
+    "name": "CC BY 4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/",
+    "source": "Figshare article metadata",
+    "paper_license_inferred_for_dataset": false
+  },
+  "files": [
+    {
+      "id": 13752833,
+      "name": "Experimental Data.json",
+      "size": 24595,
+      "is_link_only": false,
+      "supplied_md5": "5397f81312a454f6255b65a1d6d9529e",
+      "computed_md5": "5397f81312a454f6255b65a1d6d9529e"
+    },
+    {
+      "id": 13752839,
+      "name": "Computational Data.json",
+      "size": 16891924,
+      "is_link_only": false,
+      "supplied_md5": "8481a6bf1a3437c8d13e80333c6f36af",
+      "computed_md5": "8481a6bf1a3437c8d13e80333c6f36af"
+    },
+    {
+      "id": 13752854,
+      "name": "RRUFF CIF.zip",
+      "size": 141876,
+      "is_link_only": false,
+      "supplied_md5": "13621b14a835ba7a6a651aaf04f28e9b",
+      "computed_md5": "13621b14a835ba7a6a651aaf04f28e9b"
+    },
+    {
+      "id": 13752857,
+      "name": "Materials Project CIF.zip",
+      "size": 72942,
+      "is_link_only": false,
+      "supplied_md5": "d1e084a6375b555402bee418a4f2f720",
+      "computed_md5": "d1e084a6375b555402bee418a4f2f720"
+    }
+  ],
+  "experimental_reference_candidate": {
+    "id": 13752833,
+    "name": "Experimental Data.json",
+    "size": 24595,
+    "md5": "5397f81312a454f6255b65a1d6d9529e",
+    "publication_defined_contents": [
+      "RRUFF_id",
+      "peak wavenumbers",
+      "peak intensities",
+      "noise",
+      "start",
+      "formula/mineral name",
+      "mineral type",
+      "matched Materials Project ID"
+    ],
+    "payload_downloaded": false,
+    "peak_annotation_provenance": "Diagnostic",
+    "authoritative_physical_peak_truth": "Inconclusive"
+  },
+  "readiness": {
+    "metadata_identity_supported": true,
+    "license_metadata_supported": true,
+    "experimental_json_identity_supported": true,
+    "experimental_json_download_authorized": false,
+    "raman_analyzer_execution_authorized": false,
+    "external_validation_ready": false
+  }
+}
