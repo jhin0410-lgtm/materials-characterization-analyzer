@@ -42,20 +42,43 @@ jobs:
           python scripts/select_rruff_raman_target_blind_subset.py \
             --config case_studies/rruff_raman_target_blind_subset_v1/selection_contract.json \
             --output outputs/rruff_raman_target_blind_subset_v1/selection.json
-      - name: Verify target-blind boundary
+      - name: Verify pinned target-blind selection and boundary
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
+          case = Path("case_studies/rruff_raman_target_blind_subset_v1")
           root = Path("outputs/rruff_raman_target_blind_subset_v1")
           result = json.loads((root / "selection.json").read_text())
+          pinned = json.loads((case / "verified_selection_snapshot.json").read_text())
+
           assert result["execution_status"] == "target_blind_rruff_subset_selected"
-          assert result["source_inventory"]["eligible_id_count"] == 55
-          assert result["selection_size"] == 10
-          assert len(result["selected_ids"]) == 10
+          assert result["contract_sha256"] == pinned["contract_sha256"]
+          assert result["source_inventory"]["eligible_id_count"] == pinned["source_inventory"]["eligible_id_count"] == 55
+          assert result["source_inventory"]["sha256"] == pinned["source_inventory"]["sha256"]
+          assert result["ranking_method"]["algorithm"] == pinned["ranking_method"]["algorithm"]
+          assert result["ranking_method"]["seed"] == pinned["ranking_method"]["seed"] == "mca-rruff-peak-localization-v1"
+          assert result["ranking_method"]["message_format"] == pinned["ranking_method"]["message_format"]
+          assert result["ranking_method"]["tie_breaker"] == pinned["ranking_method"]["tie_breaker"]
+          assert result["selection_size"] == pinned["selection_size"] == 10
+          assert result["selected_ids"] == pinned["selected_ids"] == [
+              "R060247",
+              "R040073",
+              "R110214",
+              "R070417",
+              "R040078",
+              "R070307",
+              "R040006",
+              "X050046",
+              "R060959",
+              "R040040",
+          ]
+          assert result["replacement_order"] == pinned["replacement_order"]
           assert len(result["replacement_order"]) == 45
           assert len(result["full_ranking"]) == 55
+          assert result["selected_ids"] == [row["rruff_id"] for row in result["full_ranking"][:10]]
+          assert result["replacement_order"] == [row["rruff_id"] for row in result["full_ranking"][10:]]
           assert result["selection_inputs_used"] == ["rruff_id"]
           assert "peak_counts" in result["selection_inputs_not_used"]
           assert "peak_wavenumbers" in result["selection_inputs_not_used"]
