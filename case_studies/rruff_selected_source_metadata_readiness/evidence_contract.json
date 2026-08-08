@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "case_id": "rruff_selected_source_metadata_readiness",
+  "predeclared_at": "2026-08-09",
+  "selection_snapshot": "case_studies/rruff_raman_target_blind_subset_v1/verified_selection_snapshot.json",
+  "rruff_source_claims": "case_studies/rruff_raman_reference_readiness/verified_source_claims_snapshot.json",
+  "expected_selected_ids": [
+    "R060247",
+    "R040073",
+    "R110214",
+    "R070417",
+    "R040078",
+    "R070307",
+    "R040006",
+    "X050046",
+    "R060959",
+    "R040040"
+  ],
+  "page_access": {
+    "legacy_url_template": "https://rruff.info/{rruff_id}",
+    "allowed_hosts": ["rruff.info", "www.rruff.info", "rruff.net", "www.rruff.net"],
+    "maximum_response_bytes_per_id": 524288,
+    "timeout_seconds": 60
+  },
+  "authorized_operations": {
+    "request_exact_selected_rruff_record_pages": true,
+    "parse_visible_record_page_text": true,
+    "record_page_hash_and_final_url": true,
+    "record_raman_section_presence": true,
+    "record_processed_and_raw_download_label_presence": true,
+    "record_broad_scan_instrument_text_and_wavelengths": true,
+    "record_unoriented_or_oriented_text_presence": true,
+    "follow_raman_data_download_links": false,
+    "download_processed_spectrum_payload": false,
+    "download_raw_spectrum_payload": false,
+    "download_images_or_other_modalities": false,
+    "infer_exact_annotation_to_spectrum_binding": false,
+    "select_replacement_ids": false,
+    "run_mca_raman": false,
+    "tune_parameters_or_matching_tolerance": false,
+    "claim_authoritative_peak_truth": false,
+    "claim_external_validation": false
+  },
+  "decision_rules": {
+    "selected_id_order_must_match_the_frozen_target_blind_snapshot": true,
+    "page_presence_and_download_labels_establish_discoverability_not_exact_spectrum_identity": true,
+    "multiple_oriented_or_wavelength_records_must_be_preserved_as_ambiguity_not_resolved_by_preference": true,
+    "free_access_and_downloadability_do_not_authorize_committing_or_redistributing_raw_rruff_spectra": true,
+    "no_selected_id_is_replaced_until_a_separate_predeclared_source_eligibility_rule_is_applied": true,
+    "no_raman_payload_or_mca_output_is_accessed_at_metadata_readiness_stage": true
+  }
+}
