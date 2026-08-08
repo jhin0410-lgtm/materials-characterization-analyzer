@@ -105,6 +105,10 @@ def _validate_contract(config: dict[str, Any]) -> dict[str, Any]:
         "file_id": 13752833,
         "name": "Experimental Data.json",
         "download_url": "https://ndownloader.figshare.com/files/13752833",
+        "allowed_final_hosts": [
+            "ndownloader.figshare.com",
+            "s3-eu-west-1.amazonaws.com",
+        ],
         "expected_bytes": 24595,
         "expected_md5": "5397f81312a454f6255b65a1d6d9529e",
         "maximum_response_bytes": 24595,
@@ -156,7 +160,11 @@ def _validate_upstream_evidence(config: Mapping[str, Any]) -> dict[str, Any]:
         raise FigshareRruffAnnotationInventoryError("upstream Figshare dataset license drifted")
     if not isinstance(files, list):
         raise FigshareRruffAnnotationInventoryError("upstream Figshare file inventory is invalid")
-    matches = [record for record in files if isinstance(record, Mapping) and record.get("id") == target["file_id"]]
+    matches = [
+        record
+        for record in files
+        if isinstance(record, Mapping) and record.get("id") == target["file_id"]
+    ]
     if len(matches) != 1:
         raise FigshareRruffAnnotationInventoryError("target file is not uniquely present upstream")
     record = matches[0]
@@ -170,8 +178,13 @@ def _validate_upstream_evidence(config: Mapping[str, Any]) -> dict[str, Any]:
             raise FigshareRruffAnnotationInventoryError(f"upstream target file {key} drifted")
     if not isinstance(candidate, Mapping) or candidate.get("id") != target["file_id"]:
         raise FigshareRruffAnnotationInventoryError("upstream experimental reference candidate drifted")
-    if not isinstance(readiness, Mapping) or readiness.get("experimental_json_download_authorized") is not False:
-        raise FigshareRruffAnnotationInventoryError("metadata stage unexpectedly authorized payload download")
+    if (
+        not isinstance(readiness, Mapping)
+        or readiness.get("experimental_json_download_authorized") is not False
+    ):
+        raise FigshareRruffAnnotationInventoryError(
+            "metadata stage unexpectedly authorized payload download"
+        )
 
     unresolved = publication.get("unresolved_reference_provenance")
     if not isinstance(unresolved, Mapping):
@@ -191,7 +204,9 @@ def _download_exact_file(target: Mapping[str, Any]) -> tuple[bytes, dict[str, An
     url = str(target["download_url"])
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or parsed.hostname != "ndownloader.figshare.com":
-        raise FigshareRruffAnnotationInventoryError("target file URL is outside trusted Figshare downloader")
+        raise FigshareRruffAnnotationInventoryError(
+            "target file URL is outside trusted Figshare downloader"
+        )
     if parsed.path != "/files/13752833" or parsed.query or parsed.fragment:
         raise FigshareRruffAnnotationInventoryError("target file URL path drifted")
     request = urllib.request.Request(
@@ -205,16 +220,15 @@ def _download_exact_file(target: Mapping[str, Any]) -> tuple[bytes, dict[str, An
     with urllib.request.urlopen(request, timeout=60) as response:
         status = getattr(response, "status", None) or response.getcode()
         if status != 200:
-            raise FigshareRruffAnnotationInventoryError(f"experimental JSON returned HTTP {status}")
+            raise FigshareRruffAnnotationInventoryError(
+                f"experimental JSON returned HTTP {status}"
+            )
         final_url = response.geturl()
         final = urllib.parse.urlparse(final_url)
-        if final.scheme != "https" or final.hostname not in {
-            "ndownloader.figshare.com",
-            "figshare.com",
-            "www.figshare.com",
-        }:
+        allowed_final_hosts = set(target["allowed_final_hosts"])
+        if final.scheme != "https" or final.hostname not in allowed_final_hosts:
             raise FigshareRruffAnnotationInventoryError(
-                f"experimental JSON redirected outside trusted Figshare hosts: {final.hostname}"
+                f"experimental JSON redirected outside predeclared hosts: {final.hostname}"
             )
         payload = response.read(int(target["maximum_response_bytes"]) + 1)
         content_type = response.headers.get_content_type()
@@ -224,10 +238,13 @@ def _download_exact_file(target: Mapping[str, Any]) -> tuple[bytes, dict[str, An
         )
     observed_md5 = _md5_bytes(payload)
     if observed_md5 != target["expected_md5"]:
-        raise FigshareRruffAnnotationInventoryError("experimental JSON MD5 differs from pinned Figshare metadata")
+        raise FigshareRruffAnnotationInventoryError(
+            "experimental JSON MD5 differs from pinned Figshare metadata"
+        )
     return payload, {
         "status": int(status),
         "final_url": final_url,
+        "final_host": final.hostname,
         "content_type": content_type,
         "bytes": len(payload),
         "md5": observed_md5,
@@ -235,7 +252,11 @@ def _download_exact_file(target: Mapping[str, Any]) -> tuple[bytes, dict[str, An
     }
 
 
-def _find_rruff_records(value: Any, path: str = "$", found: list[tuple[str, Mapping[str, Any]]] | None = None) -> list[tuple[str, Mapping[str, Any]]]:
+def _find_rruff_records(
+    value: Any,
+    path: str = "$",
+    found: list[tuple[str, Mapping[str, Any]]] | None = None,
+) -> list[tuple[str, Mapping[str, Any]]]:
     if found is None:
         found = []
     if isinstance(value, Mapping):
@@ -271,8 +292,19 @@ def _numeric_list(value: Any) -> list[float] | None:
 
 def _summarize_records(records: list[tuple[str, Mapping[str, Any]]]) -> dict[str, Any]:
     if not records:
-        raise FigshareRruffAnnotationInventoryError("no RRUFF_id records found in experimental JSON")
-    required_fields = ("RRUFF_id", "formula", "type", "noise", "start", "wavenumbers", "intensities", "mp_id")
+        raise FigshareRruffAnnotationInventoryError(
+            "no RRUFF_id records found in experimental JSON"
+        )
+    required_fields = (
+        "RRUFF_id",
+        "formula",
+        "type",
+        "noise",
+        "start",
+        "wavenumbers",
+        "intensities",
+        "mp_id",
+    )
     field_presence = Counter()
     record_key_sets = Counter()
     ids: list[str] = []
@@ -361,9 +393,13 @@ def run_inventory(*, config_path: str | Path, output_path: str | Path) -> dict[s
     upstream = _validate_upstream_evidence(config)
     payload, download = _download_exact_file(config["target_file"])
     try:
-        parsed = json.loads(payload.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
+        parsed = json.loads(
+            payload.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs
+        )
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise FigshareRruffAnnotationInventoryError("experimental annotation payload is not valid UTF-8 JSON") from exc
+        raise FigshareRruffAnnotationInventoryError(
+            "experimental annotation payload is not valid UTF-8 JSON"
+        ) from exc
     records = _find_rruff_records(parsed)
     summary = _summarize_records(records)
 
@@ -384,7 +420,9 @@ def run_inventory(*, config_path: str | Path, output_path: str | Path) -> dict[s
         "annotation_inventory": summary,
         "evidence_assessment": {
             "source_file_identity": "Supported",
-            "json_structure_readiness": "Supported" if summary["invalid_record_count"] == 0 else "Diagnostic",
+            "json_structure_readiness": (
+                "Supported" if summary["invalid_record_count"] == 0 else "Diagnostic"
+            ),
             "rruff_id_inventory": "Supported",
             "published_peak_annotation_inventory": "Diagnostic",
             "independent_authoritative_peak_position_truth": "Inconclusive",
@@ -422,7 +460,9 @@ def run_inventory(*, config_path: str | Path, output_path: str | Path) -> dict[s
 
     output = Path(output_path).expanduser().resolve(strict=False)
     if output.exists():
-        raise FigshareRruffAnnotationInventoryError(f"refusing to overwrite output: {output}")
+        raise FigshareRruffAnnotationInventoryError(
+            f"refusing to overwrite output: {output}"
+        )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(result, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
