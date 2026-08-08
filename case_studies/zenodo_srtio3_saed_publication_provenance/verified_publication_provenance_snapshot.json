@@ -1,0 +1,100 @@
+{
+  "audit_date": "2026-08-08",
+  "case_id": "zenodo_srtio3_saed_publication_provenance",
+  "config_sha256": "0e2e5a88a4a191db035d8950759cf765cfdcd866eb5fe5806aed0c61f4ab0cfd",
+  "evidence_assessment": {
+    "complete_reference_truth_for_phase_indexing": "Inconclusive",
+    "detector_native_intensity_provenance": "Inconclusive",
+    "exact_tiff_byte_to_figure_panel_binding": "Diagnostic",
+    "external_validation_readiness": "Inconclusive",
+    "final_publication_identity": "Supported",
+    "publication_to_zenodo_record_binding": "Supported",
+    "published_figure_1d_reciprocal_scale_bar": "Supported",
+    "saed_acquisition_independence": "Inconclusive",
+    "saed_filename_temperature_semantics": "Supported",
+    "scientific_evidence_level": "Diagnostic",
+    "source_author_afd_superspot_assignment": "Diagnostic",
+    "source_tiff_pattern_center": "Inconclusive",
+    "source_tiff_pixel_to_reciprocal_scale_calibration": "Inconclusive"
+  },
+  "execution_status": "publication_provenance_audit_completed",
+  "network_access_performed": false,
+  "next_evidence": {
+    "four_d_stem_access_required": false,
+    "pixel_access_requires_separate_contract": true,
+    "priority": 1,
+    "requirement": "predeclared_bounded_source_tiff_to_published_figure1d_identity_and_reciprocal_scale_mapping",
+    "why": "The final publication resolves the 23K/91K/172K temperature semantics and provides a 0.1 inverse-angstrom scale bar for the displayed patterns, but the source TIFF pixels are not yet byte-to-panel bound or calibrated."
+  },
+  "publication": {
+    "capture_method": "manual_authoritative_publication_review",
+    "captured_at": "2026-08-08",
+    "doi": "10.1038/s41586-026-10823-x",
+    "evidence_snapshot_sha256": "aeadf5d223f00055871e6879c991ca54aad3005e6779c8144d474bdf3f3be5ed",
+    "published_figure_image_retained": false,
+    "raw_publication_html_retained": false,
+    "raw_publication_pdf_retained": false,
+    "source_url": "https://www.nature.com/articles/s41586-026-10823-x",
+    "title": "Imaging of nanoscale polar textures in quantum paraelectric SrTiO3"
+  },
+  "readiness": {
+    "analyzer_execution_authorized": false,
+    "bounded_source_to_published_figure_mapping_can_be_predeclared": true,
+    "engineering_decision_ready": false,
+    "external_validation_ready": false,
+    "four_d_stem_download_authorized": false,
+    "image_registration_authorized": false,
+    "phase_indexing_authorized": false,
+    "published_figure_image_download_authorized": false,
+    "saed_tiff_pixel_access_authorized": false,
+    "temperature_semantics_resolved": true
+  },
+  "repository_binding": {
+    "doi": "10.5281/zenodo.20300700",
+    "notebook_explicit_saed_or_temperature_hits": 0,
+    "record_id": 20300700,
+    "saed_archive_key": "SAED.zip",
+    "saed_member_paths": [
+      "SAED/23K.tif",
+      "SAED/91K.tif",
+      "SAED/172K.tif"
+    ],
+    "snapshot_sha256": {
+      "metadata_snapshot": "07584af56ccbac1a67728ca6bc1908dadba374dc42a3550b9d5216783a159f19",
+      "notebook_provenance_snapshot": "a40e8f418185b670cb6552ee0891491329e6f4b433ba64c7cc763de1dc429cb4",
+      "prepixel_metadata_snapshot": "c86010c9d18e3d25fb96cd3f638abde96b062366c18bc04761352ee6a04f5731",
+      "remote_inventory_snapshot": "cfc0a559736f34a8042f9e40a9529a99504f6664b6ee782c90ea3d839534638f",
+      "tiff_metadata_snapshot": "c002f555c0b7648ab9f3b68adf08126c5dd5a7b2cf9bcdfa7d75393f6dba12de"
+    },
+    "tiff_serialization_software": "tifffile.py",
+    "tiff_shape": [
+      2048,
+      2048
+    ],
+    "tiff_storage": "float64",
+    "verified_first_pixel_strip_offset": 272
+  },
+  "schema_version": "1.0",
+  "scientific_boundary": [
+    "The Nature article resolves that 23K, 91K, and 172K denote diffraction-pattern temperatures, but matching labels and the shared Zenodo record do not prove byte-exact source-TIFF-to-figure-panel identity.",
+    "The published 0.1 inverse-angstrom scale bar belongs to the rendered Figure 1d patterns and is not automatically a source-TIFF pixel calibration.",
+    "The publication's same-region temperature realignment statement belongs to the 4D-STEM workflow and is not evidence of SAED acquisition independence.",
+    "The publication's AFD superspot assignment is useful reference evidence but is not a complete frozen phase/reflection truth set for analyzer validation.",
+    "This snapshot is manually curated from the authoritative final publication; CI validates snapshot integrity and repository provenance, not live Nature page availability."
+  ],
+  "software_validation_boundary": "This no-network audit validates the integrity and consistency of a manually curated authoritative-publication evidence snapshot. It does not independently re-fetch or re-parse the Nature article in CI.",
+  "supported_publication_facts": {
+    "extended_data_diffraction_temperature_range_k": [
+      23,
+      215
+    ],
+    "figure_1d_afd_superspot_assignment": "half-integer positions",
+    "figure_1d_reciprocal_scale_bar_inv_angstrom": 0.1,
+    "figure_1d_temperatures_k": [
+      23,
+      91,
+      172
+    ],
+    "final_article_data_availability_zenodo_doi": "10.5281/zenodo.20300700"
+  }
+}
