@@ -45,7 +45,7 @@ jobs:
           python scripts/audit_rruff_selected_source_metadata.py \
             --config case_studies/rruff_selected_source_metadata_readiness/evidence_contract.json \
             --output outputs/rruff_selected_source_metadata_readiness/source_metadata_snapshot.json
-      - name: Verify metadata-only boundary
+      - name: Verify bounded-prefix metadata-only boundary
         run: |
           python - <<'PY'
           import json
@@ -58,11 +58,18 @@ jobs:
               "R060247", "R040073", "R110214", "R070417", "R040078",
               "R070307", "R040006", "X050046", "R060959", "R040040",
           ]
-          assert result["summary"]["selected_id_count"] == 10
-          assert result["summary"]["spectrum_payload_bytes_read"] == 0
+          summary = result["summary"]
+          assert summary["selected_id_count"] == 10
+          assert summary["full_record_pages_read"] == 0
+          assert summary["spectrum_payload_bytes_read"] == 0
+          assert 0 < summary["record_page_prefix_bytes_read_total"] <= 10 * 524288
           assert len(result["records"]) == 10
           for record in result["records"]:
               assert record["rruff_id"] in result["selected_ids"]
+              assert record["prefix_limit_bytes"] == 524288
+              assert record["response_prefix_bytes"] <= 524288
+              assert record["response_prefix_only"] is True
+              assert record["full_page_read"] is False
               assert record["exact_annotation_to_spectrum_binding"] == "Inconclusive"
               assert record["html_retained"] is False
           evidence = result["evidence_assessment"]
