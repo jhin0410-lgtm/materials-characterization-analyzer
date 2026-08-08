@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "snapshot_id": "srtio3-saed-figure1d-pixel-source-v1",
+  "captured_at": "2026-08-08",
+  "contract_config_sha256": "f7e2947cd28143ac1376ca43866dec1e70366a36d226cb2783b5f1d6a29a0a9d",
+  "source_archive": {
+    "bytes": 25850906,
+    "md5": "0c830a9b276a491e91037872891cb440",
+    "sha256": "5f4c9406a7b22691414e4145784ef0548f19c152c8c529991d978d6f94e2f828"
+  },
+  "source_tiffs": [
+    {
+      "path": "SAED/23K.tif",
+      "temperature_k": 23,
+      "sha256": "b7fc809f09a7807a89792fa7b581fe086894a820cb507f2ab6e06562c9ec8c2b",
+      "shape": [2048, 2048],
+      "dtype": "float64",
+      "finite_count": 4194304,
+      "nonfinite_count": 0,
+      "finite_min": -63.999999999999986,
+      "finite_max": 11519.000000000005
+    },
+    {
+      "path": "SAED/91K.tif",
+      "temperature_k": 91,
+      "sha256": "26d704f99821a651bc12d4ccf910e809d47eeaf2ebfc20ebaa228b2b4d7a5799",
+      "shape": [2048, 2048],
+      "dtype": "float64",
+      "finite_count": 4194304,
+      "nonfinite_count": 0,
+      "finite_min": -80.0,
+      "finite_max": 11661.000000000002
+    },
+    {
+      "path": "SAED/172K.tif",
+      "temperature_k": 172,
+      "sha256": "bc94402678b67dacea6bd7d3235176ad2fcd5086784662941ecb7dc11d479758",
+      "shape": [2048, 2048],
+      "dtype": "float64",
+      "finite_count": 4194304,
+      "nonfinite_count": 0,
+      "finite_min": -79.99999999999997,
+      "finite_max": 12284.000000000004
+    }
+  ],
+  "publication_figure": {
+    "url": "https://media.springernature.com/lw685/springer-static/image/art%3A10.1038%2Fs41586-026-10823-x/MediaObjects/41586_2026_10823_Fig1_HTML.png",
+    "bytes": 129447,
+    "sha256": "3ac7a9ba3f349ca74020008319f3994cc6dfe2e3b9653075a369eabf47a1a426",
+    "decoded_shape": [398, 685, 4],
+    "decoded_dtype": "uint8"
+  },
+  "evidence_input_sha256": {
+    "metadata_snapshot": "07584af56ccbac1a67728ca6bc1908dadba374dc42a3550b9d5216783a159f19",
+    "prepixel_metadata_snapshot": "c86010c9d18e3d25fb96cd3f638abde96b062366c18bc04761352ee6a04f5731",
+    "publication_claims_snapshot": "aeadf5d223f00055871e6879c991ca54aad3005e6779c8144d474bdf3f3be5ed",
+    "publication_provenance_snapshot": "aeedb766be53584279b6fc6ad439a26af84a0d6c1bcf09012bda615495f6015d",
+    "remote_inventory_snapshot": "cfc0a559736f34a8042f9e40a9529a99504f6664b6ee782c90ea3d839534638f",
+    "tiff_metadata_snapshot": "c002f555c0b7648ab9f3b68adf08126c5dd5a7b2cf9bcdfa7d75393f6dba12de"
+  },
+  "retention_boundary": {
+    "source_archive_committed": false,
+    "raw_tiffs_committed": false,
+    "publication_figure_committed": false,
+    "display_previews_committed": false
+  }
+}
