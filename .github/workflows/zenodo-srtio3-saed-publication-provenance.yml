@@ -50,7 +50,7 @@ jobs:
           python scripts/audit_zenodo_srtio3_saed_publication_provenance.py \
             --config case_studies/zenodo_srtio3_saed_publication_provenance/case_config.json \
             --output outputs/zenodo_srtio3_saed_publication_provenance/publication_provenance_snapshot.json
-      - name: Verify bounded evidence upgrade
+      - name: Verify exact pinned result and scientific boundary
         run: |
           python - <<'PY'
           import json
@@ -58,6 +58,11 @@ jobs:
 
           root = Path("outputs/zenodo_srtio3_saed_publication_provenance")
           result = json.loads((root / "publication_provenance_snapshot.json").read_text())
+          pinned = json.loads(Path(
+              "case_studies/zenodo_srtio3_saed_publication_provenance/"
+              "verified_publication_provenance_snapshot.json"
+          ).read_text())
+          assert result == pinned
           assert result["execution_status"] == "publication_provenance_audit_completed"
           assert result["network_access_performed"] is False
           assert result["publication"]["doi"] == "10.1038/s41586-026-10823-x"
