@@ -46,10 +46,18 @@ jobs:
       - name: Run focused regressions
         run: pytest -q tests/test_audit_zenodo_srtio3_saed_publication_provenance.py
       - name: Run live final-publication provenance audit
+        shell: bash
         run: |
+          mkdir -p outputs/zenodo_srtio3_saed_publication_provenance
+          set +e
           python scripts/audit_zenodo_srtio3_saed_publication_provenance.py \
             --config case_studies/zenodo_srtio3_saed_publication_provenance/case_config.json \
-            --output outputs/zenodo_srtio3_saed_publication_provenance/publication_provenance_snapshot.json
+            --output outputs/zenodo_srtio3_saed_publication_provenance/publication_provenance_snapshot.json \
+            > outputs/zenodo_srtio3_saed_publication_provenance/live-audit.log 2>&1
+          code=$?
+          set -e
+          cat outputs/zenodo_srtio3_saed_publication_provenance/live-audit.log
+          exit "$code"
       - name: Verify bounded evidence upgrade
         run: |
           python - <<'PY'
@@ -92,7 +100,7 @@ jobs:
           assert list(root.rglob("*.tif")) == []
           assert list(root.rglob("*.npy")) == []
           PY
-      - name: Upload summary evidence only
+      - name: Upload summary evidence and diagnostics only
         if: always()
         uses: actions/upload-artifact@v7
         with:
