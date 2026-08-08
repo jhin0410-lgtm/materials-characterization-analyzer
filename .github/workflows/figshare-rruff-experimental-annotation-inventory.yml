@@ -45,31 +45,57 @@ jobs:
           python scripts/inventory_figshare_rruff_experimental_annotations.py \
             --config case_studies/figshare_rruff_experimental_annotation_inventory/evidence_contract.json \
             --output outputs/figshare_rruff_experimental_annotation_inventory/annotation_inventory.json
-      - name: Verify bounded annotation-only evidence
+      - name: Verify pinned annotation inventory and scientific boundary
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
+          case = Path("case_studies/figshare_rruff_experimental_annotation_inventory")
           root = Path("outputs/figshare_rruff_experimental_annotation_inventory")
           result = json.loads((root / "annotation_inventory.json").read_text())
+          pinned = json.loads((case / "verified_annotation_inventory_snapshot.json").read_text())
+
           assert result["execution_status"] == "figshare_rruff_experimental_annotation_inventory_completed"
           source = result["source_file"]
-          assert source["figshare_article_id"] == 7427393
-          assert source["figshare_version"] == 2
-          assert source["file_id"] == 13752833
-          assert source["name"] == "Experimental Data.json"
-          assert source["bytes"] == 24595
-          assert source["md5"] == "5397f81312a454f6255b65a1d6d9529e"
+          expected_source = pinned["source_file"]
+          assert source["figshare_article_id"] == expected_source["figshare_article_id"] == 7427393
+          assert source["figshare_version"] == expected_source["figshare_version"] == 2
+          assert source["file_id"] == expected_source["file_id"] == 13752833
+          assert source["name"] == expected_source["name"] == "Experimental Data.json"
+          assert source["bytes"] == expected_source["bytes"] == 24595
+          assert source["md5"] == expected_source["md5"] == "5397f81312a454f6255b65a1d6d9529e"
+          assert source["sha256"] == expected_source["sha256"] == "7468af04a6064dcdf15c82fbf77369c2a6ec5c6b314a2d3119f43ea2fc4a56c1"
+          assert source["final_host"] == expected_source["observed_final_host"] == "s3-eu-west-1.amazonaws.com"
           assert source["raw_payload_retained"] is False
+
           inventory = result["annotation_inventory"]
-          assert inventory["record_count"] > 0
-          assert inventory["unique_rruff_id_count"] > 0
-          assert inventory["peak_count"]["total_peaks"] > 0
-          assert inventory["wavenumber_cm_1"]["min"] is not None
-          assert inventory["wavenumber_cm_1"]["max"] is not None
+          expected = pinned["annotation_inventory"]
+          assert inventory["record_count"] == expected["record_count"] == 55
+          assert inventory["unique_rruff_id_count"] == expected["unique_rruff_id_count"] == 55
+          assert inventory["rruff_ids"] == expected["rruff_ids"]
+          assert inventory["duplicate_rruff_id_count"] == expected["duplicate_rruff_id_count"] == 0
+          assert inventory["required_field_missing_counts"] == expected["required_field_missing_counts"]
+          assert inventory["record_key_set_counts"] == expected["record_key_set_counts"]
+          assert inventory["invalid_record_count"] == expected["invalid_record_count"] == 0
+          assert inventory["peak_intensity_length_mismatch_count"] == expected["peak_intensity_length_mismatch_count"] == 0
+          assert inventory["peak_count"] == expected["peak_count"] == {
+              "record_count_with_numeric_peaks": 55,
+              "total_peaks": 205,
+              "min": 1,
+              "median": 3,
+              "max": 9,
+          }
+          assert inventory["wavenumber_cm_1"] == expected["wavenumber_cm_1"] == {
+              "min": 124.0,
+              "max": 1124.706,
+          }
+          assert inventory["noise"] == expected["noise"]
+          assert inventory["start_cm_1"] == expected["start_cm_1"]
+
           evidence = result["evidence_assessment"]
           assert evidence["source_file_identity"] == "Supported"
+          assert evidence["json_structure_readiness"] == "Supported"
           assert evidence["rruff_id_inventory"] == "Supported"
           assert evidence["published_peak_annotation_inventory"] == "Diagnostic"
           assert evidence["independent_authoritative_peak_position_truth"] == "Inconclusive"
