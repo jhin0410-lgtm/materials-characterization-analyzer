@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo_srtio3_figure1_full_resolution_readiness",
+  "predeclared_at": "2026-08-08",
+  "objective": "Determine whether the Springer Nature full-size Figure 1 asset candidate exists and has materially higher raster dimensions than the already pinned lw685 Figure 1 rendering, without downloading or decoding the image pixel payload.",
+  "source_publication": {
+    "doi": "10.1038/s41586-026-10823-x",
+    "figure": "1",
+    "known_lw685_url": "https://media.springernature.com/lw685/springer-static/image/art%3A10.1038%2Fs41586-026-10823-x/MediaObjects/41586_2026_10823_Fig1_HTML.png",
+    "known_lw685_shape": [398, 685, 4],
+    "known_lw685_sha256": "3ac7a9ba3f349ca74020008319f3994cc6dfe2e3b9653075a369eabf47a1a426",
+    "candidate_full_url": "https://media.springernature.com/full/springer-static/image/art%3A10.1038%2Fs41586-026-10823-x/MediaObjects/41586_2026_10823_Fig1_HTML.png"
+  },
+  "evidence_inputs": {
+    "publication_claims_snapshot": "case_studies/zenodo_srtio3_saed_publication_provenance/verified_publication_claims_snapshot.json",
+    "publication_provenance_snapshot": "case_studies/zenodo_srtio3_saed_publication_provenance/verified_publication_provenance_snapshot.json",
+    "pixel_source_snapshot": "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/verified_pixel_source_snapshot.json",
+    "manual_identity_review": "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/manual_identity_review.json"
+  },
+  "authorized_operations": {
+    "request_exact_candidate_full_url": true,
+    "require_http_range_response": true,
+    "read_png_signature_and_ihdr_only": true,
+    "record_http_headers_and_png_dimensions": true,
+    "download_full_figure_image": false,
+    "decode_pixel_raster": false,
+    "crop_or_register_panels": false,
+    "automatic_image_registration": false,
+    "reciprocal_scale_inference": false,
+    "pattern_center_inference": false,
+    "saed_source_access": false,
+    "four_d_stem_access": false,
+    "analyzer_execution": false,
+    "parameter_tuning": false,
+    "phase_indexing": false,
+    "external_validation_claim": false,
+    "engineering_decision_claim": false
+  },
+  "range_contract": {
+    "request_start_byte": 0,
+    "request_end_byte": 32,
+    "expected_response_bytes": 33,
+    "require_http_status": 206,
+    "require_content_type": "image/png",
+    "require_png_signature": true,
+    "require_first_chunk_type": "IHDR",
+    "maximum_total_response_bytes": 33
+  },
+  "decision_rules": {
+    "candidate_url_is_unverified_until_live_probe_succeeds": true,
+    "http_200_full_body_response_must_be_rejected_without_body_read": true,
+    "redirect_must_remain_on_media_springernature_com": true,
+    "png_width_and_height_must_come_only_from_ihdr": true,
+    "asset_is_materially_higher_resolution_only_if_width_and_height_each_exceed_lw685_dimensions": true,
+    "successful_header_probe_does_not_authorize_full_image_download": true,
+    "successful_header_probe_does_not_establish_source_to_panel_identity_or_calibration": true,
+    "failed_or_non_range_probe_must_not_trigger_full_download_fallback": true
+  },
+  "expected_closeout_states": {
+    "candidate_full_asset_availability": ["Supported", "Unsupported", "Inconclusive"],
+    "materially_higher_resolution_than_lw685": ["Supported", "Unsupported", "Inconclusive"],
+    "full_image_download_authorized": false,
+    "source_to_panel_identity": "Inconclusive",
+    "source_tiff_reciprocal_calibration": "Inconclusive",
+    "external_validation_readiness": "Inconclusive"
+  }
+}
