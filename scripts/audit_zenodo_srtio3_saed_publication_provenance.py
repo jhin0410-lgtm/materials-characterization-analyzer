@@ -252,7 +252,8 @@ def _download_publication(url: str, maximum_bytes: int) -> tuple[bytes, str]:
             "Accept-Encoding": "identity",
         },
     )
-    with urllib.request.urlopen(request, timeout=120) as response:
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+    with opener.open(request, timeout=120) as response:
         status = getattr(response, "status", None) or response.getcode()
         if status != 200:
             raise SrTiO3PublicationProvenanceError(f"publication returned HTTP {status}")
