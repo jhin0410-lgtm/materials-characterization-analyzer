@@ -1,0 +1,130 @@
+{
+  "schema_version": "1.0",
+  "verified_at": "2026-08-09",
+  "source_file": {
+    "figshare_article_id": 7427393,
+    "figshare_version": 2,
+    "file_id": 13752833,
+    "name": "Experimental Data.json",
+    "bytes": 24595,
+    "md5": "5397f81312a454f6255b65a1d6d9529e",
+    "sha256": "7468af04a6064dcdf15c82fbf77369c2a6ec5c6b314a2d3119f43ea2fc4a56c1",
+    "observed_final_host": "s3-eu-west-1.amazonaws.com",
+    "raw_payload_retained": false
+  },
+  "annotation_inventory": {
+    "record_count": 55,
+    "unique_rruff_id_count": 55,
+    "rruff_ids": [
+      "R040004",
+      "R040006",
+      "R040011",
+      "R040024",
+      "R040035",
+      "R040036",
+      "R040040",
+      "R040049",
+      "R040053",
+      "R040069",
+      "R040070",
+      "R040073",
+      "R040078",
+      "R040114",
+      "R040121",
+      "R040126",
+      "R050066",
+      "R050125",
+      "R050129",
+      "R050190",
+      "R050258",
+      "R050288",
+      "R050320",
+      "R050350",
+      "R050363",
+      "R050383",
+      "R050389",
+      "R050601",
+      "R060027",
+      "R060058",
+      "R060107",
+      "R060247",
+      "R060277",
+      "R060309",
+      "R060655",
+      "R060801",
+      "R060959",
+      "R061077",
+      "R061085",
+      "R070235",
+      "R070237",
+      "R070307",
+      "R070384",
+      "R070417",
+      "R070479",
+      "R070591",
+      "R070606",
+      "R070746",
+      "R080006",
+      "R100092",
+      "R100171",
+      "R110214",
+      "R130127",
+      "X050046",
+      "X050194"
+    ],
+    "duplicate_rruff_id_count": 0,
+    "required_field_missing_counts": {
+      "RRUFF_id": 0,
+      "formula": 0,
+      "intensities": 0,
+      "mp_id": 0,
+      "noise": 0,
+      "start": 0,
+      "type": 0,
+      "wavenumbers": 0
+    },
+    "record_key_set_counts": {
+      "RRUFF_id|crystalsystem|formula|intensities|mp_id|noise|start|type|wavenumbers": 2,
+      "RRUFF_id|formula|intensities|mp_id|noise|start|type|wavenumbers": 53
+    },
+    "invalid_record_count": 0,
+    "peak_intensity_length_mismatch_count": 0,
+    "peak_count": {
+      "record_count_with_numeric_peaks": 55,
+      "total_peaks": 205,
+      "min": 1,
+      "median": 3,
+      "max": 9
+    },
+    "wavenumber_cm_1": {
+      "min": 124.0,
+      "max": 1124.706
+    },
+    "noise": {
+      "numeric_count": 55,
+      "min": 0.173,
+      "max": 354.0
+    },
+    "start_cm_1": {
+      "numeric_count": 55,
+      "min": 26.288,
+      "max": 202.8254
+    }
+  },
+  "evidence_assessment": {
+    "source_file_identity": "Supported",
+    "json_structure_readiness": "Supported",
+    "rruff_id_inventory": "Supported",
+    "published_peak_annotation_inventory": "Diagnostic",
+    "independent_authoritative_peak_position_truth": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic"
+  },
+  "readiness": {
+    "annotation_inventory_ready": true,
+    "rruff_spectrum_download_authorized": false,
+    "final_validation_subset_selection_authorized": false,
+    "raman_analyzer_execution_authorized": false,
+    "parameter_tuning_authorized": false,
+    "external_validation_ready": false
+  }
+}
