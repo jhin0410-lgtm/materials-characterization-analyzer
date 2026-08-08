@@ -9,7 +9,7 @@
     "record_url": "https://zenodo.org/records/13387413",
     "api_url": "https://zenodo.org/api/records/13387413",
     "expected_status": "published",
-    "expected_resource_type": "dataset",
+    "expected_resource_type": "other",
     "expected_title": "An analysis of peak fitting in reference material spectra for calibration of Raman spectroscopy instruments",
     "landing_page_version_claim": "v1",
     "expected_files": [
