@@ -130,7 +130,7 @@ def _validate_contract(config: dict[str, Any]) -> dict[str, Any]:
     expected_access = {
         "legacy_url_template": "https://rruff.info/{rruff_id}",
         "allowed_hosts": ["rruff.info", "www.rruff.info", "rruff.net", "www.rruff.net"],
-        "maximum_response_bytes_per_id": 524288,
+        "maximum_prefix_bytes_per_id": 524288,
         "timeout_seconds": 60,
     }
     if access != expected_access:
@@ -139,8 +139,9 @@ def _validate_contract(config: dict[str, Any]) -> dict[str, Any]:
     operations = config.get("authorized_operations")
     allowed_true = {
         "request_exact_selected_rruff_record_pages",
+        "read_bounded_html_prefix_only",
         "parse_visible_record_page_text",
-        "record_page_hash_and_final_url",
+        "record_page_prefix_hash_and_final_url",
         "record_raman_section_presence",
         "record_processed_and_raw_download_label_presence",
         "record_broad_scan_instrument_text_and_wavelengths",
@@ -199,10 +200,7 @@ def _visible_text(payload: bytes) -> tuple[str, list[str]]:
     try:
         decoded = payload.decode("utf-8")
     except UnicodeDecodeError:
-        try:
-            decoded = payload.decode("latin-1")
-        except UnicodeDecodeError as exc:  # pragma: no cover
-            raise RruffSelectedSourceMetadataError("RRUFF record page is not decodable text") from exc
+        decoded = payload.decode("latin-1")
     parser = _VisibleTextParser()
     parser.feed(decoded)
     parts = [_normalize_text(part) for part in parser.parts if _normalize_text(part)]
@@ -226,6 +224,7 @@ def _fetch_page(rruff_id: str, access: Mapping[str, Any]) -> dict[str, Any]:
             "Accept-Encoding": "identity",
         },
     )
+    prefix_limit = int(access["maximum_prefix_bytes_per_id"])
     try:
         with urllib.request.urlopen(request, timeout=int(access["timeout_seconds"])) as response:
             status = getattr(response, "status", None) or response.getcode()
@@ -240,15 +239,17 @@ def _fetch_page(rruff_id: str, access: Mapping[str, Any]) -> dict[str, Any]:
                 raise RruffSelectedSourceMetadataError(
                     f"RRUFF page returned unexpected content type: {content_type}"
                 )
-            payload = response.read(int(access["maximum_response_bytes_per_id"]) + 1)
-        if len(payload) > int(access["maximum_response_bytes_per_id"]):
-            raise RruffSelectedSourceMetadataError("RRUFF page exceeds configured response ceiling")
+            reported_length = response.headers.get("Content-Length")
+            payload = response.read(prefix_limit)
         return {
             "request_url": url,
             "status": int(status),
             "final_url": final_url,
             "content_type": content_type,
             "payload": payload,
+            "prefix_limit_bytes": prefix_limit,
+            "reported_content_length": reported_length,
+            "response_prefix_only": True,
             "network_error": None,
         }
     except urllib.error.HTTPError as exc:
@@ -258,6 +259,9 @@ def _fetch_page(rruff_id: str, access: Mapping[str, Any]) -> dict[str, Any]:
             "final_url": exc.geturl() or url,
             "content_type": None,
             "payload": b"",
+            "prefix_limit_bytes": prefix_limit,
+            "reported_content_length": None,
+            "response_prefix_only": True,
             "network_error": f"HTTPError:{exc.code}",
         }
     except urllib.error.URLError as exc:
@@ -267,22 +271,33 @@ def _fetch_page(rruff_id: str, access: Mapping[str, Any]) -> dict[str, Any]:
             "final_url": None,
             "content_type": None,
             "payload": b"",
+            "prefix_limit_bytes": prefix_limit,
+            "reported_content_length": None,
+            "response_prefix_only": True,
             "network_error": f"URLError:{type(exc.reason).__name__}",
         }
 
 
 def _inspect_page(rruff_id: str, fetched: Mapping[str, Any]) -> dict[str, Any]:
     payload = fetched["payload"]
+    base = {
+        "rruff_id": rruff_id,
+        "request_url": fetched["request_url"],
+        "status": fetched["status"],
+        "final_url": fetched["final_url"],
+        "content_type": fetched["content_type"],
+        "prefix_limit_bytes": fetched["prefix_limit_bytes"],
+        "reported_content_length": fetched["reported_content_length"],
+        "response_prefix_only": fetched["response_prefix_only"],
+        "network_error": fetched["network_error"],
+        "full_page_read": False,
+        "html_retained": False,
+    }
     if not isinstance(payload, bytes) or not payload:
         return {
-            "rruff_id": rruff_id,
-            "request_url": fetched["request_url"],
-            "status": fetched["status"],
-            "final_url": fetched["final_url"],
-            "content_type": fetched["content_type"],
-            "response_bytes": 0,
-            "response_sha256": None,
-            "network_error": fetched["network_error"],
+            **base,
+            "response_prefix_bytes": 0,
+            "response_prefix_sha256": None,
             "record_identity_present": False,
             "raman_section_present": False,
             "broad_scan_section_present": False,
@@ -295,7 +310,6 @@ def _inspect_page(rruff_id: str, fetched: Mapping[str, Any]) -> dict[str, Any]:
             "raman_source_discoverability": "Inconclusive",
             "acquisition_metadata_readiness": "Inconclusive",
             "exact_annotation_to_spectrum_binding": "Inconclusive",
-            "html_retained": False,
         }
 
     text, parts = _visible_text(payload)
@@ -328,14 +342,9 @@ def _inspect_page(rruff_id: str, fetched: Mapping[str, Any]) -> dict[str, Any]:
         else "Inconclusive"
     )
     return {
-        "rruff_id": rruff_id,
-        "request_url": fetched["request_url"],
-        "status": fetched["status"],
-        "final_url": fetched["final_url"],
-        "content_type": fetched["content_type"],
-        "response_bytes": len(payload),
-        "response_sha256": _sha256_bytes(payload),
-        "network_error": fetched["network_error"],
+        **base,
+        "response_prefix_bytes": len(payload),
+        "response_prefix_sha256": _sha256_bytes(payload),
         "record_identity_present": record_identity,
         "raman_section_present": raman_section,
         "broad_scan_section_present": broad_scan,
@@ -348,7 +357,6 @@ def _inspect_page(rruff_id: str, fetched: Mapping[str, Any]) -> dict[str, Any]:
         "raman_source_discoverability": source_discoverability,
         "acquisition_metadata_readiness": acquisition_readiness,
         "exact_annotation_to_spectrum_binding": "Inconclusive",
-        "html_retained": False,
     }
 
 
@@ -356,10 +364,10 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
     config_resolved = Path(config_path).expanduser().resolve(strict=True)
     config = _validate_contract(_load_json(config_resolved))
     upstream = _validate_upstream(config)
-    records: list[dict[str, Any]] = []
-    for rruff_id in config["expected_selected_ids"]:
-        fetched = _fetch_page(rruff_id, config["page_access"])
-        records.append(_inspect_page(rruff_id, fetched))
+    records = [
+        _inspect_page(rruff_id, _fetch_page(rruff_id, config["page_access"]))
+        for rruff_id in config["expected_selected_ids"]
+    ]
 
     supported = sum(record["raman_source_discoverability"] == "Supported" for record in records)
     diagnostic_metadata = sum(record["acquisition_metadata_readiness"] == "Diagnostic" for record in records)
@@ -372,6 +380,7 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
         for record in records
         if record["processed_download_label_count"] + record["raw_download_label_count"] > 2
     ]
+    prefix_bytes_total = sum(int(record["response_prefix_bytes"]) for record in records)
 
     result = {
         "schema_version": "1.0",
@@ -388,11 +397,13 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
             "network_failure_count": network_failures,
             "ids_with_multiple_visible_wavelengths": multiple_wavelength_ids,
             "ids_with_multiple_raman_download_labels": likely_multiple_spectrum_ids,
+            "record_page_prefix_bytes_read_total": prefix_bytes_total,
+            "full_record_pages_read": 0,
             "spectrum_payload_bytes_read": 0,
         },
         "evidence_assessment": {
             "target_blind_selection_identity": "Supported",
-            "selected_record_page_inventory": "Supported" if network_failures == 0 else "Diagnostic",
+            "selected_record_page_prefix_inventory": "Supported" if network_failures == 0 else "Diagnostic",
             "raman_source_discoverability": "Supported" if supported == len(records) else "Diagnostic",
             "acquisition_metadata_context": "Diagnostic" if diagnostic_metadata else "Inconclusive",
             "exact_annotation_to_source_spectrum_binding": "Inconclusive",
@@ -413,12 +424,14 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
         "next_evidence": {
             "requirement": "predeclare_exact_candidate_spectrum_binding_rule_using_source_metadata_and_frozen_annotation_fields_before_any_spectrum_payload_download",
             "why": (
-                "Record pages can establish that Raman data and acquisition context are discoverable, but many RRUFF IDs may expose multiple orientation, raw/processed, or wavelength records. "
-                "The exact spectrum underlying each frozen published annotation must therefore be resolved under a separate predeclared mapping rule before MCA validation."
+                "Bounded record-page prefixes can establish source discoverability and some acquisition context, "
+                "but they do not prove the exact spectrum underlying each frozen published annotation. Multiple "
+                "orientation, raw/processed, or wavelength candidates must remain explicit ambiguity until a separate mapping rule is frozen."
             ),
         },
         "scientific_boundary": [
-            "Only HTML record pages for the ten frozen target-blind RRUFF IDs were requested.",
+            "Only the first 512 KiB of each selected RRUFF HTML record page was read; no full-page fallback was used.",
+            "Missing metadata outside the bounded prefix remains Inconclusive rather than triggering additional page or spectrum access.",
             "No Raman data download link was followed and spectrum payload bytes read equals zero.",
             "Visible raw/processed labels and instrument text establish discoverability, not exact annotation-to-spectrum identity.",
             "No selected ID was replaced, no MCA Raman output was viewed, and no matching tolerance or parameter was tuned.",
@@ -440,7 +453,7 @@ def run_audit(*, config_path: str | Path, output_path: str | Path) -> dict[str, 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Audit metadata-only RRUFF Raman source discoverability for the frozen target-blind subset."
+        description="Audit bounded-prefix RRUFF Raman source metadata for the frozen target-blind subset."
     )
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
