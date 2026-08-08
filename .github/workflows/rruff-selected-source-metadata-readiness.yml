@@ -1,0 +1,91 @@
+name: Selected RRUFF source metadata readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/rruff_selected_source_metadata_readiness/**"
+      - "case_studies/rruff_raman_target_blind_subset_v1/verified_selection_snapshot.json"
+      - "case_studies/rruff_raman_reference_readiness/verified_source_claims_snapshot.json"
+      - "scripts/audit_rruff_selected_source_metadata.py"
+      - "tests/test_audit_rruff_selected_source_metadata.py"
+      - ".github/workflows/rruff-selected-source-metadata-readiness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/rruff_selected_source_metadata_readiness/**"
+      - "case_studies/rruff_raman_target_blind_subset_v1/verified_selection_snapshot.json"
+      - "case_studies/rruff_raman_reference_readiness/verified_source_claims_snapshot.json"
+      - "scripts/audit_rruff_selected_source_metadata.py"
+      - "tests/test_audit_rruff_selected_source_metadata.py"
+      - ".github/workflows/rruff-selected-source-metadata-readiness.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rruff-selected-source-metadata-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_rruff_selected_source_metadata.py
+      - name: Run selected RRUFF page metadata audit
+        run: |
+          python scripts/audit_rruff_selected_source_metadata.py \
+            --config case_studies/rruff_selected_source_metadata_readiness/evidence_contract.json \
+            --output outputs/rruff_selected_source_metadata_readiness/source_metadata_snapshot.json
+      - name: Verify metadata-only boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/rruff_selected_source_metadata_readiness")
+          result = json.loads((root / "source_metadata_snapshot.json").read_text())
+          assert result["execution_status"] == "selected_rruff_source_metadata_audit_completed"
+          assert result["selected_ids"] == [
+              "R060247", "R040073", "R110214", "R070417", "R040078",
+              "R070307", "R040006", "X050046", "R060959", "R040040",
+          ]
+          assert result["summary"]["selected_id_count"] == 10
+          assert result["summary"]["spectrum_payload_bytes_read"] == 0
+          assert len(result["records"]) == 10
+          for record in result["records"]:
+              assert record["rruff_id"] in result["selected_ids"]
+              assert record["exact_annotation_to_spectrum_binding"] == "Inconclusive"
+              assert record["html_retained"] is False
+          evidence = result["evidence_assessment"]
+          assert evidence["target_blind_selection_identity"] == "Supported"
+          assert evidence["exact_annotation_to_source_spectrum_binding"] == "Inconclusive"
+          assert evidence["rruff_spectrum_redistribution_rights"] == "Inconclusive"
+          assert evidence["raman_peak_localization_validation_readiness"] == "Inconclusive"
+          readiness = result["readiness"]
+          assert readiness["selected_id_replacement_authorized"] is False
+          assert readiness["rruff_spectrum_download_authorized"] is False
+          assert readiness["raman_analyzer_execution_authorized"] is False
+          assert readiness["matching_tolerance_selection_authorized"] is False
+          assert readiness["parameter_tuning_authorized"] is False
+          assert readiness["external_validation_ready"] is False
+          assert list(root.rglob("*.html")) == []
+          assert list(root.rglob("*.txt")) == []
+          assert list(root.rglob("*.csv")) == []
+          PY
+      - name: Upload structured metadata evidence only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: selected-rruff-source-metadata-readiness
+          path: outputs/rruff_selected_source_metadata_readiness/source_metadata_snapshot.json
+          if-no-files-found: warn
+          retention-days: 30
