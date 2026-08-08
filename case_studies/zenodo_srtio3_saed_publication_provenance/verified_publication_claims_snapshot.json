@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "snapshot_id": "srtio3-saed-final-publication-claims-v1",
+  "captured_at": "2026-08-08",
+  "capture_method": "manual_authoritative_publication_review",
+  "raw_publication_html_retained": false,
+  "raw_publication_pdf_retained": false,
+  "published_figure_image_retained": false,
+  "source": {
+    "doi": "10.1038/s41586-026-10823-x",
+    "journal": "Nature",
+    "publication_date": "2026-07-22",
+    "title": "Imaging of nanoscale polar textures in quantum paraelectric SrTiO3",
+    "article_url": "https://www.nature.com/articles/s41586-026-10823-x",
+    "pdf_url": "https://www.nature.com/articles/s41586-026-10823-x.pdf",
+    "article_access_note": "The final open-access article was manually reviewed from the authoritative Nature article page. GitHub Actions urllib requests returned a non-article cookie/shell response, so live HTML retrieval is not used as a scientific gate."
+  },
+  "claims": {
+    "figure_1d_temperatures_k": [23, 91, 172],
+    "figure_1d_reciprocal_scale_bar_inv_angstrom": 0.1,
+    "figure_1d_afd_superspot_assignment": "half-integer positions",
+    "extended_data_diffraction_temperature_range_k": [23, 215],
+    "data_availability_zenodo_doi": "10.5281/zenodo.20300700"
+  },
+  "interpretation": {
+    "publication_identity": "Supported",
+    "publication_to_zenodo_record_binding": "Supported",
+    "saed_temperature_label_semantics": "Supported",
+    "published_figure_scale_bar": "Supported",
+    "source_author_afd_assignment": "Diagnostic",
+    "exact_source_tiff_to_figure_panel_identity": "Diagnostic",
+    "source_tiff_reciprocal_calibration": "Inconclusive",
+    "source_tiff_pattern_center": "Inconclusive",
+    "saed_acquisition_independence": "Inconclusive",
+    "detector_native_intensity_provenance": "Inconclusive",
+    "complete_phase_indexing_truth": "Inconclusive",
+    "external_validation_readiness": "Inconclusive"
+  },
+  "scientific_boundaries": [
+    "The Nature article resolves that 23K, 91K, and 172K denote diffraction-pattern temperatures, but matching labels and the shared Zenodo record do not prove byte-exact source-TIFF-to-figure-panel identity.",
+    "The published 0.1 inverse-angstrom scale bar belongs to the rendered Figure 1d patterns and is not automatically a source-TIFF pixel calibration.",
+    "The publication's same-region temperature realignment statement belongs to the 4D-STEM workflow and is not evidence of SAED acquisition independence.",
+    "The publication's AFD superspot assignment is useful reference evidence but is not a complete frozen phase/reflection truth set for analyzer validation.",
+    "This snapshot is manually curated from the authoritative final publication; CI validates snapshot integrity and repository provenance, not live Nature page availability."
+  ],
+  "restart_or_recheck_conditions": [
+    "The Nature article DOI, publication status, or data-availability record changes.",
+    "A machine-readable authoritative full-text source becomes available and can replace the manual capture without weakening the evidence boundary.",
+    "A later source-to-figure mapping audit finds evidence inconsistent with the captured temperature labels or scale-bar interpretation."
+  ]
+}
