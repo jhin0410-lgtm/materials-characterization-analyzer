@@ -19,7 +19,7 @@ def _config_payload() -> dict:
 def _record(*, license_id: str | None = "cc-by-4.0") -> dict:
     metadata = {
         "title": "An analysis of peak fitting in reference material spectra for calibration of Raman spectroscopy instruments",
-        "resource_type": {"id": "dataset", "title": {"en": "Dataset"}},
+        "resource_type": {"id": "other", "title": {"en": "Other"}},
         "publication_date": "2024-08-28",
         "version": "v1",
     }
@@ -55,6 +55,7 @@ def test_contract_keeps_nexus_and_analyzer_actions_disabled() -> None:
     config = audit._validate_config(_config_payload())
     boundary = config["scientific_boundary"]
 
+    assert config["source"]["expected_resource_type"] == "other"
     assert boundary["metadata_api_request_authorized"] is True
     assert boundary["record_license_and_version_metadata_authorized"] is True
     assert boundary["record_file_identity_and_checksum_metadata_authorized"] is True
@@ -84,7 +85,7 @@ def test_record_validation_pins_nexus_identity_and_license_metadata() -> None:
     config = audit._validate_config(_config_payload())
     verified = audit._validate_record(config, _record())
 
-    assert verified["resource_type"] == "dataset"
+    assert verified["resource_type"] == "other"
     assert verified["version_api"] == "v1"
     assert len(verified["inventory"]) == 1
     nexus = verified["inventory"][0]
@@ -134,6 +135,7 @@ def test_run_audit_never_authorizes_nexus_or_mca_access(
     result = audit.run_audit(config_path=CONFIG, output_path=output)
 
     assert result["execution_status"] == "charisma_raman_reference_metadata_audit_completed"
+    assert result["source"]["resource_type"] == "other"
     assert result["source"]["license_metadata_disposition"] == "Supported"
     assert result["nexus_candidate"]["payload_bytes_read"] == 0
     assert result["nexus_candidate"]["downloaded"] is False
