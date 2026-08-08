@@ -1,0 +1,94 @@
+name: CHARISMA Raman reference readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/charisma_raman_reference_readiness/**"
+      - "scripts/audit_zenodo_charisma_raman_reference_readiness.py"
+      - "tests/test_audit_zenodo_charisma_raman_reference_readiness.py"
+      - ".github/workflows/charisma-raman-reference-readiness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/charisma_raman_reference_readiness/**"
+      - "scripts/audit_zenodo_charisma_raman_reference_readiness.py"
+      - "tests/test_audit_zenodo_charisma_raman_reference_readiness.py"
+      - ".github/workflows/charisma-raman-reference-readiness.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: charisma-raman-reference-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_charisma_raman_reference_readiness.py
+      - name: Run live Zenodo metadata readiness audit
+        run: |
+          python scripts/audit_zenodo_charisma_raman_reference_readiness.py \
+            --config case_studies/charisma_raman_reference_readiness/case_config.json \
+            --output outputs/charisma_raman_reference_readiness/readiness_snapshot.json
+      - name: Verify metadata-only scientific boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/charisma_raman_reference_readiness")
+          result = json.loads((root / "readiness_snapshot.json").read_text())
+          assert result["execution_status"] == "charisma_raman_reference_metadata_audit_completed"
+          assert result["zenodo_api"]["status"] == 200
+          assert result["zenodo_api"]["raw_metadata_retained"] is False
+          assert result["source"]["record_id"] == 13387413
+          assert result["source"]["doi"] == "10.5281/zenodo.13387413"
+          assert result["source"]["resource_type"] == "dataset"
+          assert result["source"]["version_landing_page_claim"] == "v1"
+          assert result["source"]["license_metadata_disposition"] in {"Supported", "Diagnostic", "Inconclusive"}
+          assert len(result["file_inventory"]) == 1
+          nexus = result["nexus_candidate"]
+          assert nexus["key"] == "peak_fitting_spectra.nxs"
+          assert nexus["md5"] == "88485671e56662b00aaad9303dc653d6"
+          assert nexus["bytes"] > 0
+          assert nexus["payload_bytes_read"] == 0
+          assert nexus["downloaded"] is False
+          assert nexus["structure_inspected"] is False
+          evidence = result["evidence_assessment"]
+          assert evidence["zenodo_record_identity_and_file_checksum"] == "Supported"
+          assert evidence["interlaboratory_reference_material_context"] == "Supported"
+          assert evidence["nexus_candidate_identity"] == "Supported"
+          assert evidence["nexus_internal_structure"] == "Inconclusive"
+          assert evidence["exact_reference_peak_truth_in_nexus"] == "Inconclusive"
+          readiness = result["readiness"]
+          assert readiness["nexus_download_authorized"] is False
+          assert readiness["nexus_structure_inspection_authorized"] is False
+          assert readiness["spectrum_array_access_authorized"] is False
+          assert readiness["validation_subset_selection_authorized"] is False
+          assert readiness["raman_analyzer_execution_authorized"] is False
+          assert readiness["parameter_tuning_authorized"] is False
+          assert readiness["matching_tolerance_selection_authorized"] is False
+          assert readiness["external_validation_ready"] is False
+          assert list(root.rglob("*.nxs")) == []
+          assert list(root.rglob("*.h5")) == []
+          assert list(root.rglob("*.csv")) == []
+          PY
+      - name: Upload structured metadata evidence only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: charisma-raman-reference-readiness-evidence
+          path: outputs/charisma_raman_reference_readiness/readiness_snapshot.json
+          if-no-files-found: warn
+          retention-days: 30
