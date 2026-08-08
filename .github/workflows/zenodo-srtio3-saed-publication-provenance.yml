@@ -1,0 +1,102 @@
+name: Zenodo SrTiO3 SAED publication provenance audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_srtio3_saed_publication_provenance/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_remote_inventory/verified_remote_inventory_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_tiff_metadata/verified_tiff_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_prepixel_metadata/verified_prepixel_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_notebook_provenance/verified_notebook_provenance_snapshot.json"
+      - "scripts/audit_zenodo_srtio3_saed_publication_provenance.py"
+      - "tests/test_audit_zenodo_srtio3_saed_publication_provenance.py"
+      - ".github/workflows/zenodo-srtio3-saed-publication-provenance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_srtio3_saed_publication_provenance/**"
+      - "case_studies/zenodo_srtio3_saed_metadata_audit/verified_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_remote_inventory/verified_remote_inventory_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_tiff_metadata/verified_tiff_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_prepixel_metadata/verified_prepixel_metadata_snapshot.json"
+      - "case_studies/zenodo_srtio3_notebook_provenance/verified_notebook_provenance_snapshot.json"
+      - "scripts/audit_zenodo_srtio3_saed_publication_provenance.py"
+      - "tests/test_audit_zenodo_srtio3_saed_publication_provenance.py"
+      - ".github/workflows/zenodo-srtio3-saed-publication-provenance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-srtio3-saed-publication-provenance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_srtio3_saed_publication_provenance.py
+      - name: Run live final-publication provenance audit
+        run: |
+          python scripts/audit_zenodo_srtio3_saed_publication_provenance.py \
+            --config case_studies/zenodo_srtio3_saed_publication_provenance/case_config.json \
+            --output outputs/zenodo_srtio3_saed_publication_provenance/publication_provenance_snapshot.json
+      - name: Verify bounded evidence upgrade
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_srtio3_saed_publication_provenance")
+          result = json.loads((root / "publication_provenance_snapshot.json").read_text())
+          assert result["execution_status"] == "publication_provenance_audit_completed"
+          assert result["publication"]["doi"] == "10.1038/s41586-026-10823-x"
+          assert result["publication"]["html_retained"] is False
+          assert result["publication"]["visible_text_retained"] is False
+          assert result["repository_binding"]["doi"] == "10.5281/zenodo.20300700"
+          assert result["repository_binding"]["saed_member_paths"] == [
+              "SAED/23K.tif",
+              "SAED/91K.tif",
+              "SAED/172K.tif",
+          ]
+          assert result["supported_publication_facts"]["figure_1d_temperatures_k"] == [23, 91, 172]
+          assert result["supported_publication_facts"]["figure_1d_reciprocal_scale_bar_inv_angstrom"] == 0.1
+          evidence = result["evidence_assessment"]
+          assert evidence["publication_to_zenodo_record_binding"] == "Supported"
+          assert evidence["saed_filename_temperature_semantics"] == "Supported"
+          assert evidence["published_figure_1d_reciprocal_scale_bar"] == "Supported"
+          assert evidence["exact_tiff_byte_to_figure_panel_binding"] == "Diagnostic"
+          assert evidence["source_tiff_pixel_to_reciprocal_scale_calibration"] == "Inconclusive"
+          assert evidence["source_tiff_pattern_center"] == "Inconclusive"
+          assert evidence["saed_acquisition_independence"] == "Inconclusive"
+          readiness = result["readiness"]
+          assert readiness["temperature_semantics_resolved"] is True
+          assert readiness["bounded_source_to_published_figure_mapping_can_be_predeclared"] is True
+          assert readiness["saed_tiff_pixel_access_authorized"] is False
+          assert readiness["published_figure_image_download_authorized"] is False
+          assert readiness["image_registration_authorized"] is False
+          assert readiness["four_d_stem_download_authorized"] is False
+          assert readiness["analyzer_execution_authorized"] is False
+          assert readiness["phase_indexing_authorized"] is False
+          assert readiness["external_validation_ready"] is False
+          assert list(root.rglob("*.html")) == []
+          assert list(root.rglob("*.tif")) == []
+          assert list(root.rglob("*.npy")) == []
+          PY
+      - name: Upload summary evidence only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-srtio3-saed-publication-provenance-evidence
+          path: outputs/zenodo_srtio3_saed_publication_provenance
+          if-no-files-found: warn
+          retention-days: 30
