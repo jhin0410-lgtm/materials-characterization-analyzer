@@ -1,0 +1,89 @@
+name: RRUFF Raman reference readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/rruff_raman_reference_readiness/**"
+      - "scripts/audit_rruff_raman_reference_readiness.py"
+      - "tests/test_audit_rruff_raman_reference_readiness.py"
+      - ".github/workflows/rruff-raman-reference-readiness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/rruff_raman_reference_readiness/**"
+      - "scripts/audit_rruff_raman_reference_readiness.py"
+      - "tests/test_audit_rruff_raman_reference_readiness.py"
+      - ".github/workflows/rruff-raman-reference-readiness.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rruff-raman-reference-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_rruff_raman_reference_readiness.py
+      - name: Run live official-index readiness audit
+        run: |
+          python scripts/audit_rruff_raman_reference_readiness.py \
+            --config case_studies/rruff_raman_reference_readiness/case_config.json \
+            --output outputs/rruff_raman_reference_readiness/readiness_snapshot.json
+      - name: Verify fail-closed source readiness
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/rruff_raman_reference_readiness")
+          result = json.loads((root / "readiness_snapshot.json").read_text())
+          assert result["execution_status"] == "rruff_raman_reference_readiness_audit_completed"
+          assert result["official_index"]["status"] == 200
+          assert result["official_index"]["content_type"] in {"text/html", "application/xhtml+xml"}
+          assert result["official_index"]["html_retained"] is False
+          candidate = result["candidate_archive"]
+          assert candidate["name"] == "excellent_unoriented.zip"
+          assert candidate["listing_status"] == "Supported"
+          assert candidate["payload_bytes_read"] == 0
+          assert candidate["archive_downloaded"] is False
+          assert candidate["checksum_verified"] is False
+          assert candidate["immutable_version_identity_established"] is False
+          evidence = result["evidence_assessment"]
+          assert evidence["public_reference_library_access"] == "Supported"
+          assert evidence["reviewed_mineral_reference_context"] == "Diagnostic"
+          assert evidence["explicit_reuse_rights_for_automated_acquisition_and_redistribution"] == "Inconclusive"
+          assert evidence["candidate_archive_immutable_version_identity"] == "Inconclusive"
+          assert evidence["independent_peak_position_truth"] == "Inconclusive"
+          readiness = result["readiness"]
+          assert readiness["automatic_acquisition_authorized"] is False
+          assert readiness["candidate_archive_download_authorized"] is False
+          assert readiness["spectrum_extraction_authorized"] is False
+          assert readiness["raman_analyzer_execution_authorized"] is False
+          assert readiness["parameter_tuning_authorized"] is False
+          assert readiness["model_fit_or_training_authorized"] is False
+          assert readiness["mineral_classification_claim_authorized"] is False
+          assert readiness["external_validation_ready"] is False
+          assert list(root.rglob("*.zip")) == []
+          assert list(root.rglob("*.txt")) == []
+          assert list(root.rglob("*.csv")) == []
+          PY
+      - name: Upload structured readiness evidence only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rruff-raman-reference-readiness-evidence
+          path: outputs/rruff_raman_reference_readiness/readiness_snapshot.json
+          if-no-files-found: warn
+          retention-days: 30
