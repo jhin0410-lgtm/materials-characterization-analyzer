@@ -41,24 +41,55 @@ jobs:
           python scripts/audit_figshare_rruff_peak_reference_readiness.py \
             --config case_studies/figshare_rruff_peak_reference_readiness/case_config.json \
             --output outputs/figshare_rruff_peak_reference_readiness/readiness_snapshot.json
-      - name: Verify metadata-only scientific boundary
+      - name: Verify pinned metadata and scientific boundary
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
+          case = Path("case_studies/figshare_rruff_peak_reference_readiness")
           root = Path("outputs/figshare_rruff_peak_reference_readiness")
           result = json.loads((root / "readiness_snapshot.json").read_text())
+          pinned = json.loads((case / "verified_figshare_metadata_snapshot.json").read_text())
+
           assert result["execution_status"] == "figshare_rruff_peak_reference_metadata_audit_completed"
-          assert result["article"]["id"] == 7427393
-          assert result["article"]["version"] == 2
           assert result["figshare_api"]["status"] == 200
           assert result["figshare_api"]["raw_metadata_retained"] is False
           assert result["file_inventory_summary"]["dataset_file_payload_bytes_read"] == 0
-          assert result["file_inventory_summary"]["file_count"] > 0
+
+          assert result["article"]["id"] == pinned["article"]["id"] == 7427393
+          assert result["article"]["title"] == pinned["article"]["title"]
+          assert result["article"]["doi"] == pinned["article"]["doi"]
+          assert result["article"]["version"] == pinned["article"]["version"] == 2
+          assert result["article"]["published_date"] == pinned["article"]["published_date"]
+          assert result["article"]["modified_date"] == pinned["article"]["modified_date"]
+
+          assert result["license"]["name"] == pinned["license"]["name"] == "CC BY 4.0"
+          assert result["license"]["url"] == pinned["license"]["url"]
+          assert result["license"]["reuse_metadata_disposition"] == "Supported"
+          assert result["license"]["paper_license_inferred_for_dataset"] is False
+
+          expected_files = pinned["files"]
+          observed_files = result["file_inventory"]
+          assert len(observed_files) == len(expected_files) == 4
+          for observed, expected in zip(observed_files, expected_files, strict=True):
+              for key in ("id", "name", "size", "is_link_only", "supplied_md5", "computed_md5"):
+                  assert observed[key] == expected[key]
+              assert observed["supplied_md5"] == observed["computed_md5"]
+          assert result["file_inventory_summary"]["all_files_have_repository_md5_metadata"] is True
+          assert result["file_inventory_summary"]["experimental_json_candidate_count"] == 1
+          candidate = result["file_inventory_summary"]["experimental_json_candidates"][0]
+          expected_candidate = pinned["experimental_reference_candidate"]
+          assert candidate["id"] == expected_candidate["id"] == 13752833
+          assert candidate["name"] == expected_candidate["name"] == "Experimental Data.json"
+          assert candidate["size"] == expected_candidate["size"] == 24595
+          assert candidate["computed_md5"] == expected_candidate["md5"] == "5397f81312a454f6255b65a1d6d9529e"
+
           evidence = result["evidence_assessment"]
           assert evidence["figshare_article_identity_and_version"] == "Supported"
+          assert evidence["figshare_dataset_license_metadata"] == "Supported"
           assert evidence["figshare_file_identity_metadata"] == "Supported"
+          assert evidence["experimental_json_candidate_identity"] == "Supported"
           assert evidence["experimental_peak_annotation_provenance"] == "Diagnostic"
           assert evidence["independent_authoritative_peak_position_truth"] == "Inconclusive"
           readiness = result["readiness"]
