@@ -22,9 +22,9 @@ def _fixture_html(*, include_temperature_claim: bool = True) -> bytes:
         else "Electron diffraction patterns were collected at cryogenic temperatures."
     )
     return f"""<!doctype html>
-    <html><head><title>Imaging of nanoscale polar textures in quantum paraelectric SrTiO3</title></head>
+    <html><head><title>Imaging of nanoscale polar textures in quantum paraelectric SrTiO 3</title></head>
     <body>
-      <h1>Imaging of nanoscale polar textures in quantum paraelectric SrTiO3</h1>
+      <h1>Imaging of nanoscale polar textures in quantum paraelectric SrTiO 3</h1>
       <p>doi: 10.1038/s41586-026-10823-x</p>
       <p>{temperature} Black arrows mark the AFD superspots located at half-integer positions.
       Scale bars, 0.1 Å−1.</p>
