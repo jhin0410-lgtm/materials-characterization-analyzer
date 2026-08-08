@@ -111,7 +111,7 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
         raise CharismaRamanReadinessError("Zenodo source identity drifted")
     if source.get("doi") != "10.5281/zenodo.13387413":
         raise CharismaRamanReadinessError("Zenodo DOI drifted")
-    if source.get("expected_status") != "published" or source.get("expected_resource_type") != "dataset":
+    if source.get("expected_status") != "published" or source.get("expected_resource_type") != "other":
         raise CharismaRamanReadinessError("Zenodo status/resource-type contract drifted")
     if source.get("landing_page_version_claim") != "v1":
         raise CharismaRamanReadinessError("Zenodo landing-page version claim drifted")
