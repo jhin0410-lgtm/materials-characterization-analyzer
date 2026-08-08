@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "case_id": "figshare_rruff_experimental_annotation_inventory",
+  "predeclared_at": "2026-08-09",
+  "source_metadata_snapshot": "case_studies/figshare_rruff_peak_reference_readiness/verified_figshare_metadata_snapshot.json",
+  "publication_evidence": "case_studies/figshare_rruff_peak_reference_readiness/publication_evidence.json",
+  "target_file": {
+    "figshare_article_id": 7427393,
+    "figshare_version": 2,
+    "file_id": 13752833,
+    "name": "Experimental Data.json",
+    "download_url": "https://ndownloader.figshare.com/files/13752833",
+    "expected_bytes": 24595,
+    "expected_md5": "5397f81312a454f6255b65a1d6d9529e",
+    "maximum_response_bytes": 24595
+  },
+  "authorized_operations": {
+    "download_exact_experimental_json": true,
+    "verify_size_and_md5_before_parse": true,
+    "parse_json_structure": true,
+    "inventory_record_keys_and_types": true,
+    "inventory_rruff_ids": true,
+    "inventory_peak_counts_and_wavenumber_ranges": true,
+    "inventory_noise_start_and_missingness": true,
+    "inventory_duplicate_rruff_ids": true,
+    "retain_raw_experimental_json": false,
+    "download_rruff_spectrum_files": false,
+    "download_any_other_figshare_file": false,
+    "use_materials_project_matches_for_selection": false,
+    "use_computed_raman_modes_for_selection": false,
+    "run_mca_raman_analyzer": false,
+    "tune_mca_raman_parameters": false,
+    "select_final_validation_subset": false,
+    "claim_authoritative_peak_truth": false,
+    "claim_external_validation": false,
+    "claim_engineering_readiness": false
+  },
+  "decision_rules": {
+    "file_size_and_md5_must_match_before_json_parse": true,
+    "raw_payload_must_not_be_committed_or_uploaded_as_workflow_artifact": true,
+    "peak_annotations_remain_diagnostic_even_if_structurally_complete": true,
+    "inventory_must_not_use_mca_outputs_or_computed_modes": true,
+    "final_validation_subset_requires_a_separate_target_blind_predeclaration": true,
+    "no_raman_spectrum_download_occurs_at_annotation_inventory_stage": true
+  }
+}
