@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "case_id": "rruff_raman_reference_readiness",
+  "audit_date": "2026-08-09",
+  "source_system": {
+    "name": "RRUFF Project",
+    "official_index_url": "https://www.rruff.net/zipped_data_files/raman/",
+    "candidate_archive": "excellent_unoriented.zip",
+    "legacy_project_url": "https://rruff.info/",
+    "current_project_url": "https://www.rruff.net/",
+    "nasa_ahed_doi": "10.48667/pre9-s770",
+    "project_method_reference_doi": "10.1515/9783110417104-003"
+  },
+  "source_claims_snapshot": "case_studies/rruff_raman_reference_readiness/verified_source_claims_snapshot.json",
+  "network_limits": {
+    "maximum_index_response_bytes": 131072,
+    "timeout_seconds": 60,
+    "allowed_hosts": ["www.rruff.net", "rruff.net"]
+  },
+  "authorized_operations": {
+    "request_official_raman_index_html": true,
+    "parse_candidate_link_from_index": true,
+    "record_index_hash_and_listing_metadata": true,
+    "download_candidate_archive": false,
+    "read_candidate_archive_payload": false,
+    "extract_spectrum_files": false,
+    "run_raman_analyzer": false,
+    "tune_raman_parameters": false,
+    "fit_or_train_model": false,
+    "assign_mineral_or_vibrational_modes": false,
+    "claim_external_validation": false,
+    "claim_engineering_readiness": false
+  },
+  "validation_target": {
+    "future_claim": "peak_localization_agreement_against_independent_reference_only",
+    "mineral_classification_claim": false,
+    "vibrational_mode_assignment_claim": false,
+    "quantitative_defect_or_crystallinity_claim": false
+  },
+  "decision_rules": {
+    "public_download_listing_is_not_equivalent_to_explicit_reuse_license": true,
+    "free_access_statement_is_not_equivalent_to_redistribution_permission": true,
+    "candidate_archive_must_not_be_downloaded_until_rights_and_version_identity_are_resolved": true,
+    "reference_mineral_identity_does_not_create_independent_peak_position_truth_by_itself": true,
+    "future_validation_must_freeze_spectrum_selection_and_peak_matching_before_analyzer_results_are_viewed": true,
+    "no_scientific_evidence_level_promotion_occurs_in_source_readiness_stage": true
+  }
+}

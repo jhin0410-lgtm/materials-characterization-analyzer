@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "snapshot_id": "rruff-raman-source-claims-2026-08-09",
+  "reviewed_at": "2026-08-09",
+  "review_method": "manual_review_of_rruff_project_method_reference_current_official_download_index_and_nasa_ahed_catalog_record",
+  "sources": [
+    {
+      "role": "project_method_reference",
+      "identifier": "10.1515/9783110417104-003",
+      "url": "https://rruff.info/about/downloads/HMC1-30.pdf"
+    },
+    {
+      "role": "current_official_bulk_raman_index",
+      "identifier": "rruff-current-raman-index",
+      "url": "https://www.rruff.net/zipped_data_files/raman/"
+    },
+    {
+      "role": "independent_catalog_metadata",
+      "identifier": "10.48667/pre9-s770",
+      "url": "https://ahed.nasa.gov/datasets/352e568899957a0ced2707a70ee2"
+    }
+  ],
+  "observations": {
+    "project_describes_data_as_free_access": true,
+    "project_describes_public_release_after_review": true,
+    "project_describes_mineral_characterization_with_xrd_and_chemical_composition": true,
+    "project_describes_raman_acquisition_with_multiple_laser_wavelengths": true,
+    "current_official_index_lists_excellent_unoriented_zip": true,
+    "current_official_index_last_modified_text": "2026-06-23 19:54",
+    "current_official_index_size_text": "229M",
+    "nasa_ahed_catalog_exposes_rruff_dataset_doi": true,
+    "explicit_machine_readable_dataset_license_observed_on_rruff_source": false,
+    "explicit_redistribution_or_derived_dataset_license_observed_on_rruff_source": false,
+    "archive_checksum_or_immutable_version_identifier_observed_on_rruff_index": false,
+    "independent_peak_position_truth_observed": false
+  },
+  "evidence_assessment": {
+    "rruff_project_identity": "Supported",
+    "public_reference_library_access": "Supported",
+    "reviewed_mineral_reference_context": "Diagnostic",
+    "current_bulk_archive_listing": "Supported",
+    "explicit_reuse_rights_for_automated_acquisition_and_redistribution": "Inconclusive",
+    "candidate_archive_immutable_version_identity": "Inconclusive",
+    "independent_peak_position_truth": "Inconclusive",
+    "raman_external_validation_readiness": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic"
+  },
+  "scientific_boundary": [
+    "Free public access is evidence of accessibility, not a substitute for an explicit dataset reuse or redistribution license.",
+    "RRUFF mineral identity and project quality control can motivate a reference-spectrum study but do not by themselves provide independent peak-position truth for this analyzer.",
+    "No RRUFF spectrum or archive payload has been accepted into the validation workflow at this stage.",
+    "No mineral classification, vibrational-mode assignment, quantitative crystallinity or defect metric, analyzer-performance, external-validation, or engineering claim is supported by this snapshot."
+  ]
+}
