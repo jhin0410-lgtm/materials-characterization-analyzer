@@ -10,6 +10,10 @@
     "file_id": 13752833,
     "name": "Experimental Data.json",
     "download_url": "https://ndownloader.figshare.com/files/13752833",
+    "allowed_final_hosts": [
+      "ndownloader.figshare.com",
+      "s3-eu-west-1.amazonaws.com"
+    ],
     "expected_bytes": 24595,
     "expected_md5": "5397f81312a454f6255b65a1d6d9529e",
     "maximum_response_bytes": 24595
