@@ -40,7 +40,7 @@ jobs:
           python scripts/inspect_zenodo_srtio3_saed_figure1d_pixels.py \
             --config case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/evidence_contract.json \
             --output outputs/zenodo_srtio3_saed_figure1d_identity_mapping
-      - name: Verify inventory boundary
+      - name: Verify pinned source identity and analysis boundary
         run: |
           python - <<'PY'
           import json
@@ -48,10 +48,23 @@ jobs:
 
           root = Path("outputs/zenodo_srtio3_saed_figure1d_identity_mapping")
           result = json.loads((root / "pixel_access_inventory.json").read_text())
+          pinned = json.loads(Path(
+              "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/"
+              "verified_pixel_source_snapshot.json"
+          ).read_text())
+          review = json.loads(Path(
+              "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/"
+              "manual_identity_review.json"
+          ).read_text())
+
           assert result["execution_status"] == "bounded_source_and_figure_pixel_inventory_completed"
+          assert result["config_sha256"] == pinned["contract_config_sha256"]
+          assert result["evidence_input_sha256"] == pinned["evidence_input_sha256"]
+
           source = result["source_archive"]
-          assert source["bytes"] == 25850906
-          assert source["md5"] == "0c830a9b276a491e91037872891cb440"
+          assert source["bytes"] == pinned["source_archive"]["bytes"]
+          assert source["md5"] == pinned["source_archive"]["md5"]
+          assert source["sha256"] == pinned["source_archive"]["sha256"]
           assert source["archive_retained"] is False
 
           records = result["source_tiffs"]
@@ -61,19 +74,25 @@ jobs:
               "SAED/91K.tif",
               "SAED/172K.tif",
           ]
-          for record in records:
+          assert [record["member_sha256"] for record in records] == [
+              item["sha256"] for item in pinned["source_tiffs"]
+          ]
+          for record, expected in zip(records, pinned["source_tiffs"], strict=True):
               assert record["member_uncompressed_bytes"] == 33554704
-              assert record["array"]["shape"] == [2048, 2048]
-              assert record["array"]["dtype"] == "float64"
-              assert record["array"]["finite_count"] > 0
-              assert record["array"]["finite_max"] >= record["array"]["finite_min"]
-              assert len(record["member_sha256"]) == 64
+              assert record["array"]["shape"] == expected["shape"]
+              assert record["array"]["dtype"] == expected["dtype"]
+              assert record["array"]["finite_count"] == expected["finite_count"]
+              assert record["array"]["nonfinite_count"] == expected["nonfinite_count"]
+              assert record["array"]["finite_min"] == expected["finite_min"]
+              assert record["array"]["finite_max"] == expected["finite_max"]
               assert (root / record["preview_file"]).is_file()
 
           figure = result["publication_figure"]
           assert figure["content_type"] == "image/png"
-          assert len(figure["sha256"]) == 64
-          assert len(figure["decoded_shape"]) in {2, 3}
+          assert figure["sha256"] == pinned["publication_figure"]["sha256"]
+          assert figure["bytes"] == pinned["publication_figure"]["bytes"]
+          assert figure["decoded_shape"] == pinned["publication_figure"]["decoded_shape"]
+          assert figure["decoded_dtype"] == pinned["publication_figure"]["decoded_dtype"]
           assert (root / figure["artifact_file"]).is_file()
 
           actions = result["analysis_actions"]
@@ -87,6 +106,20 @@ jobs:
           assert actions["analyzer_execution_performed"] is False
           assert actions["parameter_tuning_performed"] is False
           assert actions["four_d_stem_accessed"] is False
+
+          decision = review["decision"]
+          next_evidence = review["next_evidence_requirement"]
+          assert decision["overall_source_family_to_figure1d_correspondence"] == "Diagnostic"
+          assert decision["individual_23k_tiff_to_left_panel_identity"] == "Inconclusive"
+          assert decision["individual_91k_tiff_to_middle_panel_identity"] == "Inconclusive"
+          assert decision["individual_172k_tiff_to_right_panel_identity"] == "Inconclusive"
+          assert decision["source_tiff_reciprocal_calibration"] == "Inconclusive"
+          assert decision["source_tiff_pattern_center"] == "Inconclusive"
+          assert decision["external_validation_readiness"] == "Inconclusive"
+          assert next_evidence["automatic_registration_authorized"] is False
+          assert next_evidence["reciprocal_scale_inference_authorized"] is False
+          assert next_evidence["additional_saed_source_bytes_required"] is False
+          assert next_evidence["four_d_stem_bytes_required"] is False
 
           assert list(root.rglob("*.zip")) == []
           assert list(root.rglob("*.tif")) == []
