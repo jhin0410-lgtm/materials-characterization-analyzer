@@ -1,0 +1,122 @@
+name: Figshare RRUFF experimental annotation inventory
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/figshare_rruff_experimental_annotation_inventory/**"
+      - "case_studies/figshare_rruff_peak_reference_readiness/verified_figshare_metadata_snapshot.json"
+      - "case_studies/figshare_rruff_peak_reference_readiness/publication_evidence.json"
+      - "scripts/inventory_figshare_rruff_experimental_annotations.py"
+      - "tests/test_inventory_figshare_rruff_experimental_annotations.py"
+      - ".github/workflows/figshare-rruff-experimental-annotation-inventory.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/figshare_rruff_experimental_annotation_inventory/**"
+      - "case_studies/figshare_rruff_peak_reference_readiness/verified_figshare_metadata_snapshot.json"
+      - "case_studies/figshare_rruff_peak_reference_readiness/publication_evidence.json"
+      - "scripts/inventory_figshare_rruff_experimental_annotations.py"
+      - "tests/test_inventory_figshare_rruff_experimental_annotations.py"
+      - ".github/workflows/figshare-rruff-experimental-annotation-inventory.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: figshare-rruff-experimental-annotation-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_inventory_figshare_rruff_experimental_annotations.py
+      - name: Run predeclared annotation inventory
+        run: |
+          python scripts/inventory_figshare_rruff_experimental_annotations.py \
+            --config case_studies/figshare_rruff_experimental_annotation_inventory/evidence_contract.json \
+            --output outputs/figshare_rruff_experimental_annotation_inventory/annotation_inventory.json
+      - name: Verify pinned annotation inventory and scientific boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          case = Path("case_studies/figshare_rruff_experimental_annotation_inventory")
+          root = Path("outputs/figshare_rruff_experimental_annotation_inventory")
+          result = json.loads((root / "annotation_inventory.json").read_text())
+          pinned = json.loads((case / "verified_annotation_inventory_snapshot.json").read_text())
+
+          assert result["execution_status"] == "figshare_rruff_experimental_annotation_inventory_completed"
+          source = result["source_file"]
+          expected_source = pinned["source_file"]
+          assert source["figshare_article_id"] == expected_source["figshare_article_id"] == 7427393
+          assert source["figshare_version"] == expected_source["figshare_version"] == 2
+          assert source["file_id"] == expected_source["file_id"] == 13752833
+          assert source["name"] == expected_source["name"] == "Experimental Data.json"
+          assert source["bytes"] == expected_source["bytes"] == 24595
+          assert source["md5"] == expected_source["md5"] == "5397f81312a454f6255b65a1d6d9529e"
+          assert source["sha256"] == expected_source["sha256"] == "7468af04a6064dcdf15c82fbf77369c2a6ec5c6b314a2d3119f43ea2fc4a56c1"
+          assert source["final_host"] == expected_source["observed_final_host"] == "s3-eu-west-1.amazonaws.com"
+          assert source["raw_payload_retained"] is False
+
+          inventory = result["annotation_inventory"]
+          expected = pinned["annotation_inventory"]
+          assert inventory["record_count"] == expected["record_count"] == 55
+          assert inventory["unique_rruff_id_count"] == expected["unique_rruff_id_count"] == 55
+          assert inventory["rruff_ids"] == expected["rruff_ids"]
+          assert inventory["duplicate_rruff_id_count"] == expected["duplicate_rruff_id_count"] == 0
+          assert inventory["required_field_missing_counts"] == expected["required_field_missing_counts"]
+          assert inventory["record_key_set_counts"] == expected["record_key_set_counts"]
+          assert inventory["invalid_record_count"] == expected["invalid_record_count"] == 0
+          assert inventory["peak_intensity_length_mismatch_count"] == expected["peak_intensity_length_mismatch_count"] == 0
+          assert inventory["peak_count"] == expected["peak_count"] == {
+              "record_count_with_numeric_peaks": 55,
+              "total_peaks": 205,
+              "min": 1,
+              "median": 3,
+              "max": 9,
+          }
+          assert inventory["wavenumber_cm_1"] == expected["wavenumber_cm_1"] == {
+              "min": 124.0,
+              "max": 1124.706,
+          }
+          assert inventory["noise"] == expected["noise"]
+          assert inventory["start_cm_1"] == expected["start_cm_1"]
+
+          evidence = result["evidence_assessment"]
+          assert evidence["source_file_identity"] == "Supported"
+          assert evidence["json_structure_readiness"] == "Supported"
+          assert evidence["rruff_id_inventory"] == "Supported"
+          assert evidence["published_peak_annotation_inventory"] == "Diagnostic"
+          assert evidence["independent_authoritative_peak_position_truth"] == "Inconclusive"
+          readiness = result["readiness"]
+          assert readiness["rruff_spectrum_download_authorized"] is False
+          assert readiness["final_validation_subset_selection_authorized"] is False
+          assert readiness["raman_analyzer_execution_authorized"] is False
+          assert readiness["parameter_tuning_authorized"] is False
+          assert readiness["model_fit_or_training_authorized"] is False
+          assert readiness["authoritative_peak_truth_claim_authorized"] is False
+          assert readiness["external_validation_ready"] is False
+          assert list(root.rglob("*.json")) == [root / "annotation_inventory.json"]
+          assert list(root.rglob("*.txt")) == []
+          assert list(root.rglob("*.csv")) == []
+          assert list(root.rglob("*.zip")) == []
+          PY
+      - name: Upload structured inventory only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: figshare-rruff-experimental-annotation-inventory-evidence
+          path: outputs/figshare_rruff_experimental_annotation_inventory/annotation_inventory.json
+          if-no-files-found: warn
+          retention-days: 30
