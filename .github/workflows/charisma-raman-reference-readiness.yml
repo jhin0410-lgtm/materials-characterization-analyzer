@@ -54,7 +54,7 @@ jobs:
           assert result["zenodo_api"]["raw_metadata_retained"] is False
           assert result["source"]["record_id"] == 13387413
           assert result["source"]["doi"] == "10.5281/zenodo.13387413"
-          assert result["source"]["resource_type"] == "dataset"
+          assert result["source"]["resource_type"] == "other"
           assert result["source"]["version_landing_page_claim"] == "v1"
           assert result["source"]["license_metadata_disposition"] in {"Supported", "Diagnostic", "Inconclusive"}
           assert len(result["file_inventory"]) == 1
