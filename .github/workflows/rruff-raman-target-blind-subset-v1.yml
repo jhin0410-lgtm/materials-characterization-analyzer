@@ -1,0 +1,80 @@
+name: RRUFF Raman target-blind subset v1
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/rruff_raman_target_blind_subset_v1/**"
+      - "case_studies/figshare_rruff_experimental_annotation_inventory/verified_annotation_inventory_snapshot.json"
+      - "scripts/select_rruff_raman_target_blind_subset.py"
+      - "tests/test_select_rruff_raman_target_blind_subset.py"
+      - ".github/workflows/rruff-raman-target-blind-subset-v1.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/rruff_raman_target_blind_subset_v1/**"
+      - "case_studies/figshare_rruff_experimental_annotation_inventory/verified_annotation_inventory_snapshot.json"
+      - "scripts/select_rruff_raman_target_blind_subset.py"
+      - "tests/test_select_rruff_raman_target_blind_subset.py"
+      - ".github/workflows/rruff-raman-target-blind-subset-v1.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rruff-raman-target-blind-subset-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_select_rruff_raman_target_blind_subset.py
+      - name: Generate target-blind selection
+        run: |
+          python scripts/select_rruff_raman_target_blind_subset.py \
+            --config case_studies/rruff_raman_target_blind_subset_v1/selection_contract.json \
+            --output outputs/rruff_raman_target_blind_subset_v1/selection.json
+      - name: Verify target-blind boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/rruff_raman_target_blind_subset_v1")
+          result = json.loads((root / "selection.json").read_text())
+          assert result["execution_status"] == "target_blind_rruff_subset_selected"
+          assert result["source_inventory"]["eligible_id_count"] == 55
+          assert result["selection_size"] == 10
+          assert len(result["selected_ids"]) == 10
+          assert len(result["replacement_order"]) == 45
+          assert len(result["full_ranking"]) == 55
+          assert result["selection_inputs_used"] == ["rruff_id"]
+          assert "peak_counts" in result["selection_inputs_not_used"]
+          assert "peak_wavenumbers" in result["selection_inputs_not_used"]
+          assert "materials_project_id" in result["selection_inputs_not_used"]
+          assert "computed_raman_modes" in result["selection_inputs_not_used"]
+          assert "mca_raman_outputs" in result["selection_inputs_not_used"]
+          readiness = result["readiness"]
+          assert readiness["target_blind_subset_frozen"] is True
+          assert readiness["source_spectrum_download_authorized"] is False
+          assert readiness["source_metadata_inspection_authorized"] is False
+          assert readiness["raman_analyzer_execution_authorized"] is False
+          assert readiness["parameter_or_tolerance_tuning_authorized"] is False
+          assert readiness["validation_scoring_authorized"] is False
+          assert readiness["external_validation_ready"] is False
+          PY
+      - name: Upload deterministic selection evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: rruff-raman-target-blind-subset-v1
+          path: outputs/rruff_raman_target_blind_subset_v1/selection.json
+          if-no-files-found: error
+          retention-days: 30
