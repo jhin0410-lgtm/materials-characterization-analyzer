@@ -1,0 +1,80 @@
+name: SrTiO3 Figure 1 full-resolution readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_srtio3_figure1_full_resolution_readiness/**"
+      - "case_studies/zenodo_srtio3_saed_publication_provenance/verified_publication_claims_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_publication_provenance/verified_publication_provenance_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/verified_pixel_source_snapshot.json"
+      - "case_studies/zenodo_srtio3_saed_figure1d_identity_mapping/manual_identity_review.json"
+      - "scripts/probe_srtio3_figure1_full_resolution.py"
+      - "tests/test_probe_srtio3_figure1_full_resolution.py"
+      - ".github/workflows/zenodo-srtio3-figure1-full-resolution-readiness.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: srtio3-figure1-full-resolution-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_probe_srtio3_figure1_full_resolution.py
+      - name: Probe exactly 33 PNG header bytes
+        shell: bash
+        run: |
+          mkdir -p outputs/zenodo_srtio3_figure1_full_resolution_readiness
+          set +e
+          python scripts/probe_srtio3_figure1_full_resolution.py \
+            --config case_studies/zenodo_srtio3_figure1_full_resolution_readiness/evidence_contract.json \
+            --output outputs/zenodo_srtio3_figure1_full_resolution_readiness/full_resolution_readiness.json \
+            > outputs/zenodo_srtio3_figure1_full_resolution_readiness/probe.log 2>&1
+          code=$?
+          set -e
+          cat outputs/zenodo_srtio3_figure1_full_resolution_readiness/probe.log
+          exit "$code"
+      - name: Verify no-pixel boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_srtio3_figure1_full_resolution_readiness")
+          result = json.loads((root / "full_resolution_readiness.json").read_text())
+          assert result["execution_status"] == "full_resolution_candidate_header_probe_completed"
+          assert result["bytes_read"] == 33
+          assert result["http"]["status"] == 206
+          assert result["http"]["content_type"] == "image/png"
+          assert result["candidate_full_asset_availability"] == "Supported"
+          assert result["png_ihdr"]["width"] > 0
+          assert result["png_ihdr"]["height"] > 0
+          assert result["full_image_download_authorized"] is False
+          assert result["source_to_panel_identity"] == "Inconclusive"
+          assert result["source_tiff_reciprocal_calibration"] == "Inconclusive"
+          assert result["external_validation_readiness"] == "Inconclusive"
+          assert list(root.rglob("*.png")) == []
+          assert list(root.rglob("*.jpg")) == []
+          assert list(root.rglob("*.tif")) == []
+          assert list(root.rglob("*.npy")) == []
+          PY
+      - name: Upload structured readiness evidence only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: srtio3-figure1-full-resolution-readiness
+          path: outputs/zenodo_srtio3_figure1_full_resolution_readiness
+          if-no-files-found: warn
+          retention-days: 14
