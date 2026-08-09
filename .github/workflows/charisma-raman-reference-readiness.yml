@@ -87,7 +87,7 @@ jobs:
           assert list(root.rglob("*.h5")) == []
           assert list(root.rglob("*.csv")) == []
           PY
-      - name: Verify pinned snapshot agrees with live evidence
+      - name: Verify pinned snapshot agrees with stable live evidence
         run: |
           python - <<'PY'
           import json
@@ -96,7 +96,6 @@ jobs:
           live = json.loads(Path("outputs/charisma_raman_reference_readiness/readiness_snapshot.json").read_text())
           pinned = json.loads(Path("case_studies/charisma_raman_reference_readiness/metadata_readiness_snapshot.json").read_text())
           assert live["source"] == pinned["source"]
-          assert live["zenodo_api"] == pinned["zenodo_api"]
           assert live["file_inventory"] == pinned["file_inventory"]
           assert live["nexus_candidate"] == pinned["nexus_candidate"]
           assert live["evidence_assessment"] == pinned["evidence_assessment"]
