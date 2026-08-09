@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "case_id": "charisma_raman_reference_readiness",
+  "audit_date": "2026-08-09",
+  "execution_status": "charisma_raman_reference_metadata_audit_completed",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 13387413,
+    "doi": "10.5281/zenodo.13387413",
+    "title": "An analysis of peak fitting in reference material spectra for calibration of Raman spectroscopy instruments (Dataset)",
+    "resource_type": "dataset",
+    "publication_date": "2024-08-28",
+    "created": "2024-10-14T07:23:07.397664+00:00",
+    "updated": "2024-10-14T07:23:07.806609+00:00",
+    "version_api": null,
+    "version_landing_page_claim": "v1",
+    "license_records": [
+      {
+        "id": "cc-by-4.0",
+        "title": null,
+        "link": null
+      }
+    ],
+    "license_metadata_disposition": "Supported"
+  },
+  "zenodo_api": {
+    "status": 200,
+    "final_url": "https://zenodo.org/api/records/13387413",
+    "content_type": "application/json",
+    "response_bytes": 5026,
+    "response_sha256": "139ded79ef9140f04997856fa778a50d2d5bc1dbf9e5d86aa99c23b1d0912e03",
+    "raw_metadata_retained": false
+  },
+  "file_inventory": [
+    {
+      "id": "08b88cad-02fd-4239-ac93-fe1ec03dbbff",
+      "key": "peak_fitting_spectra.nxs",
+      "bytes": 8992904,
+      "md5": "88485671e56662b00aaad9303dc653d6",
+      "content_url": "https://zenodo.org/api/records/13387413/files/peak_fitting_spectra.nxs/content"
+    }
+  ],
+  "nexus_candidate": {
+    "id": "08b88cad-02fd-4239-ac93-fe1ec03dbbff",
+    "key": "peak_fitting_spectra.nxs",
+    "bytes": 8992904,
+    "md5": "88485671e56662b00aaad9303dc653d6",
+    "content_url": "https://zenodo.org/api/records/13387413/files/peak_fitting_spectra.nxs/content",
+    "payload_bytes_read": 0,
+    "downloaded": false,
+    "structure_inspected": false
+  },
+  "evidence_assessment": {
+    "zenodo_record_identity_and_file_checksum": "Supported",
+    "dataset_license_metadata": "Supported",
+    "interlaboratory_reference_material_context": "Supported",
+    "nexus_candidate_identity": "Supported",
+    "nexus_internal_structure": "Inconclusive",
+    "exact_reference_peak_truth_in_nexus": "Inconclusive",
+    "raman_peak_position_validation_readiness": "Inconclusive",
+    "scientific_evidence_level": "Diagnostic"
+  },
+  "readiness": {
+    "metadata_audit_ready": true,
+    "nexus_download_authorized": false,
+    "nexus_structure_inspection_authorized": false,
+    "spectrum_array_access_authorized": false,
+    "validation_subset_selection_authorized": false,
+    "raman_analyzer_execution_authorized": false,
+    "parameter_tuning_authorized": false,
+    "matching_tolerance_selection_authorized": false,
+    "external_validation_ready": false,
+    "engineering_decision_ready": false
+  },
+  "scientific_boundary": [
+    "Only Zenodo API metadata was requested; the NeXus file payload was not read.",
+    "Dataset license evidence is recorded only from Zenodo metadata and is not inferred from secondary catalog pages.",
+    "Reference-material and interlaboratory context comes from the reviewed publication, while exact NeXus structure and peak truth remain unresolved.",
+    "No spectrum array, validation subset, MCA Raman output, parameter tuning, matching tolerance, external-validation claim or engineering decision is authorized."
+  ],
+  "next_evidence": {
+    "priority": 1,
+    "requirement": "predeclare_checksum_bound_nexus_structure_inventory_before_any_spectrum_or_mca_access"
+  }
+}
