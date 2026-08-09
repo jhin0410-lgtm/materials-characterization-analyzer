@@ -24,12 +24,27 @@ That question aligns directly with MCA's current Raman baseline, which emits
 candidate peak positions but is not scientifically validated for material
 identification.
 
-The linked Zenodo record `10.5281/zenodo.13387413` exposes a single NeXus file,
-`peak_fitting_spectra.nxs`, with repository MD5
-`88485671e56662b00aaad9303dc653d6`. The public landing page identifies the
-record as version `v1`.
+## Confirmed metadata readiness
 
-## Why metadata comes first
+The live Zenodo metadata audit on 2026-08-09 confirmed the exact record and
+candidate file without reading the NeXus payload:
+
+- Zenodo DOI: `10.5281/zenodo.13387413`;
+- resource type: `dataset`;
+- title: `An analysis of peak fitting in reference material spectra for calibration of Raman spectroscopy instruments (Dataset)`;
+- landing-page version claim: `v1`;
+- Zenodo API version field: absent (`null`);
+- license metadata: `cc-by-4.0`;
+- file: `peak_fitting_spectra.nxs`;
+- file size: `8,992,904` bytes;
+- MD5: `88485671e56662b00aaad9303dc653d6`;
+- trusted metadata content URL: `https://zenodo.org/api/records/13387413/files/peak_fitting_spectra.nxs/content`;
+- NeXus payload bytes read: `0`.
+
+The bounded live result is pinned in `metadata_readiness_snapshot.json`. It is a
+metadata/provenance checkpoint, not a scientific validation result.
+
+## Why metadata came first
 
 This stage requests only the Zenodo API record. It verifies:
 
@@ -50,7 +65,7 @@ structure is inspected under a separate predeclared contract.
 
 This metadata-readiness stage does not authorize:
 
-- downloading `peak_fitting_spectra.nxs`;
+- downloading `peak_fitting_spectra.nxs` under this contract;
 - reading NeXus/HDF5 groups, arrays or attributes;
 - selecting instruments or reference materials for validation;
 - viewing MCA Raman output;
@@ -59,14 +74,17 @@ This metadata-readiness stage does not authorize:
 - claiming compound/phase identification, vibrational assignment, external
   validation or engineering readiness.
 
+Current scientific evidence level: `Diagnostic`. The metadata identity and
+interlaboratory reference-material context are supported, while NeXus internal
+structure and exact reference-peak truth remain `Inconclusive`.
+
 ## Next step
 
-If the live Zenodo metadata confirms a suitable license, version and exact
-NeXus file identity, create a separate checksum-bound NeXus structure inventory.
-That next stage may download the single file and use the repository's existing
-`h5py` dependency to inventory groups, datasets, attributes, shapes and dtypes.
-It should still avoid MCA execution and should not retain the raw NeXus file in
-Git.
+Create a separate checksum-bound NeXus structure-inventory contract. That stage
+may download the single `8,992,904` byte file, verify the pinned MD5, and use the
+repository's existing `h5py` dependency only to inventory groups, datasets,
+attributes, shapes and dtypes. It should still avoid MCA execution and should
+not retain the raw NeXus file in Git.
 
 Only after the structure shows where raw/reference spectra, instrument identity,
 reference materials and fitted/reference peak results live should a validation
