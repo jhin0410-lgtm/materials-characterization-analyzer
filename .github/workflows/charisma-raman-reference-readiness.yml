@@ -55,13 +55,16 @@ jobs:
           assert result["source"]["record_id"] == 13387413
           assert result["source"]["doi"] == "10.5281/zenodo.13387413"
           assert result["source"]["resource_type"] == "dataset"
+          assert result["source"]["version_api"] is None
           assert result["source"]["version_landing_page_claim"] == "v1"
-          assert result["source"]["license_metadata_disposition"] in {"Supported", "Diagnostic", "Inconclusive"}
+          assert result["source"]["license_metadata_disposition"] == "Supported"
+          assert [record.get("id") for record in result["source"]["license_records"]] == ["cc-by-4.0"]
           assert len(result["file_inventory"]) == 1
           nexus = result["nexus_candidate"]
           assert nexus["key"] == "peak_fitting_spectra.nxs"
           assert nexus["md5"] == "88485671e56662b00aaad9303dc653d6"
-          assert nexus["bytes"] > 0
+          assert nexus["bytes"] == 8992904
+          assert nexus["content_url"] == "https://zenodo.org/api/records/13387413/files/peak_fitting_spectra.nxs/content"
           assert nexus["payload_bytes_read"] == 0
           assert nexus["downloaded"] is False
           assert nexus["structure_inspected"] is False
@@ -83,6 +86,21 @@ jobs:
           assert list(root.rglob("*.nxs")) == []
           assert list(root.rglob("*.h5")) == []
           assert list(root.rglob("*.csv")) == []
+          PY
+      - name: Verify pinned snapshot agrees with live evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          live = json.loads(Path("outputs/charisma_raman_reference_readiness/readiness_snapshot.json").read_text())
+          pinned = json.loads(Path("case_studies/charisma_raman_reference_readiness/metadata_readiness_snapshot.json").read_text())
+          assert live["source"] == pinned["source"]
+          assert live["zenodo_api"] == pinned["zenodo_api"]
+          assert live["file_inventory"] == pinned["file_inventory"]
+          assert live["nexus_candidate"] == pinned["nexus_candidate"]
+          assert live["evidence_assessment"] == pinned["evidence_assessment"]
+          assert live["readiness"] == pinned["readiness"]
           PY
       - name: Upload structured metadata evidence only
         if: always()
