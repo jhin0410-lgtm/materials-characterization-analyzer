@@ -1,0 +1,94 @@
+{
+  "artifact_sha256": {
+    "analysis_manifest": "93ae806b03638d0dcc2fef91852e03b173baeae41ad5dc2791c3104ba322cee9",
+    "bundle_manifest": "c4305411f6a0232f1a567637672ad9527a9b098a881716ffc3eeecea4c0b8cfb",
+    "comparability_matrix": "32f9285564b5af82658ff6b61451343e548deccc09afe681b84d8c5153a8d293",
+    "feature_table": "65ed347524a953473f76d3a7b3cfbfa2b85a34243ee32090c703f7520c80753e",
+    "sample_context": "fee764f8469d74a2990bb63f06c855907535d60d7f9be1d236ca46e9f48e6d3c",
+    "source_manifest": "6cdd156c08a8affbb4b6356c5a413c699878f4b070cd0494e9dc4d774cfe05b3"
+  },
+  "case_id": "tm-fe-si-public-xrd-descriptive-v1",
+  "features": {
+    "tm-fe-si-hf7fe52si41-1050c-1d": {
+      "detected_peak_count": 20.0,
+      "main_peak_two_theta": 45.24,
+      "maximum_two_theta": 86.74,
+      "mean_fwhm": 0.4201359973096029,
+      "median_fwhm": 0.3249795470891357,
+      "minimum_two_theta": 21.28
+    },
+    "tm-fe-si-nb7fe52si41-1050c-1d": {
+      "detected_peak_count": 17.0,
+      "main_peak_two_theta": 45.2,
+      "maximum_two_theta": 86.82,
+      "mean_fwhm": 0.3034283084593845,
+      "median_fwhm": 0.2910264908299282,
+      "minimum_two_theta": 27.32
+    },
+    "tm-fe-si-ta7fe52si41-1050c-1d": {
+      "detected_peak_count": 18.0,
+      "main_peak_two_theta": 45.1,
+      "maximum_two_theta": 79.88,
+      "mean_fwhm": 0.3042668110195552,
+      "median_fwhm": 0.2514123742602159,
+      "minimum_two_theta": 21.28
+    },
+    "tm-fe-si-ti7fe52si41-1050c-1d": {
+      "detected_peak_count": 26.0,
+      "main_peak_two_theta": 45.22,
+      "maximum_two_theta": 86.76,
+      "mean_fwhm": 0.2547581195614974,
+      "median_fwhm": 0.2373898384172807,
+      "minimum_two_theta": 28.18
+    },
+    "tm-fe-si-v7fe52si41-1050c-1d": {
+      "detected_peak_count": 17.0,
+      "main_peak_two_theta": 45.14,
+      "maximum_two_theta": 81.48,
+      "mean_fwhm": 0.265352150206195,
+      "median_fwhm": 0.2423606098379807,
+      "minimum_two_theta": 28.14
+    },
+    "tm-fe-si-zr7fe52si41-1050c-1d": {
+      "detected_peak_count": 14.0,
+      "main_peak_two_theta": 45.26,
+      "maximum_two_theta": 86.66,
+      "mean_fwhm": 0.4965158400009343,
+      "median_fwhm": 0.3687145125244555,
+      "minimum_two_theta": 28.18
+    }
+  },
+  "note": "Actual source replay evidence. Feature values are derived outputs, not independent peak-truth validation.",
+  "producer_replay_code_sha": "0fc857fd47c4e80936ddc76c7293cc9688a9288a",
+  "producer_replay_wheel_sha256": "e538374f1930551f662631d63493b45fa32d9c8914e45585fe738c17b9d84cfb",
+  "producer_pr": 103,
+  "replay_date": "2026-08-09",
+  "result": {
+    "engineering_release_ready": false,
+    "evidence_level": "Diagnostic",
+    "feature_count": 36,
+    "maximum_allowed_use": "descriptive",
+    "measurement_count": 6,
+    "quality_flag_counts": {
+      "review_required": 36
+    },
+    "row_order_join_allowed": false,
+    "sample_count": 6,
+    "scientific_comparability_established": false,
+    "status": "diagnostic_descriptive_handoff_built"
+  },
+  "schema_version": "1.0",
+  "scientific_boundary": {
+    "absolute_xrd_intensity_cross_composition": "Unsupported",
+    "descriptive_peak_localization_and_width": "Diagnostic",
+    "phase_assignment": "Unsupported",
+    "predictive_causal_engineering": "Unsupported",
+    "scherrer_size": "Unsupported"
+  },
+  "software_version": "0.11.0",
+  "source": {
+    "file_name": "Fig.2-XRD data.xlsx",
+    "sha256": "7138e2e2d6dbf422c7b534af38810bfe963969cd3f8e8b3a7e8daf7ddb17ac20",
+    "size_bytes": 218303
+  }
+}
