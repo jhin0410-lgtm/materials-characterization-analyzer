@@ -18,7 +18,7 @@ def _config_payload() -> dict:
 
 def _record(*, license_id: str | None = "cc-by-4.0") -> dict:
     metadata = {
-        "title": "An analysis of peak fitting in reference material spectra for calibration of Raman spectroscopy instruments",
+        "title": "An analysis of peak fitting in reference material spectra for calibration of Raman spectroscopy instruments (Dataset)",
         "resource_type": {"id": "other", "title": {"en": "Other"}},
         "publication_date": "2024-08-28",
         "version": "v1",
