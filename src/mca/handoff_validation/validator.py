@@ -29,14 +29,16 @@ from .common import (
     _unique_text_list,
     _verify_file_record,
 )
+from .evidence_binding import validate_evidence_identity_binding
 from .tables import _validate_context_table, _validate_feature_table
 
 
 def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str, Any]:
     """Validate bundle identity, checksums, schemas, joins, and claim boundaries.
 
-    This function does not interpret scientific meaning, aggregate features, or
-    establish that different measurements used the same physical aliquot.
+    This function establishes evidence-file identity binding but does not interpret
+    scientific meaning, aggregate features, or establish that different
+    measurements used the same physical aliquot.
     """
 
     root = Path(bundle_dir)
@@ -117,10 +119,21 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             "evidence_references must contain source_manifest, analysis_manifest, and comparability_matrix"
         )
     evidence_summary: dict[str, dict[str, Any]] = {}
+    evidence_paths: dict[str, Path] = {}
     for label in sorted(_REQUIRED_EVIDENCE_REFERENCES):
         record = _file_record(evidence.get(label), f"evidence_references.{label}")
-        _verify_file_record(root, record, f"evidence_references.{label}")
+        evidence_paths[label] = _verify_file_record(
+            root, record, f"evidence_references.{label}"
+        )
         evidence_summary[label] = record
+
+    evidence_identity_binding = validate_evidence_identity_binding(
+        case_id=case_id,
+        feature_table=feature_table,
+        source_manifest_path=evidence_paths["source_manifest"],
+        analysis_manifest_path=evidence_paths["analysis_manifest"],
+        comparability_matrix_path=evidence_paths["comparability_matrix"],
+    )
 
     closeout = _object(manifest.get("scientific_closeout"), "scientific_closeout")
     evidence_level = _nonempty_text(closeout, "evidence_level")
@@ -175,6 +188,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "downstream_use_policy_present": policy_present,
         "downstream_use_policy": downstream_use_policy,
         "sample_identity_consistent": True,
+        "evidence_identity_binding": evidence_identity_binding,
         "row_order_join_allowed": False,
         "aggregation_performed": False,
         "missing_metadata_inferred": False,
@@ -182,8 +196,10 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "engineering_release_ready": False,
         "evidence_references": evidence_summary,
         "scientific_boundary": (
-            "Bundle validation establishes file integrity and contract consistency only; "
-            "it does not establish identical physical aliquots, cross-modal comparability, "
-            "causality, model readiness, or engineering suitability."
+            "Bundle validation establishes file integrity, exact analysis-feature "
+            "reproduction, source-digest coverage, and explicit comparability identity "
+            "coverage only; it does not establish identical physical aliquots, "
+            "cross-modal scientific comparability, causality, model readiness, or "
+            "engineering suitability."
         ),
     }
