@@ -2,14 +2,16 @@
 
 File digests prove that the referenced files are unchanged. This module adds the
 separate proof that those exact files describe the exported feature records: the
-analysis manifest must reproduce the feature table, feature source digests must
-occur in the source manifest, and the comparability matrix must cover an explicit
-sample or modality identity axis used by the exported features.
+analysis manifest must reproduce the feature table through the writer's real CSV
+serialization path, feature source digests must occur in the source manifest, and
+the comparability matrix must cover an explicit sample or modality identity axis
+used by the exported features.
 """
 from __future__ import annotations
 
 import re
 from collections.abc import Mapping
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,14 @@ from ..handoff_bundle import HandoffBundleContractError, _features_from_analysis
 from .common import HandoffBundleValidationError, _load_json_object
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _csv_roundtrip(table: pd.DataFrame) -> pd.DataFrame:
+    """Reproduce the bundle writer's pandas CSV serialization boundary in memory."""
+    buffer = StringIO()
+    table.to_csv(buffer, index=False)
+    buffer.seek(0)
+    return pd.read_csv(buffer)
 
 
 def _normalized_feature_rows(table: pd.DataFrame) -> list[tuple[object, ...]]:
@@ -36,7 +46,7 @@ def _normalized_feature_rows(table: pd.DataFrame) -> list[tuple[object, ...]]:
     return sorted(rows, key=repr)
 
 
-def _collect_sha256_values(value: object, *, parent_key: str = "") -> set[str]:
+def _collect_sha256_values(value: object) -> set[str]:
     digests: set[str] = set()
     if isinstance(value, Mapping):
         for key, item in value.items():
@@ -47,10 +57,10 @@ def _collect_sha256_values(value: object, *, parent_key: str = "") -> set[str]:
                 and _SHA256.fullmatch(item.strip())
             ):
                 digests.add(item.strip())
-            digests.update(_collect_sha256_values(item, parent_key=key_text))
+            digests.update(_collect_sha256_values(item))
     elif isinstance(value, list):
         for item in value:
-            digests.update(_collect_sha256_values(item, parent_key=parent_key))
+            digests.update(_collect_sha256_values(item))
     return digests
 
 
@@ -66,13 +76,18 @@ def _analysis_binding(
         raise HandoffBundleValidationError(
             f"analysis_manifest cannot reproduce handoff features: {exc}"
         ) from exc
-    if _normalized_feature_rows(analysis_features) != _normalized_feature_rows(feature_table):
+    # The handoff writer serializes the reconstructed DataFrame through pandas CSV.
+    # Compare against that exact serialization boundary rather than pre-CSV binary
+    # floats, which may differ by a harmless final representation bit on round-trip.
+    serialized_features = _csv_roundtrip(analysis_features)
+    if _normalized_feature_rows(serialized_features) != _normalized_feature_rows(feature_table):
         raise HandoffBundleValidationError(
-            "analysis_manifest feature records do not exactly reproduce feature_table"
+            "analysis_manifest feature records do not reproduce feature_table through the writer CSV boundary"
         )
     return {
         "analysis_manifest_features_reproduced": True,
         "analysis_manifest_feature_count": int(len(analysis_features)),
+        "analysis_manifest_csv_boundary_replayed": True,
     }
 
 
