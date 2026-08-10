@@ -35,7 +35,10 @@ def _feature() -> dict[str, object]:
 def _config(tmp_path: Path) -> Path:
     evidence = tmp_path / "evidence"
     evidence.mkdir()
-    (evidence / "source_manifest.json").write_text('{"source":"public"}\n', encoding="utf-8")
+    (evidence / "source_manifest.json").write_text(
+        json.dumps({"source": "public", "sha256": "a" * 64}) + "\n",
+        encoding="utf-8",
+    )
     (evidence / "analysis_manifest.json").write_text(
         json.dumps(
             {
@@ -97,6 +100,11 @@ def test_build_handoff_from_relative_config_is_validated(tmp_path: Path) -> None
     assert result["status"] == BUILD_STATUS
     assert result["validation"]["status"] == VALIDATION_STATUS
     assert result["validation"]["scientific_comparability_established"] is False
+    binding = result["validation"]["evidence_identity_binding"]
+    assert binding["analysis_manifest_features_reproduced"] is True
+    assert binding["source_sha256_coverage_verified"] is True
+    assert binding["comparability_identity_coverage_verified"] is True
+    assert binding["comparability_binding_axes"] == ["modality"]
     assert (output / "source_manifest.json").is_file()
     assert (output / "analysis_manifest.json").is_file()
     assert (output / "comparability_matrix.csv").is_file()
@@ -133,6 +141,53 @@ def test_build_handoff_rejects_duplicate_evidence_basenames(tmp_path: Path) -> N
     config.write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(HandoffBundleBuildError, match="basenames must be unique"):
+        build_characterization_handoff_bundle_from_config(config, tmp_path / "bundle")
+
+
+def test_build_handoff_rejects_unbound_feature_source_digest(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    source = tmp_path / "evidence" / "source_manifest.json"
+    source.write_text(
+        json.dumps({"source": "public", "sha256": "b" * 64}) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="does not checksum-bind every feature source_sha256",
+    ):
+        build_characterization_handoff_bundle_from_config(config, tmp_path / "bundle")
+
+
+def test_build_handoff_rejects_source_case_id_conflict(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    source = tmp_path / "evidence" / "source_manifest.json"
+    source.write_text(
+        json.dumps(
+            {
+                "case_id": "different-case",
+                "source": "public",
+                "sha256": "a" * 64,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="case_id does not match bundle case_id"):
+        build_characterization_handoff_bundle_from_config(config, tmp_path / "bundle")
+
+
+def test_build_handoff_rejects_unrelated_comparability_matrix(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    pd.DataFrame(
+        {"modality": ["xrd"], "comparability_status": ["not_established"]}
+    ).to_csv(tmp_path / "evidence" / "comparability_matrix.csv", index=False)
+
+    with pytest.raises(
+        ValueError,
+        match="does not cover every feature instrument",
+    ):
         build_characterization_handoff_bundle_from_config(config, tmp_path / "bundle")
 
 
