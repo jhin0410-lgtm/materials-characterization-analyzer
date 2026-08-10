@@ -39,7 +39,10 @@ def _bundle(tmp_path: Path) -> Path:
     root = tmp_path / "bundle"
     root.mkdir()
     source_manifest = root / "source_manifest.json"
-    source_manifest.write_text('{"source": "public"}\n', encoding="utf-8")
+    source_manifest.write_text(
+        json.dumps({"source": "public", "sha256": "a" * 64}) + "\n",
+        encoding="utf-8",
+    )
     analysis_manifest = root / "analysis_manifest.json"
     analysis_manifest.write_text(
         json.dumps(
@@ -100,6 +103,8 @@ def test_validate_handoff_bundle_recomputes_contract_counts(tmp_path: Path) -> N
     assert summary["instruments"] == ["xrd"]
     assert summary["quality_flag_counts"] == {"review_required": 1}
     assert summary["sample_identity_consistent"] is True
+    assert summary["evidence_identity_binding"]["analysis_manifest_features_reproduced"] is True
+    assert summary["evidence_identity_binding"]["source_sha256_coverage_verified"] is True
     assert summary["scientific_comparability_established"] is False
     assert summary["engineering_release_ready"] is False
 
