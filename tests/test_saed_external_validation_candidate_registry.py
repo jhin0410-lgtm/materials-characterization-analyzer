@@ -76,6 +76,7 @@ def test_bir_static_candidate_exposes_calibration_and_lineage_blockers(
     assert "pattern_center_untraceable" in candidate["blockers"]
     assert "reciprocal_calibration_untraceable" in candidate["blockers"]
     assert "reuse_license_unverified" in candidate["blockers"]
+    assert "checksum_bound_source_evidence_binding_unverified" in candidate["blockers"]
 
 
 def test_3ded_records_are_mode_shift_diagnostics(tmp_path: Path) -> None:
@@ -134,6 +135,15 @@ def test_source_audit_protocol_blocks_posthoc_selection(tmp_path: Path) -> None:
     ] == 2
     assert protocol["subset_requirements"][
         "record_archive_and_member_checksums"
+    ]
+    assert protocol["readiness_evidence_requirements"][
+        "checksum_bound_source_evidence_snapshots_required"
+    ]
+    assert protocol["readiness_evidence_requirements"][
+        "every_readiness_claim_bound_to_snapshot"
+    ]
+    assert protocol["readiness_evidence_requirements"][
+        "analyzer_development_nonuse_requires_project_provenance_snapshot"
     ]
     assert protocol["instrument_and_calibration_requirements"][
         "traceable_reciprocal_calibration_required"
@@ -230,11 +240,78 @@ def _ready_payload() -> dict:
             "reuse_license": "CC BY 4.0",
             "reuse_license_verified": True,
             "analyzer_development_nonuse_verified": True,
-            "source_evidence": ["checksum-bound independent static SAED source"],
+            "source_evidence": ["narrative assertion is not sufficient for readiness"],
             "next_validation_step": "Run the dedicated bounded source audit.",
         }
     )
     payload["candidates"].append(candidate)
+    return payload
+
+
+def _write_snapshot(path: Path, payload: dict) -> str:
+    path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _bind_ready_evidence(tmp_path: Path, payload: dict) -> dict:
+    candidate = payload["candidates"][-1]
+    repository_snapshot = tmp_path / "repository_snapshot.json"
+    reference_snapshot = tmp_path / "reference_snapshot.json"
+    provenance_snapshot = tmp_path / "project_provenance_snapshot.json"
+
+    repository_sha = _write_snapshot(
+        repository_snapshot,
+        {"source": candidate["record_url"], "kind": "pinned repository metadata"},
+    )
+    reference_sha = _write_snapshot(
+        reference_snapshot,
+        {"source": "independent structure record", "candidate": candidate["candidate_id"]},
+    )
+    provenance_sha = _write_snapshot(
+        provenance_snapshot,
+        {"source": "project provenance", "candidate": candidate["candidate_id"]},
+    )
+
+    candidate["source_evidence_artifacts"] = [
+        {
+            "evidence_id": "repository_metadata_snapshot",
+            "path": repository_snapshot.name,
+            "sha256": repository_sha,
+            "source_url": candidate["record_url"],
+            "source_type": "repository_snapshot",
+            "claims": [
+                "acquisition_mode",
+                "file_inventory",
+                "downloadability",
+                "file_checksums",
+                "raw_lossless_patterns",
+                "series_count",
+                "sample_identity",
+                "acquisition_identity",
+                "accelerating_voltage",
+                "detector_metadata",
+                "pattern_center",
+                "reciprocal_calibration",
+                "reuse_license",
+            ],
+        },
+        {
+            "evidence_id": "independent_reference_snapshot",
+            "path": reference_snapshot.name,
+            "sha256": reference_sha,
+            "source_url": "https://doi.org/10.5281/zenodo.10999587",
+            "source_type": "reference_structure_snapshot",
+            "claims": ["independent_reference_structures"],
+        },
+        {
+            "evidence_id": "analyzer_nonuse_provenance_snapshot",
+            "path": provenance_snapshot.name,
+            "sha256": provenance_sha,
+            "source_url": "https://github.com/jhin0410-lgtm/materials-characterization-analyzer",
+            "source_type": "project_provenance_snapshot",
+            "claims": ["analyzer_development_nonuse"],
+        },
+    ]
     return payload
 
 
@@ -244,11 +321,28 @@ def _load_payload(tmp_path: Path, payload: dict):
     return load_registry_config(path)
 
 
-def test_ready_status_is_derived_from_all_candidate_gates(
-    tmp_path: Path,
-) -> None:
+def test_boolean_and_narrative_only_candidate_is_not_ready(tmp_path: Path) -> None:
+    output = tmp_path / "out"
     summary = run_candidate_registry(
-        _load_payload(tmp_path, _ready_payload()), tmp_path / "out"
+        _load_payload(tmp_path, _ready_payload()), output
+    )
+    assert summary["result_counts"]["dedicated_source_audit_ready_count"] == 0
+    with (output / "saed_candidate_inventory.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+    candidate = next(
+        row for row in rows if row["candidate_id"] == "independent_static_saed_ready"
+    )
+    assert candidate["source_evidence_artifact_count"] == "0"
+    assert candidate["source_evidence_claim_binding_verified"] == "False"
+    assert "checksum_bound_source_evidence_binding_unverified" in candidate["blockers"]
+
+
+def test_ready_status_requires_checksum_bound_claim_evidence(tmp_path: Path) -> None:
+    payload = _bind_ready_evidence(tmp_path, _ready_payload())
+    summary = run_candidate_registry(
+        _load_payload(tmp_path, payload), tmp_path / "out"
     )
     assert summary["result_counts"]["dedicated_source_audit_ready_count"] == 1
     assert summary["readiness"][
@@ -261,7 +355,7 @@ def test_ready_status_is_derived_from_all_candidate_gates(
 def test_traceable_reciprocal_calibration_does_not_require_pixel_size(
     tmp_path: Path,
 ) -> None:
-    payload = _ready_payload()
+    payload = _bind_ready_evidence(tmp_path, _ready_payload())
     payload["candidates"][-1]["detector_pixel_size_available"] = False
     output = tmp_path / "out"
     summary = run_candidate_registry(
@@ -284,12 +378,42 @@ def test_traceable_reciprocal_calibration_does_not_require_pixel_size(
 def test_ready_candidate_requires_minimum_independent_series(
     tmp_path: Path,
 ) -> None:
-    payload = _ready_payload()
+    payload = _bind_ready_evidence(tmp_path, _ready_payload())
     payload["candidates"][-1]["reported_pattern_series_count"] = 1
     summary = run_candidate_registry(
         _load_payload(tmp_path, payload), tmp_path / "out"
     )
     assert summary["result_counts"]["dedicated_source_audit_ready_count"] == 0
+
+
+def test_tampered_source_evidence_snapshot_fails_closed(tmp_path: Path) -> None:
+    payload = _bind_ready_evidence(tmp_path, _ready_payload())
+    (tmp_path / "repository_snapshot.json").write_text(
+        '{"tampered":true}\n', encoding="utf-8"
+    )
+    with pytest.raises(
+        SAEDCandidateContractError,
+        match="sha256 does not match evidence snapshot bytes",
+    ):
+        _load_payload(tmp_path, payload)
+
+
+def test_nonuse_claim_requires_project_provenance_snapshot(tmp_path: Path) -> None:
+    payload = _bind_ready_evidence(tmp_path, _ready_payload())
+    payload["candidates"][-1]["source_evidence_artifacts"][-1][
+        "source_type"
+    ] = "publication_snapshot"
+    output = tmp_path / "out"
+    summary = run_candidate_registry(_load_payload(tmp_path, payload), output)
+    assert summary["result_counts"]["dedicated_source_audit_ready_count"] == 0
+    with (output / "saed_candidate_inventory.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+    candidate = next(
+        row for row in rows if row["candidate_id"] == "independent_static_saed_ready"
+    )
+    assert "analyzer_development_nonuse" in candidate["source_evidence_missing_claims"]
 
 
 def test_candidate_status_counts_reconcile(tmp_path: Path) -> None:

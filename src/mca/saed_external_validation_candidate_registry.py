@@ -1,8 +1,9 @@
 """Fail-closed registry for public SAED external-validation candidates.
 
-The registry evaluates pinned repository metadata only. It does not download
-or decode diffraction arrays, inspect archive members, estimate a pattern
-centre, infer calibration, run the SAED analyzer, or perform indexing.
+The registry evaluates pinned repository metadata and optional checksum-bound
+source-evidence snapshots. It does not download or decode diffraction arrays,
+inspect archive members, estimate a pattern centre, infer calibration, run the
+SAED analyzer, or perform indexing.
 """
 from __future__ import annotations
 
@@ -17,6 +18,12 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from . import __version__
+from .saed_source_evidence_binding import (
+    SAEDSourceEvidenceBindingError,
+    SourceEvidenceArtifact,
+    evaluate_ready_claim_binding,
+    parse_source_evidence_artifacts,
+)
 
 CASE_ID = "saed_external_validation_candidate_registry"
 SCHEMA_VERSION = "1.0"
@@ -78,6 +85,9 @@ INVENTORY_COLUMNS = (
     "reuse_license",
     "reuse_license_verified",
     "analyzer_development_nonuse_verified",
+    "source_evidence_artifact_count",
+    "source_evidence_claim_binding_verified",
+    "source_evidence_missing_claims",
     "dedicated_source_audit_ready",
     "predeclared_external_evaluation_ready",
     "blockers",
@@ -117,10 +127,17 @@ class Candidate:
     reuse_license_verified: bool
     analyzer_development_nonuse_verified: bool
     source_evidence: tuple[str, ...]
+    source_evidence_artifacts: tuple[SourceEvidenceArtifact, ...]
     next_validation_step: str
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any], index: int) -> "Candidate":
+    def from_mapping(
+        cls,
+        payload: Mapping[str, Any],
+        index: int,
+        *,
+        base_dir: Path | None = None,
+    ) -> "Candidate":
         allowed = {
             "candidate_id",
             "repository",
@@ -147,14 +164,26 @@ class Candidate:
             "reuse_license_verified",
             "analyzer_development_nonuse_verified",
             "source_evidence",
+            "source_evidence_artifacts",
             "next_validation_step",
         }
         _reject_unknown(payload, allowed, f"candidates[{index}]")
+        record_url = _https(payload, "record_url")
+        try:
+            source_evidence_artifacts = parse_source_evidence_artifacts(
+                payload.get("source_evidence_artifacts"),
+                base_dir=(Path.cwd() if base_dir is None else base_dir),
+                candidate_record_url=record_url,
+            )
+        except SAEDSourceEvidenceBindingError as exc:
+            raise SAEDCandidateContractError(
+                f"invalid source evidence binding for candidates[{index}]: {exc}"
+            ) from exc
         candidate = cls(
             candidate_id=_identifier(payload, "candidate_id"),
             repository=_text(payload, "repository"),
             doi=_text(payload, "doi"),
-            record_url=_https(payload, "record_url"),
+            record_url=record_url,
             title=_text(payload, "title"),
             materials=_texts(payload, "materials"),
             acquisition_mode=_text(payload, "acquisition_mode"),
@@ -205,6 +234,7 @@ class Candidate:
                 payload, "analyzer_development_nonuse_verified"
             ),
             source_evidence=_texts(payload, "source_evidence"),
+            source_evidence_artifacts=source_evidence_artifacts,
             next_validation_step=_text(payload, "next_validation_step"),
         )
         candidate.validate()
@@ -255,7 +285,12 @@ class RegistryConfig:
     candidates: tuple[Candidate, ...]
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any]) -> "RegistryConfig":
+    def from_mapping(
+        cls,
+        payload: Mapping[str, Any],
+        *,
+        base_dir: Path | None = None,
+    ) -> "RegistryConfig":
         _reject_unknown(
             payload,
             {"case_id", "search_snapshot", "target_contract", "candidates"},
@@ -276,6 +311,7 @@ class RegistryConfig:
         raw_candidates = payload.get("candidates")
         if not isinstance(raw_candidates, list) or not raw_candidates:
             raise SAEDCandidateContractError("candidates must be a non-empty list")
+        resolved_base = Path.cwd() if base_dir is None else base_dir
         config = cls(
             case_id=_text(payload, "case_id"),
             search_date=_date(snapshot, "search_date"),
@@ -288,7 +324,9 @@ class RegistryConfig:
             ),
             candidates=tuple(
                 Candidate.from_mapping(
-                    _mapping_value(item, f"candidates[{index}]"), index
+                    _mapping_value(item, f"candidates[{index}]"),
+                    index,
+                    base_dir=resolved_base,
                 )
                 for index, item in enumerate(raw_candidates)
             ),
@@ -338,7 +376,10 @@ def load_registry_config(path: str | Path) -> RegistryConfig:
         ) from exc
     if not isinstance(payload, dict):
         raise SAEDCandidateContractError("registry config root must be an object")
-    return RegistryConfig.from_mapping(payload)
+    return RegistryConfig.from_mapping(
+        payload,
+        base_dir=config_path.resolve().parent,
+    )
 
 
 def run_candidate_registry(
@@ -414,19 +455,22 @@ def run_candidate_registry(
                     f"{len(rows)} public records were classified against explicit "
                     "downloadability, representation, acquisition-mode, sample and "
                     "acquisition identity, detector, centre, calibration, reference, "
-                    "reuse, non-use, and minimum-series gates."
+                    "reuse, non-use, minimum-series, and checksum-bound source-evidence "
+                    "claim-binding gates."
                 ),
                 "primary_limitation": (
                     "No pinned candidate currently combines a publicly downloadable "
                     "static SAED cohort with immutable sample and acquisition identities, "
                     "traceable centre and reciprocal calibration, suitable references, "
-                    "and verified analyzer-development non-use."
+                    "verified analyzer-development non-use, and checksum-bound evidence "
+                    "snapshots that support every readiness claim."
                 ),
                 "evidence_that_would_change_conclusion": (
                     "A checksum-bound subset of at least two independent static SAED "
-                    "pattern series whose source documentation resolves sample and "
-                    "acquisition lineage, detector metadata, centre, reciprocal "
-                    "calibration, reuse rights, and reference protocol."
+                    "pattern series whose pinned source-evidence snapshots resolve sample "
+                    "and acquisition lineage, detector metadata, centre, reciprocal "
+                    "calibration, reuse rights, analyzer-development non-use, and the "
+                    "reference protocol claim-by-claim."
                 ),
                 "suitable_for": [
                     "public source triage",
@@ -479,7 +523,22 @@ def _candidate_row(
         candidate.source_reference_assignments_available
         or candidate.independent_reference_structures_available
     )
-    dedicated_source_audit_ready = all(
+    reference_claim = (
+        "source_reference_assignments"
+        if candidate.source_reference_assignments_available
+        else "independent_reference_structures"
+    )
+    try:
+        evidence_binding = evaluate_ready_claim_binding(
+            candidate.source_evidence_artifacts,
+            reference_claim=reference_claim,
+        )
+    except SAEDSourceEvidenceBindingError as exc:
+        raise SAEDCandidateContractError(
+            f"could not evaluate source evidence for {candidate.candidate_id}: {exc}"
+        ) from exc
+
+    metadata_gates_ready = all(
         (
             static_mode,
             resolved_inventory,
@@ -498,6 +557,9 @@ def _candidate_row(
             candidate.analyzer_development_nonuse_verified,
         )
     )
+    dedicated_source_audit_ready = metadata_gates_ready and bool(
+        evidence_binding["verified"]
+    )
 
     blockers: list[str] = []
     checks = (
@@ -511,12 +573,15 @@ def _candidate_row(
         (candidate.immutable_acquisition_ids_available, "immutable_acquisition_ids_unavailable"),
         (candidate.accelerating_voltage_available, "accelerating_voltage_unavailable"),
         (candidate.detector_metadata_available, "detector_metadata_unavailable"),
-
         (candidate.pattern_center_traceable, "pattern_center_untraceable"),
         (candidate.reciprocal_calibration_traceable, "reciprocal_calibration_untraceable"),
         (reference_available, "reference_assignments_or_structures_unavailable"),
         (candidate.reuse_license_verified, "reuse_license_unverified"),
         (candidate.analyzer_development_nonuse_verified, "analyzer_development_nonuse_unverified"),
+        (
+            bool(evidence_binding["verified"]),
+            "checksum_bound_source_evidence_binding_unverified",
+        ),
     )
     blockers.extend(message for passed, message in checks if not passed)
 
@@ -572,6 +637,11 @@ def _candidate_row(
         "reuse_license": candidate.reuse_license,
         "reuse_license_verified": candidate.reuse_license_verified,
         "analyzer_development_nonuse_verified": candidate.analyzer_development_nonuse_verified,
+        "source_evidence_artifact_count": evidence_binding["artifact_count"],
+        "source_evidence_claim_binding_verified": evidence_binding["verified"],
+        "source_evidence_missing_claims": " | ".join(
+            str(value) for value in evidence_binding["missing_claims"]
+        ),
         "dedicated_source_audit_ready": dedicated_source_audit_ready,
         "predeclared_external_evaluation_ready": False,
         "blockers": " | ".join(blockers),
@@ -626,6 +696,14 @@ def _source_audit_protocol(minimum_series: int) -> dict[str, Any]:
             "raw_or_demonstrably_lossless_representation_required": True,
             "no_filename_or_visual_identity_inference": True,
         },
+        "readiness_evidence_requirements": {
+            "checksum_bound_source_evidence_snapshots_required": True,
+            "every_readiness_claim_bound_to_snapshot": True,
+            "repository_snapshot_must_match_candidate_record_url": True,
+            "reference_claim_requires_source_appropriate_snapshot": True,
+            "analyzer_development_nonuse_requires_project_provenance_snapshot": True,
+            "snapshot_binding_establishes_scientific_validity": False,
+        },
         "instrument_and_calibration_requirements": {
             "accelerating_voltage_required": True,
             "detector_model_required": True,
@@ -656,6 +734,7 @@ def _source_audit_protocol(minimum_series: int) -> dict[str, Any]:
             "selecting files after viewing candidate detections",
             "using rendered publication figures as raw detector evidence",
             "promoting archive-level checksums to member-level identity without inspection",
+            "promoting readiness from boolean fields or narrative source_evidence without checksum-bound claim evidence",
         ],
     }
 
@@ -685,6 +764,7 @@ def _build_report(
                 "",
                 f"- DOI: `{row['doi']}`",
                 f"- Acquisition mode: `{row['acquisition_mode']}`",
+                f"- Source-evidence claim binding: `{row['source_evidence_claim_binding_verified']}`",
                 f"- Blockers: `{row['blockers'] or 'none'}`",
                 f"- Next action: {row['next_validation_step']}",
                 "",
@@ -694,7 +774,8 @@ def _build_report(
         [
             "## Scientific boundary",
             "",
-            "The registry classifies pinned public metadata only. It does not "
+            "The registry classifies pinned public metadata and verifies optional "
+            "source-evidence snapshot bytes and claim bindings only. It does not "
             "download or decode diffraction arrays, inspect archive members, "
             "establish calibration truth, execute the analyzer, or validate "
             "phase or reflection assignments.",
