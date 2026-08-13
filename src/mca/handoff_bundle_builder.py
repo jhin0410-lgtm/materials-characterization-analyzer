@@ -13,6 +13,7 @@ from .handoff_bundle import (
     write_characterization_handoff_bundle,
 )
 from .handoff_bundle_validation import validate_characterization_handoff_bundle
+from .handoff_validation.validator import EVIDENCE_IDENTITY_BINDING_CONTRACT_VERSION
 
 CONFIG_SCHEMA_VERSION = "1.0"
 BUILD_STATUS = "characterization_handoff_bundle_built_and_validated"
@@ -22,6 +23,24 @@ _RESERVED_OUTPUT_NAMES = {FEATURE_FILE_NAME, SAMPLE_CONTEXT_FILE_NAME, MANIFEST_
 
 class HandoffBundleBuildError(ValueError):
     """Raised when a generic handoff build contract fails closed."""
+
+
+def _enable_evidence_identity_binding(stage: Path, manifest_path: Path) -> None:
+    manifest = _load_json(manifest_path, "generated handoff manifest")
+    if "evidence_identity_binding_contract" in manifest:
+        raise HandoffBundleBuildError(
+            "generated handoff manifest unexpectedly contains evidence_identity_binding_contract"
+        )
+    manifest["evidence_identity_binding_contract"] = {
+        "schema_version": EVIDENCE_IDENTITY_BINDING_CONTRACT_VERSION,
+        "required": True,
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    if manifest_path.parent.resolve() != stage.resolve():
+        raise HandoffBundleBuildError("generated handoff manifest escaped staging directory")
 
 
 def build_characterization_handoff_bundle_from_config(
@@ -106,6 +125,7 @@ def build_characterization_handoff_bundle_from_config(
                 else None
             ),
         )
+        _enable_evidence_identity_binding(stage, paths["manifest"])
         validation = validate_characterization_handoff_bundle(stage)
         stage.replace(output)
         return {

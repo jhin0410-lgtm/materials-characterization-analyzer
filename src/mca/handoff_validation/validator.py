@@ -29,14 +29,42 @@ from .common import (
     _unique_text_list,
     _verify_file_record,
 )
+from .evidence_binding import validate_evidence_identity_binding
 from .tables import _validate_context_table, _validate_feature_table
+
+EVIDENCE_IDENTITY_BINDING_CONTRACT_VERSION = "1.0"
+
+
+def _evidence_binding_contract(manifest: dict[str, Any]) -> dict[str, Any] | None:
+    raw = manifest.get("evidence_identity_binding_contract")
+    if raw is None:
+        return None
+    contract = _object(raw, "evidence_identity_binding_contract")
+    _reject_unknown(
+        contract,
+        {"schema_version", "required"},
+        "evidence_identity_binding_contract",
+    )
+    if contract.get("schema_version") != EVIDENCE_IDENTITY_BINDING_CONTRACT_VERSION:
+        raise HandoffBundleValidationError(
+            "unsupported evidence_identity_binding_contract schema_version"
+        )
+    if contract.get("required") is not True:
+        raise HandoffBundleValidationError(
+            "evidence_identity_binding_contract.required must be true"
+        )
+    return {
+        "schema_version": EVIDENCE_IDENTITY_BINDING_CONTRACT_VERSION,
+        "required": True,
+    }
 
 
 def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str, Any]:
     """Validate bundle identity, checksums, schemas, joins, and claim boundaries.
 
-    This function does not interpret scientific meaning, aggregate features, or
-    establish that different measurements used the same physical aliquot.
+    Legacy schema-1.0 bundles without the optional evidence-binding sub-contract
+    retain their original checksum validation semantics. New hardened producers
+    opt into the separately versioned semantic evidence-binding contract.
     """
 
     root = Path(bundle_dir)
@@ -59,6 +87,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             "evidence_references",
             "scientific_closeout",
             "downstream_use_policy",
+            "evidence_identity_binding_contract",
         },
         "bundle manifest",
     )
@@ -67,6 +96,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
     if manifest.get("bundle_type") != BUNDLE_TYPE:
         raise HandoffBundleValidationError("bundle_type mismatch")
     case_id = _nonempty_text(manifest, "case_id")
+    binding_contract = _evidence_binding_contract(manifest)
 
     producer = _object(manifest.get("producer"), "producer")
     _reject_unknown(
@@ -117,10 +147,35 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             "evidence_references must contain source_manifest, analysis_manifest, and comparability_matrix"
         )
     evidence_summary: dict[str, dict[str, Any]] = {}
+    evidence_paths: dict[str, Path] = {}
     for label in sorted(_REQUIRED_EVIDENCE_REFERENCES):
         record = _file_record(evidence.get(label), f"evidence_references.{label}")
-        _verify_file_record(root, record, f"evidence_references.{label}")
+        evidence_paths[label] = _verify_file_record(
+            root, record, f"evidence_references.{label}"
+        )
         evidence_summary[label] = record
+
+    if binding_contract is None:
+        evidence_identity_binding: dict[str, Any] = {
+            "contract_present": False,
+            "legacy_checksum_only_validation": True,
+            "semantic_identity_binding_established": False,
+            "scientific_comparability_established": False,
+        }
+    else:
+        evidence_identity_binding = {
+            "contract_present": True,
+            "contract": binding_contract,
+            "legacy_checksum_only_validation": False,
+            "semantic_identity_binding_established": True,
+            **validate_evidence_identity_binding(
+                case_id=case_id,
+                feature_table=feature_table,
+                source_manifest_path=evidence_paths["source_manifest"],
+                analysis_manifest_path=evidence_paths["analysis_manifest"],
+                comparability_matrix_path=evidence_paths["comparability_matrix"],
+            ),
+        }
 
     closeout = _object(manifest.get("scientific_closeout"), "scientific_closeout")
     evidence_level = _nonempty_text(closeout, "evidence_level")
@@ -134,19 +189,14 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
     if policy_present:
         try:
             downstream_use_policy = validate_downstream_use_policy(
-                _object(
-                    manifest.get("downstream_use_policy"),
-                    "downstream_use_policy",
-                ),
+                _object(manifest.get("downstream_use_policy"), "downstream_use_policy"),
                 scientific_evidence_level=evidence_level,
             )
         except DownstreamUsePolicyError as exc:
             raise HandoffBundleValidationError(
                 f"invalid downstream_use_policy: {exc}"
             ) from exc
-        independence_group_field = downstream_use_policy[
-            "independence_group_field"
-        ]
+        independence_group_field = downstream_use_policy["independence_group_field"]
         if (
             independence_group_field is not None
             and independence_group_field not in context_table.columns
@@ -175,6 +225,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "downstream_use_policy_present": policy_present,
         "downstream_use_policy": downstream_use_policy,
         "sample_identity_consistent": True,
+        "evidence_identity_binding": evidence_identity_binding,
         "row_order_join_allowed": False,
         "aggregation_performed": False,
         "missing_metadata_inferred": False,
@@ -182,8 +233,11 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "engineering_release_ready": False,
         "evidence_references": evidence_summary,
         "scientific_boundary": (
-            "Bundle validation establishes file integrity and contract consistency only; "
-            "it does not establish identical physical aliquots, cross-modal comparability, "
-            "causality, model readiness, or engineering suitability."
+            "Bundle validation always establishes checksum integrity and sample-key "
+            "consistency. When the separately versioned evidence identity binding "
+            "contract is present, it additionally establishes exact analysis-feature "
+            "reproduction, source-digest coverage, and explicit comparability identity "
+            "coverage. Neither mode establishes identical physical aliquots, cross-modal "
+            "scientific comparability, causality, model readiness, or engineering suitability."
         ),
     }

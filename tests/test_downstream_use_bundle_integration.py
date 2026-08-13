@@ -12,7 +12,10 @@ from mca.handoff_bundle_builder import build_characterization_handoff_bundle_fro
 def _write_config(tmp_path: Path, policy: dict[str, object] | None = None) -> Path:
     evidence = tmp_path / "evidence"
     evidence.mkdir()
-    (evidence / "source.json").write_text('{"source":"public"}\n', encoding="utf-8")
+    (evidence / "source.json").write_text(
+        json.dumps({"source": "public", "sha256": "a" * 64}) + "\n",
+        encoding="utf-8",
+    )
     feature = {
         "sample_id": "sample-a",
         "measurement_id": "sample-a-raman",
