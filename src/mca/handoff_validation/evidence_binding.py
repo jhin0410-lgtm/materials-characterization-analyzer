@@ -29,6 +29,7 @@ _SOURCE_RECORD_CONTAINER_KEYS = {
     "raw_files",
     "archive_members",
     "raw_archive_members",
+    "downloads",
 }
 _SOURCE_RECORD_KEYS = {
     "source",
@@ -41,20 +42,23 @@ _SOURCE_RECORD_KEYS = {
     "archive_member",
     "workbook",
 }
-_SOURCE_IDENTITY_FIELDS = {
+_ROOT_SOURCE_IDENTITY_FIELDS = {
     "path",
     "filename",
     "source_file",
+    "local_path",
     "url",
     "download_url",
     "record_url",
     "member_path",
     "archive_member",
-    "doi",
-    "provenance_type",
-    "source_type",
 }
-_EXPLICIT_SOURCE_DIGEST_KEYS = {"source_sha256", "file_sha256", "member_sha256"}
+_EXPLICIT_SOURCE_DIGEST_KEYS = {
+    "source_sha256",
+    "file_sha256",
+    "member_sha256",
+    "downloaded_sha256",
+}
 
 
 def _csv_roundtrip(table: pd.DataFrame) -> pd.DataFrame:
@@ -80,11 +84,13 @@ def _normalized_feature_rows(table: pd.DataFrame) -> list[tuple[object, ...]]:
 
 
 def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
-    """Collect digests only from the source-record mapping that owns them.
+    """Collect digests only from mappings identified by source context.
 
-    Source-container membership marks only immediate records. It is deliberately not
-    inherited by arbitrary nested metadata, so an ``audit`` or ``expected`` subtree
-    inside a real source record cannot substitute its checksum for the source bytes.
+    Recognition is structural rather than checksum-shaped. Known source-record keys,
+    members of known source containers, and direct root file records are accepted.
+    Arbitrary nested mappings are not promoted merely because they contain ``path``
+    or another locator; this keeps config/audit/output checksums from satisfying a
+    feature's source-byte identity requirement.
     """
     digests: set[str] = set()
 
@@ -95,13 +101,14 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
         members_are_source_records: bool,
         record_key: str | None,
         is_root: bool,
+        parent_is_root: bool,
     ) -> None:
         if isinstance(value, Mapping):
             keys = {str(key).strip().lower() for key in value}
             current_source_record = (
                 is_source_record
                 or record_key in _SOURCE_RECORD_KEYS
-                or bool(keys & _SOURCE_IDENTITY_FIELDS)
+                or ((is_root or parent_is_root) and bool(keys & _ROOT_SOURCE_IDENTITY_FIELDS))
                 or (is_root and "source" in keys)
             )
             for key, item in value.items():
@@ -127,6 +134,7 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
                         members_are_source_records=child_members_are_records,
                         record_key=key_text,
                         is_root=False,
+                        parent_is_root=is_root,
                     )
                 elif isinstance(item, list):
                     visit(
@@ -135,6 +143,7 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
                         members_are_source_records=child_members_are_records,
                         record_key=key_text,
                         is_root=False,
+                        parent_is_root=is_root,
                     )
         elif isinstance(value, list):
             for item in value:
@@ -144,6 +153,7 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
                     members_are_source_records=False,
                     record_key=None,
                     is_root=False,
+                    parent_is_root=False,
                 )
 
     visit(
@@ -152,6 +162,7 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
         members_are_source_records=False,
         record_key=None,
         is_root=True,
+        parent_is_root=False,
     )
     return digests
 
