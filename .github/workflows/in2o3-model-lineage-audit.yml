@@ -1,0 +1,119 @@
+name: In2O3 TEM model-lineage audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_in2o3_insitu_tem_model_lineage/**"
+      - "tests/test_in2o3_model_lineage_audit.py"
+      - ".github/workflows/in2o3-model-lineage-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_in2o3_insitu_tem_model_lineage/**"
+      - "tests/test_in2o3_model_lineage_audit.py"
+      - ".github/workflows/in2o3-model-lineage-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: in2o3-model-lineage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out characterization repository
+        uses: actions/checkout@v7
+        with:
+          path: characterization
+      - name: Check out paper-linked public code snapshot
+        uses: actions/checkout@v7
+        with:
+          repository: benke97/India_Tracking
+          ref: 372ad5bbb3eff82bb8c3bb58060d2f6649f069de
+          path: upstream/India_Tracking
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Verify pinned upstream commit and code identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C upstream/India_Tracking rev-parse HEAD)" = "372ad5bbb3eff82bb8c3bb58060d2f6649f069de"
+          test "$(git -C upstream/India_Tracking rev-parse HEAD:dataset.py)" = "6bb3b0b36d8b3ccc0cc2bf64b7a9920e68ee7309"
+          test "$(git -C upstream/India_Tracking rev-parse HEAD:evaluate_on_exp.py)" = "82fe1963f2a803189db51582cd09d545e03a966f"
+          test "$(git -C upstream/India_Tracking rev-parse HEAD:models.py)" = "f0558dd03898696cde0f254d0afa5ab01a72c62d"
+          test "$(git -C upstream/India_Tracking rev-parse HEAD:synthetic_diff_map.py)" = "8134ff402b5ff81587d04bff4bb93bdaad7fc06f"
+          test "$(git -C upstream/India_Tracking rev-parse HEAD:train.py)" = "56b3e0741bfd02afcda0834ccacb8283e9f5ea0f"
+      - name: Verify model-development and experimental-inference contracts
+        working-directory: upstream/India_Tracking
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          train = Path("train.py").read_text(encoding="utf-8")
+          dataset = Path("dataset.py").read_text(encoding="utf-8")
+          synth = Path("synthetic_diff_map.py").read_text(encoding="utf-8")
+          evaluate = Path("evaluate_on_exp.py").read_text(encoding="utf-8")
+
+          assert "data_file = 'dataset_3/set280624.h5'" in train
+          assert "train_indices = indices[:int(0.8 * len(indices))]" in train
+          assert "val_indices = indices[int(0.8 * len(indices)):]" in train
+          assert "batch_size = 64" in train
+          assert "num_epochs = 100" in train
+          assert "lr=0.0008" in train
+          assert 'torch.save(model.state_dict(), "model_10k.pth")' in train
+
+          assert "self.h5data['images'][true_idx]" in dataset
+          assert "self.h5data['ground_truth_masks'][true_idx]" in dataset
+
+          assert "num_maps = 10000" in synth
+          assert "image_shape = (512, 512)" in synth
+          assert 'create_dataset("images", (num_maps, *image_shape), dtype=\'float32\')' in synth
+          assert 'create_dataset("ground_truth_masks", (num_maps, *image_shape), dtype=\'float32\')' in synth
+          assert 'save_path = "dataset_3/testtest.h5"' in synth
+
+          assert 'UNet.load_state_dict(torch.load("model_10k.pth"))' in evaluate
+          assert 'file.endswith("_first_20.tif")' in evaluate
+          assert "cv2.resize(image1, (512, 512))" in evaluate
+          assert "cv2.GaussianBlur(image1, (7, 7), 0)" in evaluate
+          assert "output[output < -0.5] = -1" in evaluate
+          assert "output[output > 0.5] = 1" in evaluate
+          assert "if region.area < 50:" in evaluate
+          PY
+      - name: Run local lineage regressions
+        working-directory: characterization
+        run: |
+          python -m pip install -e ".[dev]"
+          pytest -q tests/test_in2o3_model_lineage_audit.py
+      - name: Verify byte-size consistency and scientific boundary
+        working-directory: characterization
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("case_studies/zenodo_in2o3_insitu_tem_model_lineage/verified_model_lineage.json")
+          snapshot = json.loads(path.read_text(encoding="utf-8"))
+          size = snapshot["size_consistency_check"]
+          expected = (
+              size["synthetic_images"]
+              * size["height"]
+              * size["width"]
+              * size["bytes_per_float32"]
+              * size["float32_datasets"]
+          )
+          assert expected == 20_971_520_000
+          assert size["observed_hdf5_bytes"] - expected == 2048
+
+          assessment = snapshot["evidence_assessment"]
+          assert assessment["hdf5_role_as_synthetic_model_development_dataset"] == "Supported"
+          assert assessment["hdf5_role_as_raw_experimental_temporal_trajectory"] == "Unsupported"
+          assert assessment["exact_generator_run_to_zenodo_hdf5_byte_provenance"] == "Inconclusive"
+          assert assessment["model_weights_independent_of_hdf5_training_corpus"] == "Unsupported"
+          assert assessment["external_validation_use"] == "Unsupported"
+          PY
