@@ -39,6 +39,7 @@ _SOURCE_RECORD_KEYS = {
     "raw_file",
     "input_file",
     "archive_member",
+    "workbook",
 }
 _SOURCE_IDENTITY_FIELDS = {
     "path",
