@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo-carbon-nitride-tem-metadata-audit-v1",
+  "audit_date": "2026-08-14",
+  "candidate_profile": "cross_material_tem_segmentation",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 21222653,
+    "doi": "10.5281/zenodo.21222653",
+    "record_url": "https://zenodo.org/records/21222653",
+    "api_url": "https://zenodo.org/api/records/21222653",
+    "expected_status": "published",
+    "expected_resource_type": "dataset",
+    "expected_title": "Data for \"Fabrication of graphitic carbon nitride nanostructures with tunable morphology for bioimaging\"",
+    "landing_page_version_claim": "v1",
+    "expected_files": [
+      {
+        "key": "Whole dataset.zip",
+        "md5": "b608d86084ccbbea802ff54c3f98380e"
+      }
+    ],
+    "expected_description_terms": [
+      "raw TEM micrographs of all 15 samples",
+      "segmented and annotated TEM micrographs"
+    ]
+  },
+  "scientific_boundary": {
+    "metadata_api_request_authorized": true,
+    "source_file_download_authorized": false,
+    "remote_archive_inventory_authorized": false,
+    "pixel_array_access_authorized": false,
+    "model_weight_download_authorized": false,
+    "model_execution_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "record_raw_tem_wording_does_not_prove_detector_native_or_lossless_representation": true,
+    "filenames_or_folders_do_not_establish_immutable_acquisition_identity": true,
+    "example_annotations_do_not_establish_complete_independent_ground_truth": true,
+    "co_located_model_weights_do_not_establish_training_or_label_independence": true,
+    "cross_material_tem_cannot_establish_cobalt_oxide_external_performance": true,
+    "metadata_only_audit_cannot_establish_hdf5_schema_or_temporal_lineage": true,
+    "declared_file_checksum_does_not_authorize_download_or_reuse": true
+  }
+}
