@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo-carbon-nitride-tem-results-csv-audit-v1",
+  "audit_date": "2026-08-14",
+  "source_snapshot": "../zenodo_carbon_nitride_tem_metadata_audit/verified_metadata_snapshot.json",
+  "target_archive": {
+    "key": "Whole dataset.zip",
+    "expected_bytes": 561160882,
+    "expected_md5": "b608d86084ccbbea802ff54c3f98380e"
+  },
+  "selected_member": {
+    "member_path": "Zenodo/Segmented images/CN-1-Na_20000x/results.csv",
+    "local_header_offset": 480651532,
+    "compression_method": 8,
+    "compressed_bytes": 10881,
+    "uncompressed_bytes": 35135,
+    "crc32_hex": "62f263da"
+  },
+  "limits": {
+    "maximum_local_header_bytes": 131072,
+    "maximum_compressed_member_bytes": 65536,
+    "maximum_uncompressed_member_bytes": 262144,
+    "maximum_csv_rows": 10000,
+    "maximum_csv_columns": 128,
+    "maximum_cell_characters": 4096
+  },
+  "scientific_boundary": {
+    "http_range_member_probe_authorized": true,
+    "selected_csv_member_content_authorized": true,
+    "source_archive_full_download_authorized": false,
+    "other_member_content_authorized": false,
+    "image_member_content_authorized": false,
+    "pixel_array_access_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "selected_member_must_match_pinned_central_directory_metadata": true,
+    "encrypted_members_are_rejected": true,
+    "only_stored_or_deflated_zip_members_are_allowed": true,
+    "decompressed_length_and_crc32_must_match": true,
+    "csv_content_is_segmentation_output_metadata_not_tem_pixel_ground_truth": true,
+    "csv_columns_do_not_establish_annotation_provenance_or_human_labeling": true,
+    "one_selected_example_cannot_establish_annotation_completeness": true,
+    "cross_material_carbon_nitride_cannot_establish_co3o4_external_performance": true,
+    "successful_member_read_does_not_authorize_image_download": true
+  }
+}
