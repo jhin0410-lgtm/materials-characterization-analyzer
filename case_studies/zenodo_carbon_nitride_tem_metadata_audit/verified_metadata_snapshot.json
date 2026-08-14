@@ -1,0 +1,94 @@
+{
+  "analyzer_inference_performed": false,
+  "audit_date": "2026-08-14",
+  "candidate_profile": "cross_material_tem_segmentation",
+  "case_id": "zenodo-carbon-nitride-tem-metadata-audit-v1",
+  "config_sha256": "343afaf10ddf4594f6155784607e79f8b84b3305633f93fb3c19f695955dc566",
+  "decision_rules": {
+    "co_located_model_weights_do_not_establish_training_or_label_independence": true,
+    "cross_material_tem_cannot_establish_cobalt_oxide_external_performance": true,
+    "declared_file_checksum_does_not_authorize_download_or_reuse": true,
+    "example_annotations_do_not_establish_complete_independent_ground_truth": true,
+    "filenames_or_folders_do_not_establish_immutable_acquisition_identity": true,
+    "metadata_only_audit_cannot_establish_hdf5_schema_or_temporal_lineage": true,
+    "record_raw_tem_wording_does_not_prove_detector_native_or_lossless_representation": true
+  },
+  "engineering_decision_claim_made": false,
+  "evidence_assessment": {
+    "annotation_independence_from_target_model": "Inconclusive",
+    "annotation_provenance_and_completeness": "Inconclusive",
+    "cobalt_oxide_material_domain_match": "Unsupported",
+    "cross_material_software_robustness_use": "Inconclusive",
+    "dataset_reuse_terms": "Diagnostic",
+    "detector_native_or_lossless_intensity_provenance": "Inconclusive",
+    "file_identity_and_repository_md5": "Supported",
+    "immutable_sample_and_acquisition_identity": "Inconclusive",
+    "record_declared_raw_tem_for_15_samples": "Diagnostic",
+    "record_identity": "Supported",
+    "scientific_evidence_level": "Diagnostic",
+    "tem_segmentation_external_validation_ready": "Unsupported"
+  },
+  "execution_status": "metadata_audit_completed",
+  "external_validation_claim_made": false,
+  "file_inventory": [
+    {
+      "bytes": 561160882,
+      "content_url": "https://zenodo.org/api/records/21222653/files/Whole%20dataset.zip/content",
+      "id": "3b8e96ef-1eed-4e51-970c-a0b1a91fea09",
+      "key": "Whole dataset.zip",
+      "md5": "b608d86084ccbbea802ff54c3f98380e"
+    }
+  ],
+  "metadata_api_request_performed": true,
+  "model_execution_performed": false,
+  "model_weights_downloaded": false,
+  "next_evidence": [
+    "Resolve dataset-level reuse authorization before any archive/member reuse.",
+    "If reuse is authorized, perform a bounded remote archive/member inventory before downloading the 561 MB archive.",
+    "Separate raw micrographs from segmented/annotated examples and preserve source-assigned sample identity.",
+    "Audit annotation origin, completeness, and model-development non-use before any robustness comparison.",
+    "Keep this source outside the Co3O4 external-validation claim domain."
+  ],
+  "pixel_array_access_performed": false,
+  "readiness": {
+    "analyzer_execution_authorized": false,
+    "engineering_decision_ready": false,
+    "external_validation_ready": false,
+    "metadata_supported": true,
+    "model_execution_authorized": false,
+    "pixel_array_access_authorized": false,
+    "remote_archive_inventory_authorized": false,
+    "reuse_status": "dataset_license_declared_manual_reuse_review_required",
+    "source_download_authorized": false
+  },
+  "remote_archive_inventory_performed": false,
+  "schema_version": "1.0",
+  "scientific_boundary": {
+    "analyzer_inference_authorized": false,
+    "engineering_decision_claim_authorized": false,
+    "external_validation_claim_authorized": false,
+    "metadata_api_request_authorized": true,
+    "model_execution_authorized": false,
+    "model_retraining_authorized": false,
+    "model_weight_download_authorized": false,
+    "parameter_tuning_authorized": false,
+    "pixel_array_access_authorized": false,
+    "remote_archive_inventory_authorized": false,
+    "source_file_download_authorized": false
+  },
+  "source": {
+    "created": "2026-07-08T08:41:07.860825+00:00",
+    "doi": "10.5281/zenodo.21222653",
+    "license_id": "cc-by-4.0",
+    "publication_date": "2026-07-08",
+    "record_id": 21222653,
+    "repository": "Zenodo",
+    "resource_type": "dataset",
+    "title": "Data for \"Fabrication of graphitic carbon nitride nanostructures with tunable morphology for bioimaging\"",
+    "updated": "2026-07-08T08:41:08.192937+00:00",
+    "version_api": null,
+    "version_evidence_status": "landing_page_claim_not_exposed_by_records_api",
+    "version_landing_page_claim": "v1"
+  },
+  "source_file_downloaded": false
+}
