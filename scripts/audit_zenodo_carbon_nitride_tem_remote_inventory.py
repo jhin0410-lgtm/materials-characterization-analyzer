@@ -8,11 +8,18 @@ from collections import Counter
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
-from scripts.audit_zenodo_bir_300kev_remote_inventory import (
-    fetch_range,
-    parse_central_directory,
-    parse_eocd,
-)
+if __package__:
+    from scripts.audit_zenodo_bir_300kev_remote_inventory import (
+        fetch_range,
+        parse_central_directory,
+        parse_eocd,
+    )
+else:
+    from audit_zenodo_bir_300kev_remote_inventory import (
+        fetch_range,
+        parse_central_directory,
+        parse_eocd,
+    )
 
 SCHEMA_VERSION = "1.0"
 
