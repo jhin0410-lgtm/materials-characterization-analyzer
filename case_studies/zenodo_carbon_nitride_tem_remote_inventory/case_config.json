@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo-carbon-nitride-tem-remote-inventory-v1",
+  "audit_date": "2026-08-14",
+  "source_snapshot": "../zenodo_carbon_nitride_tem_metadata_audit/verified_metadata_snapshot.json",
+  "target_archive": {
+    "key": "Whole dataset.zip",
+    "expected_bytes": 561160882,
+    "expected_md5": "b608d86084ccbbea802ff54c3f98380e"
+  },
+  "range_limits": {
+    "tail_probe_bytes": 131072,
+    "maximum_central_directory_bytes": 8388608,
+    "maximum_member_count": 20000,
+    "maximum_filename_bytes": 4096,
+    "maximum_extra_bytes": 65535,
+    "maximum_comment_bytes": 65535
+  },
+  "scientific_boundary": {
+    "http_range_metadata_probe_authorized": true,
+    "central_directory_inventory_authorized": true,
+    "source_archive_full_download_authorized": false,
+    "member_file_content_download_authorized": false,
+    "member_extraction_authorized": false,
+    "pixel_array_access_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "http_range_must_return_206_and_exact_content_range": true,
+    "full_download_fallback_is_prohibited": true,
+    "central_directory_paths_are_metadata_not_member_content": true,
+    "path_cues_do_not_establish_immutable_sample_or_acquisition_identity": true,
+    "raw_or_annotation_path_names_do_not_prove_representation_or_label_truth": true,
+    "annotation_provenance_and_completeness_require_separate_evidence": true,
+    "cross_material_carbon_nitride_cannot_establish_co3o4_external_performance": true,
+    "central_directory_success_does_not_authorize_member_download": true
+  }
+}
