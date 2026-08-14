@@ -42,6 +42,19 @@ _SOURCE_RECORD_KEYS = {
     "archive_member",
     "workbook",
 }
+_ROOT_SOURCE_RECORD_KEYS = {
+    "xrd",
+    "sem",
+    "eds",
+    "raman",
+    "ftir",
+    "xps",
+    "tga",
+    "dsc",
+    "tem",
+    "saed",
+    "optical_metrology",
+}
 _ROOT_SOURCE_IDENTITY_FIELDS = {
     "path",
     "filename",
@@ -87,10 +100,10 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
     """Collect digests only from mappings identified by source context.
 
     Recognition is structural rather than checksum-shaped. Known source-record keys,
-    members of known source containers, and direct root file records are accepted.
-    Arbitrary nested mappings are not promoted merely because they contain ``path``
-    or another locator; this keeps config/audit/output checksums from satisfying a
-    feature's source-byte identity requirement.
+    members of known source containers, explicit root modality records, and a root
+    mapping that is itself a file record are accepted. Arbitrary root children such
+    as audit/config/output records are not promoted merely because they contain a
+    locator and checksum.
     """
     digests: set[str] = set()
 
@@ -108,7 +121,8 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
             current_source_record = (
                 is_source_record
                 or record_key in _SOURCE_RECORD_KEYS
-                or ((is_root or parent_is_root) and bool(keys & _ROOT_SOURCE_IDENTITY_FIELDS))
+                or (is_root and bool(keys & _ROOT_SOURCE_IDENTITY_FIELDS))
+                or (parent_is_root and record_key in _ROOT_SOURCE_RECORD_KEYS)
                 or (is_root and "source" in keys)
             )
             for key, item in value.items():
