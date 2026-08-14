@@ -20,6 +20,40 @@ from ..handoff_bundle import HandoffBundleContractError, _features_from_analysis
 from .common import HandoffBundleValidationError, _load_json_object
 
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
+_SOURCE_RECORD_CONTAINER_KEYS = {
+    "sources",
+    "source_files",
+    "source_records",
+    "files",
+    "input_files",
+    "raw_files",
+    "archive_members",
+    "raw_archive_members",
+}
+_SOURCE_RECORD_KEYS = {
+    "source",
+    "source_file",
+    "source_record",
+    "measurement_source",
+    "raw_source",
+    "raw_file",
+    "input_file",
+    "archive_member",
+}
+_SOURCE_IDENTITY_FIELDS = {
+    "path",
+    "filename",
+    "source_file",
+    "url",
+    "download_url",
+    "record_url",
+    "member_path",
+    "archive_member",
+    "doi",
+    "provenance_type",
+    "source_type",
+}
+_EXPLICIT_SOURCE_DIGEST_KEYS = {"source_sha256", "file_sha256", "member_sha256"}
 
 
 def _csv_roundtrip(table: pd.DataFrame) -> pd.DataFrame:
@@ -44,21 +78,61 @@ def _normalized_feature_rows(table: pd.DataFrame) -> list[tuple[object, ...]]:
     return sorted(rows, key=repr)
 
 
-def _collect_sha256_values(value: object) -> set[str]:
+def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
+    """Collect digests only from records that are structurally source-scoped."""
     digests: set[str] = set()
-    if isinstance(value, Mapping):
-        for key, item in value.items():
-            key_text = str(key).strip().lower()
-            if (
-                isinstance(item, str)
-                and (key_text == "sha256" or key_text.endswith("_sha256"))
-                and _SHA256.fullmatch(item.strip())
-            ):
-                digests.add(item.strip().lower())
-            digests.update(_collect_sha256_values(item))
-    elif isinstance(value, list):
-        for item in value:
-            digests.update(_collect_sha256_values(item))
+
+    def visit(
+        value: object,
+        *,
+        source_scoped: bool,
+        record_key: str | None,
+        is_root: bool,
+    ) -> None:
+        if isinstance(value, Mapping):
+            keys = {str(key).strip().lower() for key in value}
+            current_scoped = source_scoped or (
+                record_key in _SOURCE_RECORD_KEYS
+                or record_key in _SOURCE_RECORD_CONTAINER_KEYS
+            )
+            source_record = (
+                current_scoped
+                or bool(keys & _SOURCE_IDENTITY_FIELDS)
+                or (is_root and "source" in keys)
+            )
+            for key, item in value.items():
+                key_text = str(key).strip().lower()
+                valid_digest = (
+                    isinstance(item, str)
+                    and _SHA256.fullmatch(item.strip()) is not None
+                )
+                if (
+                    key_text in _EXPLICIT_SOURCE_DIGEST_KEYS
+                    and valid_digest
+                    and (source_record or is_root)
+                ):
+                    digests.add(item.strip().lower())
+                elif key_text == "sha256" and valid_digest and source_record:
+                    digests.add(item.strip().lower())
+
+                child_scoped = current_scoped or key_text in _SOURCE_RECORD_CONTAINER_KEYS
+                child_record_key = key_text if isinstance(item, Mapping) else record_key
+                visit(
+                    item,
+                    source_scoped=child_scoped,
+                    record_key=child_record_key,
+                    is_root=False,
+                )
+        elif isinstance(value, list):
+            for item in value:
+                visit(
+                    item,
+                    source_scoped=source_scoped,
+                    record_key=record_key,
+                    is_root=False,
+                )
+
+    visit(source, source_scoped=False, record_key=None, is_root=True)
     return digests
 
 
@@ -113,7 +187,7 @@ def _source_binding(
             "every feature row source_sha256 must be a SHA-256 hex digest"
         )
     feature_digests = {str(value).strip().lower() for value in raw_feature_digests}
-    source_digests = _collect_sha256_values(source)
+    source_digests = _collect_source_record_sha256_values(source)
     missing = sorted(feature_digests - source_digests)
     if missing:
         raise HandoffBundleValidationError(
@@ -126,6 +200,7 @@ def _source_binding(
         "feature_source_sha256_count": len(feature_digests),
         "source_manifest_sha256_value_count": len(source_digests),
         "source_manifest_case_id_checked": case_id_checked,
+        "source_digest_scope": "recognized_source_records_only",
     }
 
 
