@@ -50,20 +50,32 @@ jobs:
 
           root = Path("outputs/carbon_nitride_results_csv_audit")
           snapshot = json.loads((root / "verified_results_csv_snapshot.json").read_text())
+          pinned = json.loads(
+              Path(
+                  "case_studies/zenodo_carbon_nitride_tem_results_csv_audit/verified_results_csv_snapshot.json"
+              ).read_text()
+          )
           assert snapshot["execution_status"] == "bounded_selected_csv_member_completed"
           assert snapshot["selected_member"]["member_path"] == "Zenodo/Segmented images/CN-1-Na_20000x/results.csv"
           assert snapshot["selected_member"]["compressed_bytes"] == 10881
           assert snapshot["selected_member"]["uncompressed_bytes"] == 35135
           assert snapshot["selected_member"]["crc32_hex"] == "62f263da"
-          assert snapshot["range_probe"]["network_bytes_retrieved"] < 20_000
+          assert snapshot["selected_member"]["content_sha256"] == pinned["selected_member"]["content_sha256"] == "e4ecc3c959c656b1db360924f8019a1a26ec5d2bd249a43e528d8b0400489d0f"
+          assert snapshot["range_probe"]["network_bytes_retrieved"] == 10993
           assert snapshot["range_probe"]["archive_fraction_retrieved"] < 0.0001
-          assert snapshot["csv_summary"]["row_count"] > 0
-          assert snapshot["csv_summary"]["columns"]
+          assert snapshot["csv_summary"]["row_count"] == pinned["csv_summary"]["row_count"] == 109
+          assert snapshot["csv_summary"]["columns"] == pinned["csv_summary"]["columns"]
+          assert "area_nm2" in snapshot["csv_summary"]["columns"]
+          assert "equiv_diameter_nm" in snapshot["csv_summary"]["columns"]
+          assert "particle_count" in snapshot["csv_summary"]["columns"]
+          assert "calibration_method" in snapshot["csv_summary"]["columns"]
+          assert "sam_refined" in snapshot["csv_summary"]["columns"]
           assert snapshot["source_archive_downloaded"] is False
           assert snapshot["other_member_content_downloaded"] is False
           assert snapshot["image_member_content_downloaded"] is False
           assert snapshot["pixel_array_access_performed"] is False
           assert snapshot["analyzer_inference_performed"] is False
+          assert snapshot["evidence_assessment"]["csv_role_as_segmentation_object_measurement_output"] == "Supported"
           assert snapshot["evidence_assessment"]["independent_human_annotation_protocol"] == "Inconclusive"
           assert snapshot["evidence_assessment"]["annotation_completeness_across_15_raw_groups"] == "Unsupported"
           assert snapshot["evidence_assessment"]["co3o4_external_validation_use"] == "Unsupported"
