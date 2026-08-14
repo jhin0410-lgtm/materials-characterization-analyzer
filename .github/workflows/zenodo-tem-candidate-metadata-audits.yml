@@ -1,0 +1,113 @@
+name: Zenodo TEM candidate metadata audits
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_carbon_nitride_tem_metadata_audit/**"
+      - "case_studies/zenodo_in2o3_insitu_tem_metadata_audit/**"
+      - "scripts/audit_zenodo_tem_candidate_metadata.py"
+      - "tests/test_audit_zenodo_tem_candidate_metadata.py"
+      - ".github/workflows/zenodo-tem-candidate-metadata-audits.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_carbon_nitride_tem_metadata_audit/**"
+      - "case_studies/zenodo_in2o3_insitu_tem_metadata_audit/**"
+      - "scripts/audit_zenodo_tem_candidate_metadata.py"
+      - "tests/test_audit_zenodo_tem_candidate_metadata.py"
+      - ".github/workflows/zenodo-tem-candidate-metadata-audits.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zenodo-tem-candidate-metadata-audits-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_audit_zenodo_tem_candidate_metadata.py
+      - name: Run live carbon-nitride metadata-only audit
+        run: |
+          python scripts/audit_zenodo_tem_candidate_metadata.py \
+            --config case_studies/zenodo_carbon_nitride_tem_metadata_audit/case_config.json \
+            --output outputs/zenodo_tem_candidate_metadata/carbon_nitride_snapshot.json
+      - name: Run live In2O3 metadata-only audit
+        run: |
+          python scripts/audit_zenodo_tem_candidate_metadata.py \
+            --config case_studies/zenodo_in2o3_insitu_tem_metadata_audit/case_config.json \
+            --output outputs/zenodo_tem_candidate_metadata/in2o3_snapshot.json
+      - name: Verify metadata-only scientific boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/zenodo_tem_candidate_metadata")
+          carbon = json.loads((root / "carbon_nitride_snapshot.json").read_text())
+          insitu = json.loads((root / "in2o3_snapshot.json").read_text())
+
+          assert carbon["source"]["record_id"] == 21222653
+          assert carbon["source"]["version_landing_page_claim"] == "v1"
+          assert [item["key"] for item in carbon["file_inventory"]] == ["Whole dataset.zip"]
+          assert carbon["file_inventory"][0]["md5"] == "b608d86084ccbbea802ff54c3f98380e"
+          assert carbon["file_inventory"][0]["bytes"] > 500_000_000
+          assert carbon["evidence_assessment"]["record_declared_raw_tem_for_15_samples"] == "Diagnostic"
+          assert carbon["evidence_assessment"]["cobalt_oxide_material_domain_match"] == "Unsupported"
+          assert carbon["evidence_assessment"]["tem_segmentation_external_validation_ready"] == "Unsupported"
+          assert carbon["readiness"]["reuse_status"] in {
+              "reuse_terms_not_exposed_reuse_blocked",
+              "copyright_only_reuse_not_established",
+          }
+
+          assert insitu["source"]["record_id"] == 15052661
+          by_name = {item["key"]: item for item in insitu["file_inventory"]}
+          assert by_name["model_10k.pth"]["md5"] == "a2a4c2c4b4fbdb23665aff12c77385f3"
+          assert by_name["set280624.h5"]["md5"] == "180806a38837390615da23126fbcabee"
+          assert by_name["set280624.h5"]["bytes"] > 20_000_000_000
+          assert by_name["Raw data including catalytic performance, characterizations, and spectroscopic measurements for main figures.xlsx"]["md5"] == "8364267300799462b44e5abb97363249"
+          assert insitu["evidence_assessment"]["hdf5_schema"] == "Inconclusive"
+          assert insitu["evidence_assessment"]["model_development_coupling"] == "Inconclusive"
+          assert insitu["evidence_assessment"]["label_or_target_leakage_boundary"] == "Inconclusive"
+          assert insitu["readiness"]["external_validation_ready"] is False
+
+          for snapshot in (carbon, insitu):
+              assert snapshot["execution_status"] == "metadata_audit_completed"
+              assert snapshot["readiness"]["source_download_authorized"] is False
+              assert snapshot["readiness"]["pixel_array_access_authorized"] is False
+              assert snapshot["readiness"]["model_execution_authorized"] is False
+              assert snapshot["source_file_downloaded"] is False
+              assert snapshot["remote_archive_inventory_performed"] is False
+              assert snapshot["pixel_array_access_performed"] is False
+              assert snapshot["model_weights_downloaded"] is False
+              assert snapshot["model_execution_performed"] is False
+              assert snapshot["analyzer_inference_performed"] is False
+              assert snapshot["external_validation_claim_made"] is False
+              assert snapshot["engineering_decision_claim_made"] is False
+
+          forbidden = {".zip", ".h5", ".hdf5", ".pth", ".pt", ".tif", ".tiff", ".dm3", ".dm4", ".mrc"}
+          leaked = [
+              path for path in root.rglob("*")
+              if path.is_file() and path.suffix.casefold() in forbidden
+          ]
+          if leaked:
+              raise SystemExit(f"source/model content leaked into metadata evidence: {leaked}")
+          PY
+      - name: Upload metadata-only evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zenodo-tem-candidate-metadata-audit-evidence
+          path: outputs/zenodo_tem_candidate_metadata
+          if-no-files-found: warn
+          retention-days: 30
