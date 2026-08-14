@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo-in2o3-insitu-tem-model-lineage-v1",
+  "audit_date": "2026-08-14",
+  "source_dataset": {
+    "repository": "Zenodo",
+    "record_id": 15052661,
+    "doi": "10.5281/zenodo.15052661",
+    "license_id": "cc-by-4.0",
+    "hdf5": {
+      "key": "set280624.h5",
+      "bytes": 20971522048,
+      "md5": "180806a38837390615da23126fbcabee"
+    },
+    "model_weights": {
+      "key": "model_10k.pth",
+      "bytes": 100228141,
+      "md5": "a2a4c2c4b4fbdb23665aff12c77385f3"
+    },
+    "workbook": {
+      "key": "Raw data including catalytic performance, characterizations, and spectroscopic measurements for main figures.xlsx",
+      "bytes": 2407552,
+      "md5": "8364267300799462b44e5abb97363249"
+    }
+  },
+  "method_source": {
+    "title": "Tracking Dynamics of Supported Indium Oxide Catalysts in CO2 Hydrogenation to Methanol by In Situ TEM",
+    "doi": "10.1002/adma.202419859",
+    "journal": "Advanced Materials",
+    "evidence_scope": "published method description and experimental-section model-training description"
+  },
+  "code_source": {
+    "repository": "benke97/India_Tracking",
+    "snapshot_commit": "372ad5bbb3eff82bb8c3bb58060d2f6649f069de",
+    "snapshot_date_utc": "2024-12-16T15:11:51Z",
+    "snapshot_relation": "last code-changing commit before publication among the inspected public commit history; later inspected main change only added README",
+    "files": {
+      "dataset.py": "6bb3b0b36d8b3ccc0cc2bf64b7a9920e68ee7309",
+      "evaluate_on_exp.py": "82fe1963f2a803189db51582cd09d545e03a966f",
+      "models.py": "f0558dd03898696cde0f254d0afa5ab01a72c62d",
+      "synthetic_diff_map.py": "8134ff402b5ff81587d04bff4bb93bdaad7fc06f",
+      "train.py": "56b3e0741bfd02afcda0834ccacb8283e9f5ea0f"
+    },
+    "historical_identity_boundary": "The public code snapshot is pre-publication and paper-linked, but no release tag or checksum in the paper was found that proves this exact commit was the executed publication environment."
+  },
+  "verified_method_facts": {
+    "paper_training_set_semantics": {
+      "status": "Supported",
+      "statement": "The published method states that the U-Net was trained on a synthetic dataset of difference images generated to match the distribution of experimental difference images."
+    },
+    "paper_training_count": {
+      "status": "Supported",
+      "synthetic_images": 10000,
+      "training_images": 8000,
+      "validation_images": 2000
+    },
+    "paper_training_configuration": {
+      "status": "Supported",
+      "architecture": "U-Net",
+      "epochs": 100,
+      "optimizer": "Adam",
+      "learning_rate": 0.0008,
+      "batch_size": 64,
+      "selection_rule": "lowest validation loss"
+    },
+    "code_hdf5_training_role": {
+      "status": "Supported",
+      "statement": "train.py opens dataset_3/set280624.h5, reads its images count, randomly splits indices 80/20, and uses HDF5Dataset for training and validation."
+    },
+    "code_hdf5_schema": {
+      "status": "Supported",
+      "datasets": [
+        "images",
+        "ground_truth_masks"
+      ],
+      "loader_statement": "dataset.py reads both datasets at the selected indices and returns image/ground-truth tensor pairs."
+    },
+    "synthetic_generator_shape_contract": {
+      "status": "Supported",
+      "num_maps": 10000,
+      "image_shape": [
+        512,
+        512
+      ],
+      "image_dtype": "float32",
+      "ground_truth_dtype": "float32",
+      "generator_output_filename_in_public_script": "dataset_3/testtest.h5"
+    },
+    "experimental_inference_preprocessing": {
+      "status": "Supported",
+      "public_code_observations": [
+        "model_10k.pth is loaded for experimental evaluation",
+        "first/last 20-image sums are the default file convention, with one sample path using first/last 5",
+        "images are resized to 512 x 512",
+        "7 x 7 Gaussian blur is applied",
+        "each image is min-max normalized",
+        "a signed difference image is formed",
+        "histogram Gaussian fitting is used for brightness-offset adjustment",
+        "the difference image is normalized to [-1, 1]",
+        "U-Net output is thresholded at -0.5 and +0.5",
+        "regions below 50 pixels are removed"
+      ]
+    }
+  },
+  "size_consistency_check": {
+    "synthetic_images": 10000,
+    "height": 512,
+    "width": 512,
+    "bytes_per_float32": 4,
+    "float32_datasets": 2,
+    "theoretical_array_payload_bytes": 20971520000,
+    "observed_hdf5_bytes": 20971522048,
+    "difference_bytes": 2048,
+    "assessment": "Supported as strong source-code-consistent evidence that the Zenodo HDF5 is the 10k synthetic image/mask training corpus, not a raw temporal in-situ image sequence."
+  },
+  "evidence_assessment": {
+    "hdf5_role_as_synthetic_model_development_dataset": "Supported",
+    "hdf5_role_as_raw_experimental_temporal_trajectory": "Unsupported",
+    "exact_generator_run_to_zenodo_hdf5_byte_provenance": "Inconclusive",
+    "model_weights_independent_of_hdf5_training_corpus": "Unsupported",
+    "model_development_independent_of_experimental_difference_image_distribution": "Unsupported",
+    "experimental_tem_frames_exposed_as_separate_files_in_zenodo_record": "Unsupported",
+    "raw_temporal_trajectory_stress_test_using_this_zenodo_hdf5": "Unsupported",
+    "synthetic_training_pipeline_reproduction_use": "Diagnostic",
+    "external_validation_use": "Unsupported",
+    "engineering_decision_use": "Unsupported"
+  },
+  "next_evidence": [
+    "Do not download the 21 GB HDF5 for raw temporal in-situ stress testing; the paper/code/size evidence identifies it as model-development synthetic image/mask data.",
+    "If reproducing the published U-Net training is scientifically useful, treat set280624.h5 and model_10k.pth as development-coupled artifacts, not independent validation evidence.",
+    "Seek source-author or repository access to the actual experimental in-situ image sequences if temporal software robustness is still a named research requirement.",
+    "Preserve the distinction between the paper-linked pre-publication public code snapshot and the exact unproven executed publication environment."
+  ],
+  "scientific_closeout": {
+    "status": "Diagnostic",
+    "conclusion": "The large HDF5 candidate should be removed from the raw temporal TEM evidence queue. It is useful for bounded reproduction or development-coupled software diagnostics, but it cannot serve as independent raw experimental TEM evidence."
+  }
+}
