@@ -80,24 +80,27 @@ def _normalized_feature_rows(table: pd.DataFrame) -> list[tuple[object, ...]]:
 
 
 def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
-    """Collect digests only from records that are structurally source-scoped."""
+    """Collect digests only from the source-record mapping that owns them.
+
+    Source-container membership marks only immediate records. It is deliberately not
+    inherited by arbitrary nested metadata, so an ``audit`` or ``expected`` subtree
+    inside a real source record cannot substitute its checksum for the source bytes.
+    """
     digests: set[str] = set()
 
     def visit(
         value: object,
         *,
-        source_scoped: bool,
+        is_source_record: bool,
+        members_are_source_records: bool,
         record_key: str | None,
         is_root: bool,
     ) -> None:
         if isinstance(value, Mapping):
             keys = {str(key).strip().lower() for key in value}
-            current_scoped = source_scoped or (
-                record_key in _SOURCE_RECORD_KEYS
-                or record_key in _SOURCE_RECORD_CONTAINER_KEYS
-            )
-            source_record = (
-                current_scoped
+            current_source_record = (
+                is_source_record
+                or record_key in _SOURCE_RECORD_KEYS
                 or bool(keys & _SOURCE_IDENTITY_FIELDS)
                 or (is_root and "source" in keys)
             )
@@ -110,30 +113,46 @@ def _collect_source_record_sha256_values(source: Mapping[str, Any]) -> set[str]:
                 if (
                     key_text in _EXPLICIT_SOURCE_DIGEST_KEYS
                     and valid_digest
-                    and (source_record or is_root)
+                    and (current_source_record or is_root)
                 ):
                     digests.add(item.strip().lower())
-                elif key_text == "sha256" and valid_digest and source_record:
+                elif key_text == "sha256" and valid_digest and current_source_record:
                     digests.add(item.strip().lower())
 
-                child_scoped = current_scoped or key_text in _SOURCE_RECORD_CONTAINER_KEYS
-                child_record_key = key_text if isinstance(item, Mapping) else record_key
-                visit(
-                    item,
-                    source_scoped=child_scoped,
-                    record_key=child_record_key,
-                    is_root=False,
-                )
+                child_members_are_records = key_text in _SOURCE_RECORD_CONTAINER_KEYS
+                if isinstance(item, Mapping):
+                    visit(
+                        item,
+                        is_source_record=members_are_source_records,
+                        members_are_source_records=child_members_are_records,
+                        record_key=key_text,
+                        is_root=False,
+                    )
+                elif isinstance(item, list):
+                    visit(
+                        item,
+                        is_source_record=False,
+                        members_are_source_records=child_members_are_records,
+                        record_key=key_text,
+                        is_root=False,
+                    )
         elif isinstance(value, list):
             for item in value:
                 visit(
                     item,
-                    source_scoped=source_scoped,
-                    record_key=record_key,
+                    is_source_record=members_are_source_records,
+                    members_are_source_records=False,
+                    record_key=None,
                     is_root=False,
                 )
 
-    visit(source, source_scoped=False, record_key=None, is_root=True)
+    visit(
+        source,
+        is_source_record=False,
+        members_are_source_records=False,
+        record_key=None,
+        is_root=True,
+    )
     return digests
 
 
