@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "case_id": "zenodo-in2o3-insitu-tem-metadata-audit-v1",
+  "audit_date": "2026-08-14",
+  "candidate_profile": "in_situ_tem_temporal",
+  "source": {
+    "repository": "Zenodo",
+    "record_id": 15052661,
+    "doi": "10.5281/zenodo.15052661",
+    "record_url": "https://zenodo.org/records/15052661",
+    "api_url": "https://zenodo.org/api/records/15052661",
+    "expected_status": "published",
+    "expected_resource_type": "dataset",
+    "expected_title": "Dataset and model weights for: Tracking Dynamics of Supported Indium Oxide Catalysts in CO2 Hydrogenation to Methanol by In-situ TEM.",
+    "landing_page_version_claim": null,
+    "expected_files": [
+      {
+        "key": "Raw data including catalytic performance, characterizations, and spectroscopic measurements for main figures.xlsx",
+        "md5": "8364267300799462b44e5abb97363249"
+      },
+      {
+        "key": "model_10k.pth",
+        "md5": "a2a4c2c4b4fbdb23665aff12c77385f3"
+      },
+      {
+        "key": "set280624.h5",
+        "md5": "180806a38837390615da23126fbcabee"
+      }
+    ],
+    "expected_description_terms": []
+  },
+  "scientific_boundary": {
+    "metadata_api_request_authorized": true,
+    "source_file_download_authorized": false,
+    "remote_archive_inventory_authorized": false,
+    "pixel_array_access_authorized": false,
+    "model_weight_download_authorized": false,
+    "model_execution_authorized": false,
+    "analyzer_inference_authorized": false,
+    "parameter_tuning_authorized": false,
+    "model_retraining_authorized": false,
+    "external_validation_claim_authorized": false,
+    "engineering_decision_claim_authorized": false
+  },
+  "decision_rules": {
+    "record_raw_tem_wording_does_not_prove_detector_native_or_lossless_representation": true,
+    "filenames_or_folders_do_not_establish_immutable_acquisition_identity": true,
+    "example_annotations_do_not_establish_complete_independent_ground_truth": true,
+    "co_located_model_weights_do_not_establish_training_or_label_independence": true,
+    "cross_material_tem_cannot_establish_cobalt_oxide_external_performance": true,
+    "metadata_only_audit_cannot_establish_hdf5_schema_or_temporal_lineage": true,
+    "declared_file_checksum_does_not_authorize_download_or_reuse": true
+  }
+}

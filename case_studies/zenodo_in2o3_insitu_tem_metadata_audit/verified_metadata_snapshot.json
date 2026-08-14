@@ -1,0 +1,108 @@
+{
+  "analyzer_inference_performed": false,
+  "audit_date": "2026-08-14",
+  "candidate_profile": "in_situ_tem_temporal",
+  "case_id": "zenodo-in2o3-insitu-tem-metadata-audit-v1",
+  "config_sha256": "cd687d4760227d1927551e1deb3a64c71330a0365c0e589f36548fbaa960dfba",
+  "decision_rules": {
+    "co_located_model_weights_do_not_establish_training_or_label_independence": true,
+    "cross_material_tem_cannot_establish_cobalt_oxide_external_performance": true,
+    "declared_file_checksum_does_not_authorize_download_or_reuse": true,
+    "example_annotations_do_not_establish_complete_independent_ground_truth": true,
+    "filenames_or_folders_do_not_establish_immutable_acquisition_identity": true,
+    "metadata_only_audit_cannot_establish_hdf5_schema_or_temporal_lineage": true,
+    "record_raw_tem_wording_does_not_prove_detector_native_or_lossless_representation": true
+  },
+  "engineering_decision_claim_made": false,
+  "evidence_assessment": {
+    "cobalt_oxide_material_domain_match": "Unsupported",
+    "dataset_reuse_terms": "Diagnostic",
+    "external_validation_ready": "Unsupported",
+    "file_identity_and_repository_md5": "Supported",
+    "hdf5_schema": "Inconclusive",
+    "immutable_sample_and_acquisition_identity": "Inconclusive",
+    "label_or_target_leakage_boundary": "Inconclusive",
+    "model_development_coupling": "Inconclusive",
+    "record_identity": "Supported",
+    "scientific_evidence_level": "Inconclusive",
+    "temporal_in_situ_software_stress_test_ready": "Inconclusive",
+    "trajectory_time_and_order_semantics": "Inconclusive"
+  },
+  "execution_status": "metadata_audit_completed",
+  "external_validation_claim_made": false,
+  "file_inventory": [
+    {
+      "bytes": 2407552,
+      "content_url": "https://zenodo.org/api/records/15052661/files/Raw%20data%20including%20catalytic%20performance,%20characterizations,%20and%20spectroscopic%20measurements%20for%20main%20figures.xlsx/content",
+      "id": "b97c045c-85ca-4a2c-b124-c80a5a56d75a",
+      "key": "Raw data including catalytic performance, characterizations, and spectroscopic measurements for main figures.xlsx",
+      "md5": "8364267300799462b44e5abb97363249"
+    },
+    {
+      "bytes": 100228141,
+      "content_url": "https://zenodo.org/api/records/15052661/files/model_10k.pth/content",
+      "id": "d4f60be2-dc6f-493d-9b87-1632704851c9",
+      "key": "model_10k.pth",
+      "md5": "a2a4c2c4b4fbdb23665aff12c77385f3"
+    },
+    {
+      "bytes": 20971522048,
+      "content_url": "https://zenodo.org/api/records/15052661/files/set280624.h5/content",
+      "id": "1db528b1-7c8f-417a-ab98-e62dbbdc6eff",
+      "key": "set280624.h5",
+      "md5": "180806a38837390615da23126fbcabee"
+    }
+  ],
+  "metadata_api_request_performed": true,
+  "model_execution_performed": false,
+  "model_weights_downloaded": false,
+  "next_evidence": [
+    "Resolve dataset-level reuse authorization before retrieving any source file.",
+    "Do not transfer the 21 GB HDF5 file until a metadata-level need for its schema and trajectories is established.",
+    "Determine HDF5 groups, trajectory/time ordering, sample/acquisition identity, and preprocessing only through a later separately authorized bounded audit.",
+    "Audit how model_10k.pth was trained and whether labels, targets, or frames overlap the proposed software-stress-test subset.",
+    "Use this source only for bounded temporal/in-situ software stress testing unless stronger task-matched evidence is independently established."
+  ],
+  "pixel_array_access_performed": false,
+  "readiness": {
+    "analyzer_execution_authorized": false,
+    "engineering_decision_ready": false,
+    "external_validation_ready": false,
+    "metadata_supported": true,
+    "model_execution_authorized": false,
+    "pixel_array_access_authorized": false,
+    "remote_archive_inventory_authorized": false,
+    "reuse_status": "dataset_license_declared_manual_reuse_review_required",
+    "source_download_authorized": false
+  },
+  "remote_archive_inventory_performed": false,
+  "schema_version": "1.0",
+  "scientific_boundary": {
+    "analyzer_inference_authorized": false,
+    "engineering_decision_claim_authorized": false,
+    "external_validation_claim_authorized": false,
+    "metadata_api_request_authorized": true,
+    "model_execution_authorized": false,
+    "model_retraining_authorized": false,
+    "model_weight_download_authorized": false,
+    "parameter_tuning_authorized": false,
+    "pixel_array_access_authorized": false,
+    "remote_archive_inventory_authorized": false,
+    "source_file_download_authorized": false
+  },
+  "source": {
+    "created": "2025-03-19T16:26:14.903465+00:00",
+    "doi": "10.5281/zenodo.15052661",
+    "license_id": "cc-by-4.0",
+    "publication_date": "2025-03-19",
+    "record_id": 15052661,
+    "repository": "Zenodo",
+    "resource_type": "dataset",
+    "title": "Dataset and model weights for: Tracking Dynamics of Supported Indium Oxide Catalysts in CO2 Hydrogenation to Methanol by In-situ TEM.",
+    "updated": "2025-03-19T16:26:15.139839+00:00",
+    "version_api": null,
+    "version_evidence_status": "version_not_explicitly_resolved",
+    "version_landing_page_claim": null
+  },
+  "source_file_downloaded": false
+}
