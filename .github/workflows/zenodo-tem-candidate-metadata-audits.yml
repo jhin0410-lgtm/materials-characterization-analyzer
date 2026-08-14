@@ -56,26 +56,37 @@ jobs:
           root = Path("outputs/zenodo_tem_candidate_metadata")
           carbon = json.loads((root / "carbon_nitride_snapshot.json").read_text())
           insitu = json.loads((root / "in2o3_snapshot.json").read_text())
+          pinned_carbon = json.loads(
+              Path(
+                  "case_studies/zenodo_carbon_nitride_tem_metadata_audit/verified_metadata_snapshot.json"
+              ).read_text()
+          )
+          pinned_insitu = json.loads(
+              Path(
+                  "case_studies/zenodo_in2o3_insitu_tem_metadata_audit/verified_metadata_snapshot.json"
+              ).read_text()
+          )
 
           assert carbon["source"]["record_id"] == 21222653
           assert carbon["source"]["version_landing_page_claim"] == "v1"
+          assert carbon["source"]["version_api"] in {None, "v1"}
+          assert carbon["source"]["license_id"] == pinned_carbon["source"]["license_id"] == "cc-by-4.0"
+          assert carbon["readiness"]["reuse_status"] == pinned_carbon["readiness"]["reuse_status"] == "dataset_license_declared_manual_reuse_review_required"
+          assert carbon["file_inventory"] == pinned_carbon["file_inventory"]
           assert [item["key"] for item in carbon["file_inventory"]] == ["Whole dataset.zip"]
-          assert carbon["file_inventory"][0]["md5"] == "b608d86084ccbbea802ff54c3f98380e"
-          assert carbon["file_inventory"][0]["bytes"] > 500_000_000
+          assert carbon["file_inventory"][0]["bytes"] == 561160882
           assert carbon["evidence_assessment"]["record_declared_raw_tem_for_15_samples"] == "Diagnostic"
           assert carbon["evidence_assessment"]["cobalt_oxide_material_domain_match"] == "Unsupported"
           assert carbon["evidence_assessment"]["tem_segmentation_external_validation_ready"] == "Unsupported"
-          assert carbon["readiness"]["reuse_status"] in {
-              "reuse_terms_not_exposed_reuse_blocked",
-              "copyright_only_reuse_not_established",
-          }
 
           assert insitu["source"]["record_id"] == 15052661
+          assert insitu["source"]["license_id"] == pinned_insitu["source"]["license_id"] == "cc-by-4.0"
+          assert insitu["readiness"]["reuse_status"] == pinned_insitu["readiness"]["reuse_status"] == "dataset_license_declared_manual_reuse_review_required"
+          assert insitu["file_inventory"] == pinned_insitu["file_inventory"]
           by_name = {item["key"]: item for item in insitu["file_inventory"]}
-          assert by_name["model_10k.pth"]["md5"] == "a2a4c2c4b4fbdb23665aff12c77385f3"
-          assert by_name["set280624.h5"]["md5"] == "180806a38837390615da23126fbcabee"
-          assert by_name["set280624.h5"]["bytes"] > 20_000_000_000
-          assert by_name["Raw data including catalytic performance, characterizations, and spectroscopic measurements for main figures.xlsx"]["md5"] == "8364267300799462b44e5abb97363249"
+          assert by_name["model_10k.pth"]["bytes"] == 100228141
+          assert by_name["set280624.h5"]["bytes"] == 20971522048
+          assert by_name["Raw data including catalytic performance, characterizations, and spectroscopic measurements for main figures.xlsx"]["bytes"] == 2407552
           assert insitu["evidence_assessment"]["hdf5_schema"] == "Inconclusive"
           assert insitu["evidence_assessment"]["model_development_coupling"] == "Inconclusive"
           assert insitu["evidence_assessment"]["label_or_target_leakage_boundary"] == "Inconclusive"
