@@ -1,0 +1,80 @@
+name: Carbon nitride TEM remote ZIP inventory
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "case_studies/zenodo_carbon_nitride_tem_remote_inventory/**"
+      - "case_studies/zenodo_carbon_nitride_tem_metadata_audit/verified_metadata_snapshot.json"
+      - "scripts/audit_zenodo_carbon_nitride_tem_remote_inventory.py"
+      - "tests/test_carbon_nitride_tem_remote_inventory.py"
+      - ".github/workflows/carbon-nitride-tem-remote-inventory.yml"
+  push:
+    branches: [main]
+    paths:
+      - "case_studies/zenodo_carbon_nitride_tem_remote_inventory/**"
+      - "case_studies/zenodo_carbon_nitride_tem_metadata_audit/verified_metadata_snapshot.json"
+      - "scripts/audit_zenodo_carbon_nitride_tem_remote_inventory.py"
+      - "tests/test_carbon_nitride_tem_remote_inventory.py"
+      - ".github/workflows/carbon-nitride-tem-remote-inventory.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: carbon-nitride-tem-remote-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and tests
+        run: python -m pip install -e ".[dev]"
+      - name: Run focused regressions
+        run: pytest -q tests/test_carbon_nitride_tem_remote_inventory.py
+      - name: Run bounded live remote inventory
+        run: |
+          python scripts/audit_zenodo_carbon_nitride_tem_remote_inventory.py \
+            --config case_studies/zenodo_carbon_nitride_tem_remote_inventory/case_config.json \
+            --output outputs/carbon_nitride_tem_remote_inventory
+      - name: Verify range-only and scientific boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("outputs/carbon_nitride_tem_remote_inventory")
+          snapshot = json.loads((root / "verified_remote_inventory_snapshot.json").read_text())
+          assert snapshot["execution_status"] == "bounded_remote_inventory_completed"
+          assert snapshot["target_archive"]["bytes"] == 561160882
+          assert snapshot["target_archive"]["md5"] == "b608d86084ccbbea802ff54c3f98380e"
+          assert snapshot["range_probe"]["network_bytes_retrieved"] < 9_000_000
+          assert snapshot["range_probe"]["archive_fraction_retrieved"] < 0.02
+          assert snapshot["inventory_summary"]["member_count"] > 0
+          assert snapshot["inventory_summary"]["file_count"] > 0
+          assert snapshot["inventory_summary"]["unsafe_path_count"] == 0
+          assert snapshot["source_archive_downloaded"] is False
+          assert snapshot["member_file_content_downloaded"] is False
+          assert snapshot["pixel_array_access_performed"] is False
+          assert snapshot["analyzer_inference_performed"] is False
+          assert snapshot["evidence_assessment"]["co3o4_domain_match"] == "Unsupported"
+          assert snapshot["evidence_assessment"]["external_validation_ready"] == "Unsupported"
+
+          forbidden = {".zip", ".tif", ".tiff", ".png", ".jpg", ".jpeg", ".dm3", ".dm4", ".mrc", ".h5", ".hdf5"}
+          leaked = [path for path in root.rglob("*") if path.is_file() and path.suffix.casefold() in forbidden]
+          if leaked:
+              raise SystemExit(f"member/source content leaked into central-directory evidence: {leaked}")
+          PY
+      - name: Upload range-only metadata evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: carbon-nitride-tem-remote-inventory-evidence
+          path: outputs/carbon_nitride_tem_remote_inventory
+          if-no-files-found: warn
+          retention-days: 30
