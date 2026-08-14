@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -109,10 +110,20 @@ def _features_from_analysis_manifest(
             raise HandoffBundleContractError(
                 f"analysis manifest entry {index} features must be a list."
             )
-        for feature in features:
+        for feature_index, feature in enumerate(features):
             if not isinstance(feature, dict):
                 raise HandoffBundleContractError(
                     "analysis feature entries must be objects."
+                )
+            value = feature.get("value")
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+            ):
+                raise HandoffBundleContractError(
+                    "analysis manifest feature value must be a finite JSON number; "
+                    f"entry={index}, feature={feature_index}."
                 )
             feature_rows.append(dict(feature))
         software_version = analysis.get("software_version")
