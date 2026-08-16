@@ -47,13 +47,13 @@ jobs:
           python -m py_compile scripts/audit_fhi_co3o4_tem_saed.py
           pytest -q tests/test_audit_fhi_co3o4_tem_saed.py
 
-      - name: Audit institutional record and anonymous download state
+      - name: Audit institutional record and current anonymous download state
         run: |
           python scripts/audit_fhi_co3o4_tem_saed.py \
             --config case_studies/fhi_co3o4_tem_saed_source_audit/case_config.json \
             --output outputs/fhi_co3o4_tem_saed_source_audit
 
-      - name: Verify diagnostic-only blocker evidence
+      - name: Verify fail-closed evidence for either current access state
         run: |
           python - <<'PY'
           import csv
@@ -62,47 +62,86 @@ jobs:
           from pathlib import Path
           from urllib.parse import urlparse
 
+          AUTH_BLOCKED = (
+              "institutional_exact_material_record_confirmed_but_"
+              "anonymous_source_download_requires_authentication"
+          )
+          DIRECT_AVAILABLE = (
+              "institutional_exact_material_archives_inventoried_but_"
+              "external_validation_metadata_incomplete"
+          )
+
           root = Path("outputs/fhi_co3o4_tem_saed_source_audit")
           summary = json.loads(
               (root / "fhi_co3o4_tem_saed_audit_summary.json").read_text(
                   encoding="utf-8"
               )
           )
-          assert summary["status"] == (
-              "institutional_exact_material_record_confirmed_but_"
-              "anonymous_source_download_requires_authentication"
-          )
+          assert summary["status"] in {AUTH_BLOCKED, DIRECT_AVAILABLE}
           assert summary["record"]["record_id"] == "D63268"
           assert summary["record"]["sample_number"] == "S32564"
-          assert summary["anonymous_source_download_available"] is False
-          assert summary["archives"] == []
-          assert summary["total_member_count"] == 0
-          assert len(summary["download_probes"]) == 2
-          assert [item["name"] for item in summary["download_probes"]] == [
-              "TEM.zip",
-              "OTEM_2.zip",
-          ]
-          assert all(item["authentication_required"] for item in summary["download_probes"])
-          assert all(item["state"] == "authentication_required" for item in summary["download_probes"])
-          assert all(urlparse(item["final_url"]).path == "/login" for item in summary["download_probes"])
           assert summary["evidence_assessment"]["institutional_record_identity"] == "Supported"
           assert summary["evidence_assessment"]["exact_co3o4_material_context"] == "Supported"
-          assert summary["evidence_assessment"]["anonymous_public_downloadability"] == "Unsupported"
-          assert summary["evidence_assessment"]["archive_and_member_identity"] == "Inconclusive"
           assert summary["readiness"]["external_validation_ready"] is False
           assert summary["readiness"]["engineering_decision_ready"] is False
           assert summary["processing"]["credentials_supplied_or_guessed"] is False
           assert summary["processing"]["source_files_retained"] is False
           assert summary["processing"]["model_inference_performed"] is False
           assert summary["processing"]["model_retraining_performed"] is False
-          assert not (root / "fhi_co3o4_tem_saed_member_inventory.csv").exists()
+          assert len(summary["download_probes"]) == 2
+          assert [item["name"] for item in summary["download_probes"]] == [
+              "TEM.zip",
+              "OTEM_2.zip",
+          ]
+
+          member_path = root / "fhi_co3o4_tem_saed_member_inventory.csv"
+          if summary["status"] == AUTH_BLOCKED:
+              assert summary["anonymous_source_download_available"] is False
+              assert summary["archives"] == []
+              assert summary["total_member_count"] == 0
+              assert all(item["authentication_required"] for item in summary["download_probes"])
+              assert all(item["state"] == "authentication_required" for item in summary["download_probes"])
+              assert all(urlparse(item["final_url"]).path == "/login" for item in summary["download_probes"])
+              assert summary["evidence_assessment"]["anonymous_public_downloadability"] == "Unsupported"
+              assert summary["evidence_assessment"]["archive_and_member_identity"] == "Inconclusive"
+              assert not member_path.exists()
+          else:
+              assert summary["anonymous_source_download_available"] is True
+              assert all(not item["authentication_required"] for item in summary["download_probes"])
+              assert all(item["state"] == "direct_zip_available" for item in summary["download_probes"])
+              assert all(item["direct_zip_magic_confirmed"] for item in summary["download_probes"])
+              assert all(urlparse(item["final_url"]).netloc == "ac.archive.fhi.mpg.de" for item in summary["download_probes"])
+              assert summary["evidence_assessment"]["anonymous_public_downloadability"] == "Supported"
+              assert summary["evidence_assessment"]["archive_and_member_identity"] == "Supported"
+              assert [item["name"] for item in summary["archives"]] == [
+                  "TEM.zip",
+                  "OTEM_2.zip",
+              ]
+              assert summary["total_member_count"] > 0
+              assert member_path.is_file()
+              for archive in summary["archives"]:
+                  assert archive["bytes"] > 0
+                  assert len(archive["sha256"]) == 64
+                  int(archive["sha256"], 16)
+                  assert archive["member_count"] > 0
+                  assert archive["member_hashing_complete"] is True
+                  assert archive["crc_verification_complete"] is True
+              with member_path.open(newline="", encoding="utf-8") as handle:
+                  members = list(csv.DictReader(handle))
+              assert len(members) == summary["total_member_count"]
+              assert all(len(row["sha256"]) == 64 for row in members)
+              assert any("saed_or_diffraction_name_cue" in row["role_cues"] for row in members)
+              assert any(
+                  "hrtem_name_cue" in row["role_cues"]
+                  or "tem_name_cue" in row["role_cues"]
+                  for row in members
+              )
 
           with (root / "fhi_co3o4_tem_saed_download_probe.csv").open(
               newline="", encoding="utf-8"
           ) as handle:
               rows = list(csv.DictReader(handle))
           assert len(rows) == 2
-          assert all(row["authentication_required"] == "True" for row in rows)
 
           manifest = json.loads(
               (root / "fhi_co3o4_tem_saed_audit_manifest.json").read_text(
@@ -126,7 +165,7 @@ jobs:
           ]
           PY
 
-      - name: Upload metadata-only evidence
+      - name: Upload metadata and checksum evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
