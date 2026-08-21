@@ -226,7 +226,7 @@ def test_assessment_self_summary_substitution_is_replayed_not_trusted(tmp_path: 
 def test_ladder_case_source_and_modality_substitutions_fail_closed(tmp_path: Path) -> None:
     case_root = tmp_path / "case"
     case_root.mkdir()
-    with pytest.raises(HandoffBundleValidationError, match="declaration_id"):
+    with pytest.raises(EvidenceLadderHandoffError, match="declaration_id"):
         build_characterization_handoff_bundle_from_config(
             _write_inputs(case_root, declaration_id="other-case"),
             case_root / "bundle",
@@ -234,7 +234,7 @@ def test_ladder_case_source_and_modality_substitutions_fail_closed(tmp_path: Pat
 
     source_root = tmp_path / "source"
     source_root.mkdir()
-    with pytest.raises(HandoffBundleValidationError, match="source binding mismatch"):
+    with pytest.raises(EvidenceLadderHandoffError, match="source binding"):
         build_characterization_handoff_bundle_from_config(
             _write_inputs(source_root, wrong_binding_role="comparability_matrix"),
             source_root / "bundle",
@@ -242,7 +242,7 @@ def test_ladder_case_source_and_modality_substitutions_fail_closed(tmp_path: Pat
 
     modality_root = tmp_path / "modality"
     modality_root.mkdir()
-    with pytest.raises(HandoffBundleValidationError, match="modality"):
+    with pytest.raises(EvidenceLadderHandoffError, match="modality"):
         build_characterization_handoff_bundle_from_config(
             _write_inputs(modality_root, modality="xrd"),
             modality_root / "bundle",
