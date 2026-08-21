@@ -16,6 +16,7 @@ _RECORD_FIELDS = {
     "schema_version",
     "policy_version",
     "assessment",
+    "declaration_id",
     "declaration_sha256",
     "assessment_sha256",
     "subject",
@@ -115,12 +116,14 @@ def build_scientific_evidence_ladder_record(
     """Build a manifest record only after deterministic assessment replay succeeds."""
     path = Path(assessment_path)
     assessment = _validated_assessment(path)
+    declaration = assessment["declaration"]
     handoff = assessment["handoff"]
     return {
         "contract": CONTRACT,
         "schema_version": RECORD_SCHEMA_VERSION,
         "policy_version": assessment["policy_version"],
         "assessment": _file_record(path),
+        "declaration_id": declaration["declaration_id"],
         "declaration_sha256": assessment["declaration_sha256"],
         "assessment_sha256": assessment["assessment_sha256"],
         "subject": handoff["subject"],
