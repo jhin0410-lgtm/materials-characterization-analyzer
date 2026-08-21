@@ -9,6 +9,10 @@ from ..downstream_use_contract import (
     DownstreamUsePolicyError,
     validate_downstream_use_policy,
 )
+from ..handoff_evidence_ladder import (
+    EvidenceLadderHandoffError,
+    validate_scientific_evidence_ladder_record,
+)
 from ..provenance import sha256_file
 from .common import (
     BUNDLE_SCHEMA_VERSION,
@@ -62,9 +66,10 @@ def _evidence_binding_contract(manifest: dict[str, Any]) -> dict[str, Any] | Non
 def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str, Any]:
     """Validate bundle identity, checksums, schemas, joins, and claim boundaries.
 
-    Legacy schema-1.0 bundles without the optional evidence-binding sub-contract
-    retain their original checksum validation semantics. New hardened producers
-    opt into the separately versioned semantic evidence-binding contract.
+    Legacy schema-1.0 bundles without the optional evidence-binding or evidence-ladder
+    sub-contracts retain their original checksum semantics. New hardened producers can
+    bind both feature identity and an independently replayed L0-L8 maturity assessment.
+    Neither sub-contract promotes scientific truth or downstream-use authorization.
     """
 
     root = Path(bundle_dir)
@@ -88,6 +93,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             "scientific_closeout",
             "downstream_use_policy",
             "evidence_identity_binding_contract",
+            "scientific_evidence_ladder",
         },
         "bundle manifest",
     )
@@ -205,6 +211,25 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
                 "downstream_use_policy independence_group_field is absent from sample_context"
             )
 
+    ladder_present = "scientific_evidence_ladder" in manifest
+    scientific_evidence_ladder: dict[str, Any] | None = None
+    scientific_evidence_ladder_assessment_sha256: str | None = None
+    if ladder_present:
+        try:
+            scientific_evidence_ladder, _, ladder_assessment = (
+                validate_scientific_evidence_ladder_record(
+                    root,
+                    manifest.get("scientific_evidence_ladder"),
+                )
+            )
+        except EvidenceLadderHandoffError as exc:
+            raise HandoffBundleValidationError(
+                f"invalid scientific_evidence_ladder: {exc}"
+            ) from exc
+        scientific_evidence_ladder_assessment_sha256 = ladder_assessment[
+            "assessment_sha256"
+        ]
+
     return {
         "schema_version": BUNDLE_SCHEMA_VERSION,
         "status": VALIDATION_STATUS,
@@ -226,6 +251,11 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "downstream_use_policy": downstream_use_policy,
         "sample_identity_consistent": True,
         "evidence_identity_binding": evidence_identity_binding,
+        "scientific_evidence_ladder_present": ladder_present,
+        "scientific_evidence_ladder": scientific_evidence_ladder,
+        "scientific_evidence_ladder_assessment_sha256": (
+            scientific_evidence_ladder_assessment_sha256
+        ),
         "row_order_join_allowed": False,
         "aggregation_performed": False,
         "missing_metadata_inferred": False,
@@ -233,11 +263,12 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "engineering_release_ready": False,
         "evidence_references": evidence_summary,
         "scientific_boundary": (
-            "Bundle validation always establishes checksum integrity and sample-key "
-            "consistency. When the separately versioned evidence identity binding "
-            "contract is present, it additionally establishes exact analysis-feature "
-            "reproduction, source-digest coverage, and explicit comparability identity "
-            "coverage. Neither mode establishes identical physical aliquots, cross-modal "
-            "scientific comparability, causality, model readiness, or engineering suitability."
+            "Bundle validation establishes checksum integrity and sample-key consistency. "
+            "The evidence identity binding can additionally establish exact analysis-feature "
+            "reproduction and source/comparability identity coverage. The optional L0-L8 "
+            "scientific evidence ladder is independently replayed from its declaration and "
+            "identifies maturity/blockers only. No handoff validation mode establishes "
+            "identical physical aliquots, cross-modal scientific comparability, causality, "
+            "downstream-use authorization, model readiness, or engineering suitability."
         ),
     }
