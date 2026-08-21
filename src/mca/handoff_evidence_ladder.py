@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
-from pathlib import Path
+from collections.abc import Mapping, Sequence
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .evidence_ladder import EvidenceLadderError, LEVELS, evaluate_evidence_ladder
@@ -77,13 +77,7 @@ def _exact_mapping(value: object, fields: set[str], label: str) -> Mapping[str, 
 
 
 def _raw_declaration_for_replay(declaration: Mapping[str, Any]) -> dict[str, Any]:
-    """Recover the strict declaration input from a normalized assessment declaration.
-
-    ``evaluate_evidence_ladder`` deliberately adds a derived ``description`` to each
-    normalized level. That field is not part of the raw declaration schema and must not
-    be accepted from callers. Assessment replay therefore removes only that derived
-    field before running the same strict evaluator again.
-    """
+    """Recover the strict declaration input from a normalized assessment declaration."""
     levels = declaration.get("levels")
     if not isinstance(levels, Mapping):
         raise EvidenceLadderHandoffError(
@@ -184,6 +178,7 @@ def validate_scientific_evidence_ladder_bundle_binding(
     case_id: str,
     record: Mapping[str, Any],
     evidence_references: Mapping[str, Mapping[str, Any]],
+    instruments: Sequence[str] | None = None,
 ) -> None:
     """Require the ladder declaration to describe this exact handoff case/evidence set."""
     if record.get("declaration_id") != case_id:
@@ -217,6 +212,28 @@ def validate_scientific_evidence_ladder_bundle_binding(
                 f"scientific evidence-ladder source binding does not match bundle evidence: {role}"
             )
 
+    if instruments is not None:
+        subject = record.get("subject")
+        if not isinstance(subject, Mapping):
+            raise EvidenceLadderHandoffError(
+                "scientific evidence-ladder subject must be an object"
+            )
+        modality = subject.get("modality")
+        if not isinstance(modality, str) or not modality.strip():
+            raise EvidenceLadderHandoffError(
+                "scientific evidence-ladder subject.modality must be non-empty"
+            )
+        normalized_instruments = sorted(
+            {item.strip().lower() for item in instruments if item.strip()}
+        )
+        allowed = set(normalized_instruments)
+        if len(normalized_instruments) > 1:
+            allowed.update({"multimodal", "multi-modal"})
+        if modality.strip().lower() not in allowed:
+            raise EvidenceLadderHandoffError(
+                "scientific evidence-ladder subject.modality is not represented by bundle instruments"
+            )
+
 
 def validate_scientific_evidence_ladder_record(
     bundle_root: str | Path,
@@ -242,16 +259,28 @@ def validate_scientific_evidence_ladder_record(
         raise EvidenceLadderHandoffError(
             "scientific_evidence_ladder.assessment.path must be a non-empty string"
         )
-    relative = Path(recorded_path)
-    if relative.is_absolute() or len(relative.parts) != 1 or relative.name != recorded_path:
+    normalized_path = recorded_path.replace("\\", "/")
+    relative = PurePosixPath(normalized_path)
+    if (
+        relative.is_absolute()
+        or len(relative.parts) != 1
+        or ".." in relative.parts
+        or normalized_path in {"", "."}
+    ):
         raise EvidenceLadderHandoffError(
-            "scientific_evidence_ladder assessment must be one direct sibling file"
+            "scientific_evidence_ladder assessment must be one direct safe sibling file"
         )
-    path = root / relative
+    path = root / relative.as_posix()
     if not path.is_file() or path.is_symlink():
         raise EvidenceLadderHandoffError(
             "scientific_evidence_ladder assessment file is missing or unsafe"
         )
+    try:
+        path.resolve().relative_to(root)
+    except ValueError as exc:
+        raise EvidenceLadderHandoffError(
+            "scientific_evidence_ladder assessment escapes bundle directory"
+        ) from exc
     expected_sha = file_record.get("sha256")
     if not isinstance(expected_sha, str) or expected_sha != sha256_file(path):
         raise EvidenceLadderHandoffError(
