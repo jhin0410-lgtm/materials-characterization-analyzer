@@ -29,6 +29,11 @@ _RECORD_FIELDS = {
     "lower_level_evidence_preserved",
 }
 _FILE_RECORD_FIELDS = {"path", "sha256", "size_bytes"}
+_REQUIRED_BUNDLE_BINDING_ROLES = {
+    "source_manifest",
+    "analysis_manifest",
+    "comparability_matrix",
+}
 
 
 class EvidenceLadderHandoffError(ValueError):
@@ -139,6 +144,45 @@ def build_scientific_evidence_ladder_record(
     }
 
 
+def validate_scientific_evidence_ladder_bundle_binding(
+    *,
+    case_id: str,
+    record: Mapping[str, Any],
+    evidence_references: Mapping[str, Mapping[str, Any]],
+) -> None:
+    """Require the ladder declaration to describe this exact handoff case/evidence set."""
+    if record.get("declaration_id") != case_id:
+        raise EvidenceLadderHandoffError(
+            "scientific evidence-ladder declaration_id must equal bundle case_id"
+        )
+    bindings = record.get("source_bindings")
+    if not isinstance(bindings, list):
+        raise EvidenceLadderHandoffError(
+            "scientific evidence-ladder source_bindings must be a list"
+        )
+    binding_by_role: dict[str, str] = {}
+    for item in bindings:
+        if not isinstance(item, Mapping):
+            raise EvidenceLadderHandoffError(
+                "scientific evidence-ladder source binding must be an object"
+            )
+        role = item.get("role")
+        sha256 = item.get("sha256")
+        if isinstance(role, str) and isinstance(sha256, str):
+            binding_by_role[role] = sha256
+    for role in sorted(_REQUIRED_BUNDLE_BINDING_ROLES):
+        reference = evidence_references.get(role)
+        if not isinstance(reference, Mapping):
+            raise EvidenceLadderHandoffError(
+                f"bundle evidence reference is missing for ladder binding role: {role}"
+            )
+        expected_sha = reference.get("sha256")
+        if binding_by_role.get(role) != expected_sha:
+            raise EvidenceLadderHandoffError(
+                f"scientific evidence-ladder source binding does not match bundle evidence: {role}"
+            )
+
+
 def validate_scientific_evidence_ladder_record(
     bundle_root: str | Path,
     value: object,
@@ -202,5 +246,6 @@ __all__ = [
     "RECORD_SCHEMA_VERSION",
     "EvidenceLadderHandoffError",
     "build_scientific_evidence_ladder_record",
+    "validate_scientific_evidence_ladder_bundle_binding",
     "validate_scientific_evidence_ladder_record",
 ]
