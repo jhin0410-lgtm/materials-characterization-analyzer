@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from .evidence_ladder import EvidenceLadderError, evaluate_evidence_ladder
+from .evidence_ladder import EvidenceLadderError, LEVELS, evaluate_evidence_ladder
 from .provenance import sha256_file
 
 CONTRACT = "materials-characterization-scientific-evidence-ladder"
@@ -76,15 +76,50 @@ def _exact_mapping(value: object, fields: set[str], label: str) -> Mapping[str, 
     return value
 
 
+def _raw_declaration_for_replay(declaration: Mapping[str, Any]) -> dict[str, Any]:
+    """Recover the strict declaration input from a normalized assessment declaration.
+
+    ``evaluate_evidence_ladder`` deliberately adds a derived ``description`` to each
+    normalized level. That field is not part of the raw declaration schema and must not
+    be accepted from callers. Assessment replay therefore removes only that derived
+    field before running the same strict evaluator again.
+    """
+    levels = declaration.get("levels")
+    if not isinstance(levels, Mapping):
+        raise EvidenceLadderHandoffError(
+            "scientific evidence-ladder assessment declaration.levels must be an object"
+        )
+    raw_levels: dict[str, dict[str, Any]] = {}
+    for level in LEVELS:
+        item = levels.get(level)
+        if not isinstance(item, Mapping):
+            raise EvidenceLadderHandoffError(
+                f"scientific evidence-ladder assessment declaration is missing level: {level}"
+            )
+        raw_levels[level] = {
+            "assessment": item.get("assessment"),
+            "evidence": item.get("evidence"),
+            "limitations": item.get("limitations"),
+        }
+    return {
+        "schema_version": declaration.get("schema_version"),
+        "declaration_id": declaration.get("declaration_id"),
+        "subject": declaration.get("subject"),
+        "source_bindings": declaration.get("source_bindings"),
+        "levels": raw_levels,
+        "limitations": declaration.get("limitations"),
+    }
+
+
 def _validated_assessment(path: Path) -> dict[str, Any]:
     payload = _load_json_object(path, "scientific evidence-ladder assessment")
     declaration = payload.get("declaration")
-    if not isinstance(declaration, dict):
+    if not isinstance(declaration, Mapping):
         raise EvidenceLadderHandoffError(
             "scientific evidence-ladder assessment must contain a declaration object"
         )
     try:
-        replayed = evaluate_evidence_ladder(declaration)
+        replayed = evaluate_evidence_ladder(_raw_declaration_for_replay(declaration))
     except EvidenceLadderError as exc:
         raise EvidenceLadderHandoffError(
             f"scientific evidence-ladder declaration is invalid: {exc}"
