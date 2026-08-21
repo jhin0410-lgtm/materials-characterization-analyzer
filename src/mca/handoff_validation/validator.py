@@ -63,6 +63,72 @@ def _evidence_binding_contract(manifest: dict[str, Any]) -> dict[str, Any] | Non
     }
 
 
+def _validate_ladder_bundle_binding(
+    *,
+    case_id: str,
+    assessment: dict[str, Any],
+    evidence_paths: dict[str, Path],
+    instruments: list[str],
+) -> dict[str, Any]:
+    declaration = assessment.get("declaration")
+    if not isinstance(declaration, dict):
+        raise HandoffBundleValidationError(
+            "scientific_evidence_ladder replayed declaration is missing"
+        )
+    if declaration.get("declaration_id") != case_id:
+        raise HandoffBundleValidationError(
+            "scientific_evidence_ladder declaration_id does not match bundle case_id"
+        )
+
+    raw_bindings = declaration.get("source_bindings")
+    if not isinstance(raw_bindings, list):
+        raise HandoffBundleValidationError(
+            "scientific_evidence_ladder source_bindings are missing"
+        )
+    bindings = {
+        item.get("role"): item.get("sha256")
+        for item in raw_bindings
+        if isinstance(item, dict)
+    }
+    required_source_bindings = {
+        label: sha256_file(evidence_paths[label])
+        for label in sorted(_REQUIRED_EVIDENCE_REFERENCES)
+    }
+    for role, expected_sha in required_source_bindings.items():
+        if bindings.get(role) != expected_sha:
+            raise HandoffBundleValidationError(
+                "scientific_evidence_ladder source binding mismatch for " + role
+            )
+
+    subject = declaration.get("subject")
+    if not isinstance(subject, dict):
+        raise HandoffBundleValidationError(
+            "scientific_evidence_ladder subject is missing"
+        )
+    modality = subject.get("modality")
+    if not isinstance(modality, str) or not modality.strip():
+        raise HandoffBundleValidationError(
+            "scientific_evidence_ladder subject.modality is invalid"
+        )
+    normalized_modality = modality.strip().lower()
+    normalized_instruments = sorted({value.strip().lower() for value in instruments})
+    allowed_modalities = set(normalized_instruments)
+    if len(normalized_instruments) > 1:
+        allowed_modalities.update({"multimodal", "multi-modal"})
+    if normalized_modality not in allowed_modalities:
+        raise HandoffBundleValidationError(
+            "scientific_evidence_ladder subject.modality is not represented by bundle instruments"
+        )
+
+    return {
+        "case_id_bound": True,
+        "required_source_roles": sorted(required_source_bindings),
+        "source_digests_bound": True,
+        "subject_modality_bound": True,
+        "bundle_instruments": normalized_instruments,
+    }
+
+
 def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str, Any]:
     """Validate bundle identity, checksums, schemas, joins, and claim boundaries.
 
@@ -146,6 +212,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         raise HandoffBundleValidationError(
             "feature and sample-context sample_id sets must match exactly"
         )
+    instruments = sorted(set(feature_table["instrument"].astype(str)))
 
     evidence = _object(manifest.get("evidence_references"), "evidence_references")
     if set(evidence) != _REQUIRED_EVIDENCE_REFERENCES:
@@ -214,6 +281,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
     ladder_present = "scientific_evidence_ladder" in manifest
     scientific_evidence_ladder: dict[str, Any] | None = None
     scientific_evidence_ladder_assessment_sha256: str | None = None
+    scientific_evidence_ladder_bundle_binding: dict[str, Any] | None = None
     if ladder_present:
         try:
             scientific_evidence_ladder, _, ladder_assessment = (
@@ -226,6 +294,12 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             raise HandoffBundleValidationError(
                 f"invalid scientific_evidence_ladder: {exc}"
             ) from exc
+        scientific_evidence_ladder_bundle_binding = _validate_ladder_bundle_binding(
+            case_id=case_id,
+            assessment=ladder_assessment,
+            evidence_paths=evidence_paths,
+            instruments=instruments,
+        )
         scientific_evidence_ladder_assessment_sha256 = ladder_assessment[
             "assessment_sha256"
         ]
@@ -242,7 +316,7 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "sample_count": len(feature_sample_ids),
         "measurement_count": int(feature_table["measurement_id"].nunique()),
         "feature_count": len(feature_table),
-        "instruments": sorted(set(feature_table["instrument"].astype(str))),
+        "instruments": instruments,
         "quality_flag_counts": dict(
             sorted(Counter(feature_table["quality_flag"].astype(str)).items())
         ),
@@ -256,6 +330,9 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "scientific_evidence_ladder_assessment_sha256": (
             scientific_evidence_ladder_assessment_sha256
         ),
+        "scientific_evidence_ladder_bundle_binding": (
+            scientific_evidence_ladder_bundle_binding
+        ),
         "row_order_join_allowed": False,
         "aggregation_performed": False,
         "missing_metadata_inferred": False,
@@ -267,7 +344,8 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
             "The evidence identity binding can additionally establish exact analysis-feature "
             "reproduction and source/comparability identity coverage. The optional L0-L8 "
             "scientific evidence ladder is independently replayed from its declaration and "
-            "identifies maturity/blockers only. No handoff validation mode establishes "
+            "is cross-bound to the bundle case, evidence files, and represented modality. "
+            "It identifies maturity/blockers only. No handoff validation mode establishes "
             "identical physical aliquots, cross-modal scientific comparability, causality, "
             "downstream-use authorization, model readiness, or engineering suitability."
         ),
