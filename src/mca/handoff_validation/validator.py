@@ -11,15 +11,18 @@ from ..downstream_use_contract import (
 )
 from ..handoff_evidence_ladder import (
     EvidenceLadderHandoffError,
+    validate_scientific_evidence_ladder_bundle_binding,
     validate_scientific_evidence_ladder_record,
 )
 from ..provenance import sha256_file
 from .common import (
     BUNDLE_SCHEMA_VERSION,
     BUNDLE_TYPE,
+    EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION,
     FEATURE_FILE_NAME,
     MANIFEST_FILE_NAME,
     SAMPLE_CONTEXT_FILE_NAME,
+    SUPPORTED_BUNDLE_SCHEMA_VERSIONS,
     SUPPORTED_EVIDENCE_LEVELS,
     VALIDATION_STATUS,
     _REQUIRED_EVIDENCE_REFERENCES,
@@ -63,81 +66,14 @@ def _evidence_binding_contract(manifest: dict[str, Any]) -> dict[str, Any] | Non
     }
 
 
-def _validate_ladder_bundle_binding(
-    *,
-    case_id: str,
-    assessment: dict[str, Any],
-    evidence_paths: dict[str, Path],
-    instruments: list[str],
-) -> dict[str, Any]:
-    declaration = assessment.get("declaration")
-    if not isinstance(declaration, dict):
-        raise HandoffBundleValidationError(
-            "scientific_evidence_ladder replayed declaration is missing"
-        )
-    if declaration.get("declaration_id") != case_id:
-        raise HandoffBundleValidationError(
-            "scientific_evidence_ladder declaration_id does not match bundle case_id"
-        )
-
-    raw_bindings = declaration.get("source_bindings")
-    if not isinstance(raw_bindings, list):
-        raise HandoffBundleValidationError(
-            "scientific_evidence_ladder source_bindings are missing"
-        )
-    bindings = {
-        item.get("role"): item.get("sha256")
-        for item in raw_bindings
-        if isinstance(item, dict)
-    }
-    required_source_bindings = {
-        label: sha256_file(evidence_paths[label])
-        for label in sorted(_REQUIRED_EVIDENCE_REFERENCES)
-    }
-    for role, expected_sha in required_source_bindings.items():
-        if bindings.get(role) != expected_sha:
-            raise HandoffBundleValidationError(
-                "scientific_evidence_ladder source binding mismatch for " + role
-            )
-
-    subject = declaration.get("subject")
-    if not isinstance(subject, dict):
-        raise HandoffBundleValidationError(
-            "scientific_evidence_ladder subject is missing"
-        )
-    modality = subject.get("modality")
-    if not isinstance(modality, str) or not modality.strip():
-        raise HandoffBundleValidationError(
-            "scientific_evidence_ladder subject.modality is invalid"
-        )
-    normalized_modality = modality.strip().lower()
-    normalized_instruments = sorted({value.strip().lower() for value in instruments})
-    allowed_modalities = set(normalized_instruments)
-    if len(normalized_instruments) > 1:
-        allowed_modalities.update({"multimodal", "multi-modal"})
-    if normalized_modality not in allowed_modalities:
-        raise HandoffBundleValidationError(
-            "scientific_evidence_ladder subject.modality is not represented by bundle instruments"
-        )
-
-    return {
-        "case_id_bound": True,
-        "required_source_roles": sorted(required_source_bindings),
-        "source_digests_bound": True,
-        "subject_modality_bound": True,
-        "bundle_instruments": normalized_instruments,
-    }
-
-
 def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str, Any]:
     """Validate bundle identity, checksums, schemas, joins, and claim boundaries.
 
-    Legacy schema-1.0 bundles without the optional evidence-binding or evidence-ladder
-    sub-contracts retain their original checksum semantics. New hardened producers can
-    bind both feature identity and an independently replayed L0-L8 maturity assessment.
-    Neither sub-contract promotes scientific truth or downstream-use authorization.
+    Schema 1.0 is the legacy closed manifest. Schema 1.1 is reserved for the
+    independently replayable scientific-evidence-ladder extension. The explicit
+    version boundary prevents older closed-world 1.0 consumers from silently
+    accepting an extension they do not understand.
     """
-
     root = Path(bundle_dir)
     if not root.is_dir() or root.is_symlink():
         raise HandoffBundleValidationError("bundle must be a real directory")
@@ -163,8 +99,20 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         },
         "bundle manifest",
     )
-    if manifest.get("schema_version") != BUNDLE_SCHEMA_VERSION:
-        raise HandoffBundleValidationError("unsupported bundle schema_version")
+    schema_version = manifest.get("schema_version")
+    if schema_version not in SUPPORTED_BUNDLE_SCHEMA_VERSIONS:
+        raise HandoffBundleValidationError(
+            f"unsupported bundle schema_version: {schema_version}"
+        )
+    ladder_present = "scientific_evidence_ladder" in manifest
+    if ladder_present and schema_version != EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION:
+        raise HandoffBundleValidationError(
+            "scientific_evidence_ladder requires bundle schema_version 1.1"
+        )
+    if not ladder_present and schema_version != BUNDLE_SCHEMA_VERSION:
+        raise HandoffBundleValidationError(
+            "bundle schema_version 1.1 requires scientific_evidence_ladder"
+        )
     if manifest.get("bundle_type") != BUNDLE_TYPE:
         raise HandoffBundleValidationError("bundle_type mismatch")
     case_id = _nonempty_text(manifest, "case_id")
@@ -278,7 +226,6 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
                 "downstream_use_policy independence_group_field is absent from sample_context"
             )
 
-    ladder_present = "scientific_evidence_ladder" in manifest
     scientific_evidence_ladder: dict[str, Any] | None = None
     scientific_evidence_ladder_assessment_sha256: str | None = None
     scientific_evidence_ladder_bundle_binding: dict[str, Any] | None = None
@@ -290,22 +237,29 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
                     manifest.get("scientific_evidence_ladder"),
                 )
             )
+            validate_scientific_evidence_ladder_bundle_binding(
+                case_id=case_id,
+                record=scientific_evidence_ladder,
+                evidence_references=evidence_summary,
+                instruments=instruments,
+            )
         except EvidenceLadderHandoffError as exc:
             raise HandoffBundleValidationError(
                 f"invalid scientific_evidence_ladder: {exc}"
             ) from exc
-        scientific_evidence_ladder_bundle_binding = _validate_ladder_bundle_binding(
-            case_id=case_id,
-            assessment=ladder_assessment,
-            evidence_paths=evidence_paths,
-            instruments=instruments,
-        )
+        scientific_evidence_ladder_bundle_binding = {
+            "case_id_bound": True,
+            "required_source_roles": sorted(_REQUIRED_EVIDENCE_REFERENCES),
+            "source_digests_bound": True,
+            "subject_modality_bound": True,
+            "bundle_instruments": [item.strip().lower() for item in instruments],
+        }
         scientific_evidence_ladder_assessment_sha256 = ladder_assessment[
             "assessment_sha256"
         ]
 
     return {
-        "schema_version": BUNDLE_SCHEMA_VERSION,
+        "schema_version": schema_version,
         "status": VALIDATION_STATUS,
         "bundle_type": BUNDLE_TYPE,
         "case_id": case_id,
@@ -342,9 +296,9 @@ def validate_characterization_handoff_bundle(bundle_dir: str | Path) -> dict[str
         "scientific_boundary": (
             "Bundle validation establishes checksum integrity and sample-key consistency. "
             "The evidence identity binding can additionally establish exact analysis-feature "
-            "reproduction and source/comparability identity coverage. The optional L0-L8 "
-            "scientific evidence ladder is independently replayed from its declaration and "
-            "is cross-bound to the bundle case, evidence files, and represented modality. "
+            "reproduction and source/comparability identity coverage. The optional schema-1.1 "
+            "L0-L8 scientific evidence ladder is independently replayed from its declaration "
+            "and cross-bound to the bundle case, evidence files, and represented modality. "
             "It identifies maturity/blockers only. No handoff validation mode establishes "
             "identical physical aliquots, cross-modal scientific comparability, causality, "
             "downstream-use authorization, model readiness, or engineering suitability."
