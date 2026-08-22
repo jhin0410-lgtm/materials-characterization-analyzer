@@ -66,7 +66,7 @@ def _write_case(tmp_path: Path, *, include_ladder: bool = True) -> Path:
     ).to_csv(comparability, index=False)
 
     config: dict[str, object] = {
-        "schema_version": "1.0",
+        "schema_version": "1.1" if include_ladder else "1.0",
         "case_id": "autonomous-research-ladder-test",
         "producer_repository": "jhin0410-lgtm/materials-characterization-analyzer",
         "evidence_level": "Diagnostic",
@@ -137,6 +137,7 @@ def test_schema_11_bundle_replays_ladder_and_exposes_first_blocker(tmp_path: Pat
     result = build_characterization_handoff_bundle_from_config(config, output)
     validation = result["validation"]
 
+    assert result["config_schema_version"] == "1.1"
     assert validation["schema_version"] == "1.1"
     assert validation["scientific_evidence_ladder_present"] is True
     ladder = validation["scientific_evidence_ladder"]
@@ -161,10 +162,10 @@ def test_legacy_schema_10_bundle_remains_valid_without_ladder(tmp_path: Path) ->
     config = _write_case(tmp_path, include_ladder=False)
     output = tmp_path / "bundle"
 
-    validation = build_characterization_handoff_bundle_from_config(config, output)[
-        "validation"
-    ]
+    result = build_characterization_handoff_bundle_from_config(config, output)
+    validation = result["validation"]
 
+    assert result["config_schema_version"] == "1.0"
     assert validation["schema_version"] == "1.0"
     assert validation["scientific_evidence_ladder_present"] is False
     assert validation["scientific_evidence_ladder"] is None
