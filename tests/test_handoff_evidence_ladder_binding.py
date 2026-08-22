@@ -88,7 +88,7 @@ def _write_inputs(
     ).to_csv(comparability_path, index=False)
 
     config: dict[str, object] = {
-        "schema_version": "1.0",
+        "schema_version": "1.1" if include_ladder else "1.0",
         "case_id": CASE_ID,
         "producer_repository": "jhin0410-lgtm/materials-characterization-analyzer",
         "evidence_level": "Diagnostic",
@@ -164,6 +164,7 @@ def test_builder_exports_independently_replayed_ladder_without_promotion(
     )
 
     validation = result["validation"]
+    assert result["config_schema_version"] == "1.1"
     assert validation["scientific_evidence_ladder_present"] is True
     ladder = validation["scientific_evidence_ladder"]
     assert ladder["declaration_id"] == CASE_ID
@@ -185,9 +186,28 @@ def test_legacy_bundle_without_ladder_remains_valid(tmp_path: Path) -> None:
         tmp_path / "bundle",
     )
     validation = result["validation"]
+    assert result["config_schema_version"] == "1.0"
     assert validation["scientific_evidence_ladder_present"] is False
     assert validation["scientific_evidence_ladder"] is None
     assert validation["scientific_evidence_ladder_bundle_binding"] is None
+
+
+def test_legacy_config_cannot_smuggle_ladder_field(tmp_path: Path) -> None:
+    config_path = _write_inputs(tmp_path)
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["schema_version"] = "1.0"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(HandoffBundleBuildError, match="schema_version 1.1"):
+        build_characterization_handoff_bundle_from_config(config_path, tmp_path / "bundle")
+
+
+def test_ladder_config_requires_ladder_field(tmp_path: Path) -> None:
+    config_path = _write_inputs(tmp_path, include_ladder=False)
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["schema_version"] = "1.1"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(HandoffBundleBuildError, match="requires scientific_evidence_ladder"):
+        build_characterization_handoff_bundle_from_config(config_path, tmp_path / "bundle")
 
 
 def test_assessment_file_tamper_fails_checksum_validation(tmp_path: Path) -> None:
