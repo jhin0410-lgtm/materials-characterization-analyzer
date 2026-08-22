@@ -15,9 +15,26 @@ from .handoff_bundle import (
 from .handoff_bundle_validation import validate_characterization_handoff_bundle
 from .handoff_validation.validator import EVIDENCE_IDENTITY_BINDING_CONTRACT_VERSION
 
-CONFIG_SCHEMA_VERSION = "1.0"
+LEGACY_CONFIG_SCHEMA_VERSION = "1.0"
+LADDER_CONFIG_SCHEMA_VERSION = "1.1"
+CONFIG_SCHEMA_VERSION = LEGACY_CONFIG_SCHEMA_VERSION
+SUPPORTED_CONFIG_SCHEMA_VERSIONS = (
+    LEGACY_CONFIG_SCHEMA_VERSION,
+    LADDER_CONFIG_SCHEMA_VERSION,
+)
 BUILD_STATUS = "characterization_handoff_bundle_built_and_validated"
 _REQUIRED_EVIDENCE = {"source_manifest", "analysis_manifest", "comparability_matrix"}
+_LEGACY_CONFIG_FIELDS = {
+    "schema_version",
+    "case_id",
+    "producer_repository",
+    "evidence_level",
+    "sample_context_rows",
+    "scientific_boundary",
+    "evidence",
+    "downstream_use_policy",
+}
+_LADDER_CONFIG_FIELDS = _LEGACY_CONFIG_FIELDS | {"scientific_evidence_ladder"}
 _RESERVED_OUTPUT_NAMES = {FEATURE_FILE_NAME, SAMPLE_CONTEXT_FILE_NAME, MANIFEST_FILE_NAME}
 
 
@@ -43,29 +60,33 @@ def _enable_evidence_identity_binding(stage: Path, manifest_path: Path) -> None:
         raise HandoffBundleBuildError("generated handoff manifest escaped staging directory")
 
 
+def _validate_config_schema(config: Mapping[str, Any]) -> str:
+    schema_version = config.get("schema_version")
+    if not isinstance(schema_version, str) or schema_version not in SUPPORTED_CONFIG_SCHEMA_VERSIONS:
+        raise HandoffBundleBuildError("unsupported handoff build config schema_version")
+    ladder_present = "scientific_evidence_ladder" in config
+    if schema_version == LEGACY_CONFIG_SCHEMA_VERSION:
+        _only(config, _LEGACY_CONFIG_FIELDS, "handoff build config")
+        if ladder_present:
+            raise HandoffBundleBuildError(
+                "scientific_evidence_ladder requires handoff build config schema_version 1.1"
+            )
+    else:
+        _only(config, _LADDER_CONFIG_FIELDS, "handoff build config")
+        if not ladder_present:
+            raise HandoffBundleBuildError(
+                "handoff build config schema_version 1.1 requires scientific_evidence_ladder"
+            )
+    return schema_version
+
+
 def build_characterization_handoff_bundle_from_config(
     config_path: str | Path,
     output_dir: str | Path,
 ) -> dict[str, Any]:
     config_file = Path(config_path)
     config = _load_json(config_file, "handoff build config")
-    _only(
-        config,
-        {
-            "schema_version",
-            "case_id",
-            "producer_repository",
-            "evidence_level",
-            "sample_context_rows",
-            "scientific_boundary",
-            "evidence",
-            "downstream_use_policy",
-            "scientific_evidence_ladder",
-        },
-        "handoff build config",
-    )
-    if config.get("schema_version") != CONFIG_SCHEMA_VERSION:
-        raise HandoffBundleBuildError("unsupported handoff build config schema_version")
+    config_schema_version = _validate_config_schema(config)
     case_id = _text(config, "case_id")
     producer_repository = _text(config, "producer_repository")
     evidence_level = _text(config, "evidence_level")
@@ -92,6 +113,10 @@ def build_characterization_handoff_bundle_from_config(
         if ladder_value is None
         else _resolve_input(base, ladder_value, "scientific_evidence_ladder")
     )
+    if config_schema_version == LADDER_CONFIG_SCHEMA_VERSION and ladder_source is None:
+        raise HandoffBundleBuildError(
+            "handoff build config schema_version 1.1 requires a scientific_evidence_ladder file"
+        )
     all_inputs = [*resolved.values(), *([ladder_source] if ladder_source is not None else [])]
     basenames = [path.name for path in all_inputs]
     if len(basenames) != len(set(basenames)):
@@ -143,6 +168,7 @@ def build_characterization_handoff_bundle_from_config(
         stage.replace(output)
         result = {
             "status": BUILD_STATUS,
+            "config_schema_version": config_schema_version,
             "output": str(output),
             "feature_table": str(output / paths["feature_table"].name),
             "sample_context": str(output / paths["sample_context"].name),
