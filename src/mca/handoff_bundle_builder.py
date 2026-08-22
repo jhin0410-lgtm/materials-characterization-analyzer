@@ -66,11 +66,11 @@ def _validate_config_schema(config: Mapping[str, Any]) -> str:
         raise HandoffBundleBuildError("unsupported handoff build config schema_version")
     ladder_present = "scientific_evidence_ladder" in config
     if schema_version == LEGACY_CONFIG_SCHEMA_VERSION:
-        _only(config, _LEGACY_CONFIG_FIELDS, "handoff build config")
         if ladder_present:
             raise HandoffBundleBuildError(
                 "scientific_evidence_ladder requires handoff build config schema_version 1.1"
             )
+        _only(config, _LEGACY_CONFIG_FIELDS, "handoff build config")
     else:
         _only(config, _LADDER_CONFIG_FIELDS, "handoff build config")
         if not ladder_present:
