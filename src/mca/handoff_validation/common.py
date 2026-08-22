@@ -11,10 +11,10 @@ from ..provenance import sha256_file
 
 BUNDLE_SCHEMA_VERSION = "1.0"
 EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION = "1.1"
-SUPPORTED_BUNDLE_SCHEMA_VERSIONS = {
+SUPPORTED_BUNDLE_SCHEMA_VERSIONS = (
     BUNDLE_SCHEMA_VERSION,
     EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION,
-}
+)
 BUNDLE_TYPE = "materials_characterization_feature_handoff"
 FEATURE_FILE_NAME = "characterization_features_long.csv"
 SAMPLE_CONTEXT_FILE_NAME = "sample_context.csv"
