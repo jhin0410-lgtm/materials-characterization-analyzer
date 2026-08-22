@@ -10,6 +10,11 @@ from ..provenance import sha256_file
 
 
 BUNDLE_SCHEMA_VERSION = "1.0"
+EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION = "1.1"
+SUPPORTED_BUNDLE_SCHEMA_VERSIONS = {
+    BUNDLE_SCHEMA_VERSION,
+    EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION,
+}
 BUNDLE_TYPE = "materials_characterization_feature_handoff"
 FEATURE_FILE_NAME = "characterization_features_long.csv"
 SAMPLE_CONTEXT_FILE_NAME = "sample_context.csv"
@@ -40,6 +45,7 @@ _SHA256 = re.compile(r"[0-9a-fA-F]{64}")
 
 class HandoffBundleValidationError(ValueError):
     """Raised when a characterization handoff bundle fails closed."""
+
 
 def _file_record(value: Any, label: str) -> dict[str, Any]:
     record = _object(value, label)
@@ -181,5 +187,3 @@ def _string_int_mapping(value: Any, label: str) -> dict[str, int]:
             raise HandoffBundleValidationError(f"{label} values must be non-negative integers")
         result[key] = count
     return dict(sorted(result.items()))
-
-

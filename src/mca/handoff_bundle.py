@@ -17,9 +17,14 @@ from .downstream_use_contract import (
     validate_downstream_use_policy,
 )
 from .feature_records import LONG_FEATURE_COLUMNS
+from .handoff_evidence_ladder import (
+    build_scientific_evidence_ladder_record,
+    validate_scientific_evidence_ladder_bundle_binding,
+)
 from .provenance import sha256_file
 
 BUNDLE_SCHEMA_VERSION = "1.0"
+EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION = "1.1"
 BUNDLE_TYPE = "materials_characterization_feature_handoff"
 FEATURE_FILE_NAME = "characterization_features_long.csv"
 SAMPLE_CONTEXT_FILE_NAME = "sample_context.csv"
@@ -203,6 +208,7 @@ def write_characterization_handoff_bundle(
     evidence_level: str,
     scientific_boundary: Mapping[str, object],
     downstream_use_policy: Mapping[str, object] | None = None,
+    scientific_evidence_ladder_assessment_path: str | Path | None = None,
 ) -> dict[str, Path]:
     """Write a portable bundle from persisted case evidence without a consumer import."""
     if not case_id.strip():
@@ -272,6 +278,23 @@ def write_characterization_handoff_bundle(
             output, comparability_matrix_path, "comparability matrix"
         ),
     }
+    instruments = sorted(set(feature_table["instrument"].astype(str)))
+    scientific_evidence_ladder: dict[str, Any] | None = None
+    ladder_path: Path | None = None
+    if scientific_evidence_ladder_assessment_path is not None:
+        _relative_reference(
+            output,
+            scientific_evidence_ladder_assessment_path,
+            "scientific evidence-ladder assessment",
+        )
+        ladder_path = Path(scientific_evidence_ladder_assessment_path)
+        scientific_evidence_ladder = build_scientific_evidence_ladder_record(ladder_path)
+        validate_scientific_evidence_ladder_bundle_binding(
+            case_id=case_id,
+            record=scientific_evidence_ladder,
+            evidence_references=evidence_references,
+            instruments=instruments,
+        )
 
     feature_table = feature_table.sort_values(
         ["sample_id", "instrument", "feature_name", "feature_label", "measurement_id"],
@@ -283,7 +306,11 @@ def write_characterization_handoff_bundle(
 
     quality_counts = Counter(str(value) for value in feature_table["quality_flag"])
     manifest = {
-        "schema_version": BUNDLE_SCHEMA_VERSION,
+        "schema_version": (
+            EVIDENCE_LADDER_BUNDLE_SCHEMA_VERSION
+            if scientific_evidence_ladder is not None
+            else BUNDLE_SCHEMA_VERSION
+        ),
         "bundle_type": BUNDLE_TYPE,
         "case_id": case_id,
         "producer": {
@@ -303,7 +330,7 @@ def write_characterization_handoff_bundle(
             "row_count": int(len(feature_table)),
             "sample_count": int(feature_table["sample_id"].nunique()),
             "measurement_count": int(feature_table["measurement_id"].nunique()),
-            "instruments": sorted(set(feature_table["instrument"].astype(str))),
+            "instruments": instruments,
             "quality_flag_counts": dict(sorted(quality_counts.items())),
             "source_sha256_record_count": int(feature_table["source_sha256"].notna().sum()),
             "preprocessing_id_record_count": int(
@@ -322,6 +349,8 @@ def write_characterization_handoff_bundle(
         },
         "downstream_use_policy": normalized_policy,
     }
+    if scientific_evidence_ladder is not None:
+        manifest["scientific_evidence_ladder"] = scientific_evidence_ladder
     manifest_bytes = (
         json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
     ).encode("utf-8")
@@ -334,8 +363,11 @@ def write_characterization_handoff_bundle(
             manifest_path: manifest_bytes,
         },
     )
-    return {
+    result = {
         "feature_table": feature_path,
         "sample_context": context_path,
         "manifest": manifest_path,
     }
+    if ladder_path is not None:
+        result["scientific_evidence_ladder_assessment"] = ladder_path
+    return result

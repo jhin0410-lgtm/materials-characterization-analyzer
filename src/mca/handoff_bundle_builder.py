@@ -60,6 +60,7 @@ def build_characterization_handoff_bundle_from_config(
             "scientific_boundary",
             "evidence",
             "downstream_use_policy",
+            "scientific_evidence_ladder",
         },
         "handoff build config",
     )
@@ -85,12 +86,19 @@ def build_characterization_handoff_bundle_from_config(
 
     base = config_file.resolve().parent
     resolved = {label: _resolve_input(base, value, label) for label, value in evidence.items()}
-    basenames = [path.name for path in resolved.values()]
+    ladder_value = config.get("scientific_evidence_ladder")
+    ladder_source = (
+        None
+        if ladder_value is None
+        else _resolve_input(base, ladder_value, "scientific_evidence_ladder")
+    )
+    all_inputs = [*resolved.values(), *([ladder_source] if ladder_source is not None else [])]
+    basenames = [path.name for path in all_inputs]
     if len(basenames) != len(set(basenames)):
-        raise HandoffBundleBuildError("evidence input basenames must be unique")
+        raise HandoffBundleBuildError("handoff input basenames must be unique")
     collision = sorted(set(basenames) & _RESERVED_OUTPUT_NAMES)
     if collision:
-        raise HandoffBundleBuildError(f"evidence filename conflicts with bundle artifact: {collision[0]}")
+        raise HandoffBundleBuildError(f"input filename conflicts with bundle artifact: {collision[0]}")
 
     output = Path(output_dir)
     if output.exists():
@@ -108,6 +116,10 @@ def build_characterization_handoff_bundle_from_config(
             destination = stage / source.name
             shutil.copyfile(source, destination)
             copied[label] = destination
+        copied_ladder: Path | None = None
+        if ladder_source is not None:
+            copied_ladder = stage / ladder_source.name
+            shutil.copyfile(ladder_source, copied_ladder)
 
         paths = write_characterization_handoff_bundle(
             stage,
@@ -124,11 +136,12 @@ def build_characterization_handoff_bundle_from_config(
                 if downstream_use_policy is not None
                 else None
             ),
+            scientific_evidence_ladder_assessment_path=copied_ladder,
         )
         _enable_evidence_identity_binding(stage, paths["manifest"])
         validation = validate_characterization_handoff_bundle(stage)
         stage.replace(output)
-        return {
+        result = {
             "status": BUILD_STATUS,
             "output": str(output),
             "feature_table": str(output / paths["feature_table"].name),
@@ -136,6 +149,11 @@ def build_characterization_handoff_bundle_from_config(
             "manifest": str(output / paths["manifest"].name),
             "validation": validation,
         }
+        if copied_ladder is not None:
+            result["scientific_evidence_ladder_assessment"] = str(
+                output / copied_ladder.name
+            )
+        return result
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
         raise
