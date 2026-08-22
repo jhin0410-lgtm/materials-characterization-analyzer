@@ -47,7 +47,9 @@ A first blocker at L6, for example, means that lower levels can remain useful wh
 
 ## Backward compatibility
 
-The outer characterization handoff remains schema 1.0. The scientific evidence ladder is an optional, separately versioned sub-contract. Existing schema-1.0 bundles without it retain their previous validation behavior and are reported as having no ladder binding rather than being assigned a fabricated maturity level.
+Legacy handoff bundles remain schema `1.0` and contain no `scientific_evidence_ladder`. A ladder-enabled bundle is explicitly schema `1.1`. The explicit outer schema version is intentional: the original schema-1.0 manifest is closed-world, so adding a new field under the old version would make compatibility ambiguous and would cause strict pre-extension consumers to reject the bundle without a capability signal.
+
+The current validator accepts both forms. Schema `1.0` is interpreted as the legacy no-ladder contract. Schema `1.1` requires the independently replayable ladder record and cannot silently degrade to schema `1.0` semantics.
 
 ## Scientific boundary
 
