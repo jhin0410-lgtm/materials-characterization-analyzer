@@ -8,7 +8,10 @@ import pytest
 
 from mca.evidence_ladder import LEVELS, evaluate_evidence_ladder
 from mca.handoff_bundle import write_characterization_handoff_bundle
-from mca.handoff_bundle_validation import validate_characterization_handoff_bundle
+from mca.handoff_bundle_validation import (
+    HandoffBundleValidationError,
+    validate_characterization_handoff_bundle,
+)
 from mca.handoff_evidence_ladder import (
     EvidenceLadderHandoffError,
     validate_scientific_evidence_ladder_record,
@@ -149,6 +152,19 @@ def test_ladder_enabled_bundle_uses_schema_1_1_and_validates(tmp_path: Path) -> 
     validation = validate_characterization_handoff_bundle(root)
     assert validation["schema_version"] == "1.1"
     assert validation["scientific_evidence_ladder_present"] is True
+
+
+def test_non_string_bundle_schema_fails_with_contract_error(tmp_path: Path) -> None:
+    root = tmp_path / "bundle"
+    paths = _prepare_direct_inputs(root)
+    outputs = _write(root, paths)
+    manifest_path = outputs["manifest"]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["schema_version"] = ["1.1"]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(HandoffBundleValidationError, match="unsupported bundle schema_version"):
+        validate_characterization_handoff_bundle(root)
 
 
 def test_backslash_parent_path_is_rejected_portably(tmp_path: Path) -> None:
