@@ -158,7 +158,7 @@ jobs:
           python-version: "3.11"
 
       - name: Download validated release assets
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: v0-11-0-release-publication-bundle
           path: release-assets
